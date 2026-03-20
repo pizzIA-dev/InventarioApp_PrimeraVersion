@@ -10,11 +10,12 @@ function Reportes() {
   const [reporteMensual, setReporteMensual] = useState(null);
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
+  const [reporteAnio, setReporteAnio] = useState(new Date().getFullYear());
 
   useEffect(() => {
     fetchBalance();
     fetchReporteMensual();
-  }, []);
+  }, [reporteAnio]);
 
   const fetchBalance = async () => {
     try {
@@ -32,7 +33,7 @@ function Reportes() {
 
   const fetchReporteMensual = async () => {
     try {
-      const response = await reportesAPI.getReporteMensual();
+      const response = await reportesAPI.getReporteMensual({ anio: reporteAnio });
       setReporteMensual(response.data);
     } catch (error) {
       console.error('Error fetching reporte mensual:', error);
@@ -63,9 +64,22 @@ function Reportes() {
 
       {/* Filtros */}
       <div className="card" style={{ marginBottom: '24px' }}>
-        <div className="grid grid-3">
+        <div className="grid grid-4">
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Fecha Inicio</label>
+            <label className="form-label">Año (Reporte Mensual)</label>
+            <select 
+              className="form-input" 
+              value={reporteAnio}
+              onChange={(e) => setReporteAnio(e.target.value)}
+            >
+              {[...Array(6)].map((_, i) => {
+                const year = new Date().getFullYear() - i;
+                return <option key={year} value={year}>{year}</option>;
+              })}
+            </select>
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Fecha Inicio (Balance)</label>
             <input
               type="date"
               className="form-input"
@@ -74,7 +88,7 @@ function Reportes() {
             />
           </div>
           <div className="form-group" style={{ marginBottom: 0 }}>
-            <label className="form-label">Fecha Fin</label>
+            <label className="form-label">Fecha Fin (Balance)</label>
             <input
               type="date"
               className="form-input"

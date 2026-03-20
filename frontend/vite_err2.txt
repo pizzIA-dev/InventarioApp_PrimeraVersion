@@ -1,0 +1,28 @@
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 15 modules transformed.
+
+[31mx[39m Build failed in 193ms
+[31merror during build:
+[31m[vite:esbuild] Transform failed with 1 error:
+D:/PROYECTOPROGRAMACION/ProyectoInventario/frontend/src/pages/Ventas.jsx:255:6: ERROR: Expected ";" but found "catch"[31m
+file: [36mD:/PROYECTOPROGRAMACION/ProyectoInventario/frontend/src/pages/Ventas.jsx:255:6[31m
+[33m
+[33mExpected ";" but found "catch"[33m
+253|        closeModal();
+254|        fetchVentas();
+255|      } catch (error) {
+   |        ^
+256|        console.error('Error saving venta:', error);
+257|        const errData = error.response?.data;
+[31m
+    at failureErrorWithLog (D:\PROYECTOPROGRAMACION\ProyectoInventario\frontend\node_modules\esbuild\lib\main.js:1472:15)
+    at D:\PROYECTOPROGRAMACION\ProyectoInventario\frontend\node_modules\esbuild\lib\main.js:755:50
+    at responseCallbacks.<computed> (D:\PROYECTOPROGRAMACION\ProyectoInventario\frontend\node_modules\esbuild\lib\main.js:622:9)
+    at handleIncomingPacket (D:\PROYECTOPROGRAMACION\ProyectoInventario\frontend\node_modules\esbuild\lib\main.js:677:12)
+    at Socket.readFromStdout (D:\PROYECTOPROGRAMACION\ProyectoInventario\frontend\node_modules\esbuild\lib\main.js:600:7)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:191:23)[39m

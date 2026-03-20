@@ -5,7 +5,8 @@ from apps.clientes.models import Cliente
 
 class CategoriaServicio(models.Model):
     """Categoría de servicios"""
-    nombre = models.CharField(max_length=100, unique=True)
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='categorias_servicio', null=True)
+    nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True, null=True)
     activo = models.BooleanField(default=True)
     
@@ -19,6 +20,7 @@ class CategoriaServicio(models.Model):
 
 class Servicio(models.Model):
     """Servicio ofrecido por el negocio"""
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='servicios', null=True)
     nombre = models.CharField(max_length=200)
     descripcion = models.TextField(blank=True, null=True)
     categoria = models.ForeignKey(
@@ -70,6 +72,9 @@ class VentaServicio(models.Model):
         ('TERMINADO', 'Terminado'),
         ('CANCELADO', 'Cancelado'),
     ]
+    
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='ventas_servicio', null=True)
+    comprobante_archivo = models.FileField(upload_to='comprobantes/servicios/', null=True, blank=True)
     
     servicio = models.ForeignKey(
         Servicio, 

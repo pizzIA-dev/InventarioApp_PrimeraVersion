@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { reportesAPI } from '../services/api';
+import { reportesAPI, productosAPI, serviciosAPI } from '../services/api';
 import { 
   WarningOutlined,
 } from '@ant-design/icons';
@@ -11,15 +11,50 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   const [reporteMensual, setReporteMensual] = useState(null);
+  
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedProducto, setSelectedProducto] = useState('');
+  const [selectedServicio, setSelectedServicio] = useState('');
+  const [productos, setProductos] = useState([]);
+  const [servicios, setServicios] = useState([]);
+
+  useEffect(() => {
+    fetchProductos();
+    fetchServicios();
+  }, []);
 
   useEffect(() => {
     fetchDashboardData();
     fetchReporteMensual();
-  }, []);
+  }, [selectedYear, selectedProducto, selectedServicio]);
+
+  const fetchProductos = async () => {
+    try {
+      const response = await productosAPI.getAll();
+      setProductos(response.data.results || response.data);
+    } catch (error) {
+      console.error('Error fetching productos:', error);
+    }
+  };
+
+  const fetchServicios = async () => {
+    try {
+      const response = await serviciosAPI.getAll();
+      setServicios(response.data.results || response.data);
+    } catch (error) {
+      console.error('Error fetching servicios:', error);
+    }
+  };
 
   const fetchDashboardData = async () => {
+    setLoading(true);
     try {
-      const response = await reportesAPI.getDashboard();
+      const params = {};
+      if (selectedYear) params.anio = selectedYear;
+      if (selectedProducto) params.producto_id = selectedProducto;
+      if (selectedServicio) params.servicio_id = selectedServicio;
+      
+      const response = await reportesAPI.getDashboard(params);
       setDashboardData(response.data);
     } catch (error) {
       console.error('Error fetching dashboard:', error);
@@ -30,7 +65,12 @@ function Dashboard() {
 
   const fetchReporteMensual = async () => {
     try {
-      const response = await reportesAPI.getReporteMensual();
+      const params = {};
+      if (selectedYear) params.anio = selectedYear;
+      if (selectedProducto) params.producto_id = selectedProducto;
+      if (selectedServicio) params.servicio_id = selectedServicio;
+      
+      const response = await reportesAPI.getReporteMensual(params);
       setReporteMensual(response.data);
     } catch (error) {
       console.error('Error fetching reporte mensual:', error);
@@ -53,20 +93,70 @@ function Dashboard() {
         <p className="page-subtitle">Resumen general del negocio</p>
       </div>
 
+      <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ width: '150px' }}>
+            <label className="form-label" style={{ fontSize: '13px', marginBottom: '4px' }}>Año</label>
+            <select 
+              className="form-input" 
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+            >
+              {[...Array(6)].map((_, i) => {
+                const year = new Date().getFullYear() - i;
+                return <option key={year} value={year}>{year}</option>;
+              })}
+            </select>
+          </div>
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <label className="form-label" style={{ fontSize: '13px', marginBottom: '4px' }}>Filtrar por Producto</label>
+            <select 
+              className="form-input" 
+              value={selectedProducto}
+              onChange={(e) => {
+                setSelectedProducto(e.target.value);
+                if (e.target.value) setSelectedServicio(''); // Clear servicio if producto selected
+              }}
+            >
+              <option value="">Todos los productos</option>
+              {productos.map(p => (
+                <option key={p.id} value={p.id}>{p.nombre}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <label className="form-label" style={{ fontSize: '13px', marginBottom: '4px' }}>Filtrar por Servicio</label>
+            <select 
+              className="form-input" 
+              value={selectedServicio}
+              onChange={(e) => {
+                setSelectedServicio(e.target.value);
+                if (e.target.value) setSelectedProducto(''); // Clear producto if servicio selected
+              }}
+            >
+              <option value="">Todos los servicios</option>
+              {servicios.map(s => (
+                <option key={s.id} value={s.id}>{s.nombre}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
       {/* Tarjetas de estadísticas */}
       <div className="grid grid-4" style={{ marginBottom: '24px' }}>
         <div className="stat-card">
-          <div className="stat-label">Ventas del Mes</div>
+          <div className="stat-label">Ingresos del Periodo</div>
           <div className="stat-value">
-            S/. {Number(dashboardData?.ventas?.total_mes || 0).toFixed(2)}
+            S/. {Number(dashboardData?.balance?.ingresos_mes || 0).toFixed(2)}
           </div>
-          <div className="stat-label">
-            {dashboardData?.ventas?.cantidad_ventas || 0} ventas
+          <div style={{ fontSize: '12px', color: '#8c8c8c', marginTop: '8px' }}>
+            {dashboardData?.ventas?.cantidad_ventas || 0} vnt de prod / {dashboardData?.servicios?.cantidad_servicios || 0} de serv
           </div>
         </div>
 
         <div className="stat-card green">
-          <div className="stat-label">Balance del Mes</div>
+          <div className="stat-label">Balance del Periodo</div>
           <div className="stat-value">
             S/. {Number(dashboardData?.balance?.balance_mes || 0).toFixed(2)}
           </div>
@@ -111,7 +201,7 @@ function Dashboard() {
                 <YAxis />
                 <Tooltip formatter={(value) => [`S/. ${Number(value).toFixed(2)}`, 'Monto']} />
                 <Legend />
-                <Bar dataKey="ventas" fill="#1890ff" name="Ventas" />
+                <Bar dataKey="ingresos" fill="#1890ff" name="Ingresos (Prod + Serv)" />
                 <Bar dataKey="compras" fill="#faad14" name="Compras" />
               </BarChart>
             </ResponsiveContainer>
@@ -121,7 +211,7 @@ function Dashboard() {
         {/* Gráfico de línea - Balance */}
         <div className="card">
           <div className="card-header">
-            <h3 className="card-title">Balance Mensual</h3>
+            <h3 className="card-title">Balance Mensualizado</h3>
           </div>
           {reporteMensual && (
             <ResponsiveContainer width="100%" height={300}>

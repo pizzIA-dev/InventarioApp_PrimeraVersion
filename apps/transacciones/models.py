@@ -9,6 +9,7 @@ class CategoriaTransaccion(models.Model):
         ('EGRESO', 'Egreso'),
     ]
     
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='categorias_transaccion', null=True)
     nombre = models.CharField(max_length=100)
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
     descripcion = models.TextField(blank=True, null=True)
@@ -29,6 +30,7 @@ class Transaccion(models.Model):
         ('EGRESO', 'Egreso'),
     ]
     
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='transacciones', null=True)
     categoria = models.ForeignKey(
         CategoriaTransaccion, 
         on_delete=models.SET_NULL, 

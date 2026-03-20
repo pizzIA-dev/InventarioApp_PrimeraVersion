@@ -12,6 +12,7 @@ class Venta(models.Model):
         ('CANCELADA', 'Cancelada'),
     ]
     
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='ventas', null=True)
     cliente = models.ForeignKey(
         Cliente, 
         on_delete=models.SET_NULL, 
@@ -24,6 +25,7 @@ class Venta(models.Model):
     # Documento
     numero_comprobante = models.CharField(max_length=50, blank=True, null=True)
     tipo_comprobante = models.CharField(max_length=50, blank=True, null=True)
+    comprobante_archivo = models.FileField(upload_to='comprobantes/ventas/', null=True, blank=True)
     
     # Estado
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='BORRADOR')
@@ -89,6 +91,7 @@ class Venta(models.Model):
 
 class DetalleVenta(models.Model):
     """Detalle de productos en una venta"""
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='detalles_venta', null=True)
     venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name='detalleventa_set')
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.DecimalField(

@@ -17,6 +17,7 @@ class Compra(models.Model):
         ('MINORISTA', 'Compra al por menor'),
     ]
     
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='compras_empresa', null=True)
     proveedor = models.ForeignKey(
         Proveedor, 
         on_delete=models.SET_NULL, 
@@ -29,6 +30,7 @@ class Compra(models.Model):
     # Documento
     numero_comprobante = models.CharField(max_length=50, blank=True, null=True)
     tipo_comprobante = models.CharField(max_length=50, blank=True, null=True)
+    comprobante_archivo = models.FileField(upload_to='comprobantes/compras/', null=True, blank=True)
     
     # Estado
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='BORRADOR')
@@ -88,6 +90,7 @@ class Compra(models.Model):
 
 class DetalleCompra(models.Model):
     """Detalle de productos en una compra"""
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='detalles_compra', null=True)
     compra = models.ForeignKey(Compra, on_delete=models.CASCADE)
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.DecimalField(

@@ -2,10 +2,13 @@ import { useState, useEffect } from 'react';
 import { clientesAPI } from '../services/api';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ExportDropdown from '../components/ExportDropdown';
 
 function Clientes() {
   const [loading, setLoading] = useState(true);
   const [clientes, setClientes] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterTipo, setFilterTipo] = useState('ALL');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedCliente, setSelectedCliente] = useState(null);
@@ -119,6 +122,31 @@ function Clientes() {
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
   };
 
+  const handleExportar = async (periodo, anio) => {
+    try {
+      const params = { periodo };
+      if (anio) params.anio = anio;
+      const response = await clientesAPI.exportar(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `clientes_${periodo}${anio ? '_' + anio : ''}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error al exportar clientes:', error);
+      alert('Error al exportar datos.');
+    }
+  };
+
+  const filteredClientes = clientes.filter(c => {
+    const term = searchTerm.toLowerCase();
+    const searchMatch = c.nombre.toLowerCase().includes(term) || c.numero_documento.toLowerCase().includes(term);
+    const tipoMatch = filterTipo === 'ALL' ? true : c.tipo_cliente === filterTipo;
+    return searchMatch && tipoMatch;
+  });
+
   return (
     <div>
       <ConfirmDialog
@@ -135,9 +163,38 @@ function Clientes() {
           <h1 className="page-title">Clientes</h1>
           <p className="page-subtitle">Gestión de clientes y recurrencia de compras</p>
         </div>
-        <button className="btn btn-primary" onClick={() => openModal('create')}>
-          <PlusOutlined /> Nuevo Cliente
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <ExportDropdown onExport={handleExportar} />
+          <button className="btn btn-primary" onClick={() => openModal('create')}>
+            <PlusOutlined /> Nuevo Cliente
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '250px' }}>
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Buscar por nombre o documento..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div style={{ width: '200px' }}>
+            <select 
+              className="form-input" 
+              value={filterTipo}
+              onChange={(e) => setFilterTipo(e.target.value)}
+            >
+              <option value="ALL">Todos los tipos</option>
+              <option value="PERSONA">Persona Natural</option>
+              <option value="NEGOCIO">Negocio</option>
+              <option value="EMPRESA">Empresa</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <div className="card">
@@ -157,7 +214,7 @@ function Clientes() {
               </tr>
             </thead>
             <tbody>
-              {clientes.map((cliente) => (
+              {filteredClientes.map((cliente) => (
                 <tr key={cliente.id}>
                   <td>{cliente.nombre}</td>
                   <td>
@@ -189,6 +246,13 @@ function Clientes() {
                   </td>
                 </tr>
               ))}
+              {filteredClientes.length === 0 && (
+                <tr>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '24px', color: '#888' }}>
+                    No se encontraron clientes que coincidan con los filtros.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

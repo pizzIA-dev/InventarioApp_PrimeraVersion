@@ -49,7 +49,7 @@ class VentaSerializer(serializers.ModelSerializer):
             'id', 'cliente', 'cliente_nombre', 'cliente_documento',
             'numero_comprobante', 'tipo_comprobante', 'estado',
             'subtotal', 'descuento', 'impuesto', 'total', 'notas',
-            'creado_en', 'actualizado_en', 'detalle'
+            'creado_en', 'actualizado_en', 'detalle', 'comprobante_archivo'
         ]
         read_only_fields = ['subtotal', 'descuento', 'impuesto', 'total', 'creado_en', 'actualizado_en']
 
@@ -62,7 +62,7 @@ class VentaCreateSerializer(serializers.ModelSerializer):
         fields = [
             'cliente', 'cliente_nombre',
             'numero_comprobante', 'tipo_comprobante', 'estado',
-            'descuento', 'impuesto', 'notas', 'detalle'
+            'descuento', 'impuesto', 'notas', 'detalle', 'comprobante_archivo'
         ]
     
     def create(self, validated_data):
@@ -92,7 +92,7 @@ class VentaUpdateSerializer(serializers.ModelSerializer):
         model = Venta
         fields = [
             'cliente', 'cliente_nombre', 'numero_comprobante', 'tipo_comprobante',
-            'estado', 'descuento', 'impuesto', 'notas', 'detalle'
+            'estado', 'descuento', 'impuesto', 'notas', 'detalle', 'comprobante_archivo'
         ]
     
     def get_fields(self):

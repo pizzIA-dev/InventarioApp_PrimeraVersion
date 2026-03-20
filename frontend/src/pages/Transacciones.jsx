@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { transaccionesAPI } from '../services/api';
 import { PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ExportDropdown from '../components/ExportDropdown';
 
 function Transacciones() {
   const [loading, setLoading] = useState(true);
@@ -10,6 +11,8 @@ function Transacciones() {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedTransaccion, setSelectedTransaccion] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterTipo, setFilterTipo] = useState('ALL');
   const [confirmDialog, setConfirmDialog] = useState({ visible: false, id: null, descripcion: '' });
   const [categorias, setCategorias] = useState([]);
   const [formData, setFormData] = useState({
@@ -148,6 +151,31 @@ function Transacciones() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleExportar = async (periodo, anio) => {
+    try {
+      const params = { periodo };
+      if (anio) params.anio = anio;
+      const response = await transaccionesAPI.exportar(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `transacciones_${periodo}${anio ? '_' + anio : ''}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error al exportar transacciones:', error);
+      alert('Error al exportar datos.');
+    }
+  };
+
+  const filteredTransacciones = transacciones.filter(t => {
+    const term = searchTerm.toLowerCase();
+    const searchMatch = (t.descripcion || '').toLowerCase().includes(term);
+    const tipoMatch = filterTipo === 'ALL' ? true : t.tipo === filterTipo;
+    return searchMatch && tipoMatch;
+  });
+
   return (
     <div>
       <ConfirmDialog 
@@ -164,9 +192,12 @@ function Transacciones() {
           <h1 className="page-title">Transacciones</h1>
           <p className="page-subtitle">Registro de ingresos y egresos independientes</p>
         </div>
-        <button className="btn btn-primary" onClick={() => openModal('create')}>
-          <PlusOutlined /> Nueva Transacción
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <ExportDropdown onExport={handleExportar} />
+          <button className="btn btn-primary" onClick={() => openModal('create')}>
+            <PlusOutlined /> Nueva Transacción
+          </button>
+        </div>
       </div>
 
       {/* Resumen */}
@@ -194,6 +225,31 @@ function Transacciones() {
         </div>
       )}
 
+      <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '250px' }}>
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Buscar por descripción..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div style={{ width: '200px' }}>
+            <select 
+              className="form-input" 
+              value={filterTipo}
+              onChange={(e) => setFilterTipo(e.target.value)}
+            >
+              <option value="ALL">Todos los tipos</option>
+              <option value="INGRESO">Ingresos</option>
+              <option value="EGRESO">Egresos</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div className="card">
         <div className="table-container">
           <table>
@@ -209,7 +265,7 @@ function Transacciones() {
               </tr>
             </thead>
             <tbody>
-              {transacciones.map((transaccion) => (
+              {filteredTransacciones.map((transaccion) => (
                 <tr key={transaccion.id}>
                   <td>{new Date(transaccion.fecha).toLocaleDateString()}</td>
                   <td>
@@ -233,6 +289,9 @@ function Transacciones() {
                   </td>
                 </tr>
               ))}
+              {filteredTransacciones.length === 0 && (
+                <tr><td colSpan="7" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay transacciones registradas que coincidan con los filtros</td></tr>
+              )}
             </tbody>
           </table>
         </div>

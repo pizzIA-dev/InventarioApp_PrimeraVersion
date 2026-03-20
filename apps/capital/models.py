@@ -9,6 +9,7 @@ class TipoCapital(models.Model):
         ('BIEN', 'Bien/Activo Fijo'),
     ]
     
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='tipos_capital', null=True)
     nombre = models.CharField(max_length=100)
     tipo = models.CharField(max_length=10, choices=TIPO_CHOICES)
     descripcion = models.TextField(blank=True, null=True)
@@ -30,6 +31,7 @@ class Capital(models.Model):
         ('VENDIDO', 'Vendido'),
     ]
     
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='activos_capital', null=True)
     tipo = models.ForeignKey(TipoCapital, on_delete=models.SET_NULL, null=True)
     nombre = models.CharField(max_length=200)
     descripcion = models.TextField(blank=True, null=True)

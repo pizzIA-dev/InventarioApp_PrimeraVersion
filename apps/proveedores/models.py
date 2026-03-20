@@ -13,9 +13,9 @@ class Proveedor(models.Model):
         ('DISTRIBUIDOR', 'Distribuidor'),
     ]
     
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='proveedores', null=True)
     nombre = models.CharField(max_length=200)
-    identificador = models.CharField(max_length=20, unique=True)  # RUC/DNI/NIT
-    contacto = models.CharField(max_length=100, blank=True, null=True)
+    identificador = models.CharField(max_length=20)  # RUC/DNI/NIT
     email = models.EmailField(blank=True, null=True, validators=[EmailValidator()])
     telefono = models.CharField(max_length=20, blank=True, null=True)
     direccion = models.TextField(blank=True, null=True)
@@ -59,6 +59,7 @@ class Proveedor(models.Model):
 
 class HistoricoPrecio(models.Model):
     """Histórico de precios de productos por proveedor"""
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='historico_precios_proveedor', null=True)
     proveedor = models.ForeignKey(
         Proveedor, 
         on_delete=models.CASCADE,

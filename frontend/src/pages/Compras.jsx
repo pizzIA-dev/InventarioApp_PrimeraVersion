@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { comprasAPI, proveedoresAPI, productosAPI } from '../services/api';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ExportDropdown from '../components/ExportDropdown';
 
 function Compras() {
   const [loading, setLoading] = useState(true);
@@ -9,6 +10,8 @@ function Compras() {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedCompra, setSelectedCompra] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterEstado, setFilterEstado] = useState('ALL');
   const [proveedores, setProveedores] = useState([]);
   const [productos, setProductos] = useState([]);
   const [errors, setErrors] = useState({});
@@ -24,6 +27,40 @@ function Compras() {
     notas: '',
     detalle: [],
   });
+
+  const [nestedModal, setNestedModal] = useState(null);
+  const [nestedFormData, setNestedFormData] = useState({});
+  const [nestedModalIndex, setNestedModalIndex] = useState(null);
+
+  const openNestedModal = (type) => {
+    setNestedModal(type);
+    if (type === 'proveedor') {
+      setNestedFormData({ nombre: '', tipo_documento: 'RUC', numero_documento: '', email: '', telefono: '', direccion: '' });
+    } else if (type === 'producto') {
+      setNestedFormData({ nombre: '', codigo: '', precio_compra: 0, precio_venta: 0, stock_actual: 0 });
+    }
+  };
+
+  const handleNestedSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (nestedModal === 'proveedor') {
+        const res = await proveedoresAPI.create(nestedFormData);
+        await fetchProveedores();
+        setFormData(prev => ({ ...prev, proveedor: res.data.id, proveedor_nombre: res.data.nombre }));
+      } else if (nestedModal === 'producto') {
+        const res = await productosAPI.create(nestedFormData);
+        await fetchProductos();
+        if (nestedModalIndex !== null) {
+           updateDetalle(nestedModalIndex, 'producto', res.data.id);
+        }
+      }
+      setNestedModal(null);
+      setNestedModalIndex(null);
+    } catch (err) {
+      alert('Error creando registro: ' + (err.response?.data?.message || typeof err.response?.data === 'string' ? err.response.data : JSON.stringify(err.response?.data) || err.message));
+    }
+  };
 
   useEffect(() => {
     fetchCompras();
@@ -164,15 +201,27 @@ function Compras() {
     e.preventDefault();
     if (!validate()) return;
     try {
-      const submitData = {
-        ...formData,
-        impuesto: Number(formData.impuesto || 0),
-        detalle: formData.detalle.map(d => ({
-          producto: parseInt(d.producto),
-          cantidad: Number(d.cantidad || 0),
-          precio_compra: Number(d.precio_compra || 0),
-        }))
-      };
+      const submitData = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (key === 'detalle') {
+          submitData.append(key, JSON.stringify(formData.detalle.map(d => ({
+            producto: parseInt(d.producto),
+            cantidad: Number(d.cantidad || 0),
+            precio_compra: Number(d.precio_compra || 0),
+          }))));
+        } else if (key === 'comprobante_archivo') {
+          if (formData[key] instanceof File) {
+            submitData.append(key, formData[key]);
+          }
+        } else if (key === 'impuesto') {
+            submitData.append(key, Number(formData.impuesto || 0));
+        } else {
+            if (formData[key] !== null && formData[key] !== '') {
+                submitData.append(key, formData[key]);
+            }
+        }
+      });
+
       if (modalMode === 'create') {
         await comprasAPI.create(submitData);
       } else {
@@ -223,6 +272,32 @@ function Compras() {
     return Number(subtotal) + Number(formData.impuesto || 0);
   };
 
+  const handleExportar = async (periodo, anio) => {
+    try {
+      const params = { periodo };
+      if (anio) params.anio = anio;
+      const response = await comprasAPI.exportar(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `compras_${periodo}${anio ? '_' + anio : ''}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error al exportar compras:', error);
+      alert('Error al exportar datos.');
+    }
+  };
+
+  const filteredCompras = compras.filter(c => {
+    const term = searchTerm.toLowerCase();
+    const searchMatch = (c.proveedor_nombre || 'Sin proveedor').toLowerCase().includes(term) || 
+                        (c.numero_comprobante || `#${c.id}`).toLowerCase().includes(term);
+    const estadoMatch = filterEstado === 'ALL' ? true : c.estado === filterEstado;
+    return searchMatch && estadoMatch;
+  });
+
   return (
     <div>
       <ConfirmDialog
@@ -240,9 +315,38 @@ function Compras() {
           <h1 className="page-title">Compras</h1>
           <p className="page-subtitle">Registro de compras a proveedores</p>
         </div>
-        <button className="btn btn-primary" onClick={() => openModal('create')}>
-          <PlusOutlined /> Nueva Compra
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <ExportDropdown onExport={handleExportar} />
+          <button className="btn btn-primary" onClick={() => openModal('create')}>
+            <PlusOutlined /> Nueva Compra
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '250px' }}>
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Buscar por proveedor o comprobante..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div style={{ width: '200px' }}>
+            <select 
+              className="form-input" 
+              value={filterEstado}
+              onChange={(e) => setFilterEstado(e.target.value)}
+            >
+              <option value="ALL">Todos los estados</option>
+              <option value="CONFIRMADA">Confirmada</option>
+              <option value="BORRADOR">Borrador</option>
+              <option value="CANCELADA">Cancelada</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <div className="card">
@@ -260,7 +364,7 @@ function Compras() {
               </tr>
             </thead>
             <tbody>
-              {compras.map((compra) => (
+              {filteredCompras.map((compra) => (
                 <tr key={compra.id}>
                   <td>{compra.numero_comprobante || `#${compra.id}`}</td>
                   <td>{compra.proveedor_nombre || 'Sin proveedor'}</td>
@@ -285,8 +389,8 @@ function Compras() {
                   </td>
                 </tr>
               ))}
-              {compras.length === 0 && (
-                <tr><td colSpan="7" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay compras registradas</td></tr>
+              {filteredCompras.length === 0 && (
+                <tr><td colSpan="7" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay compras registradas que coincidan con los filtros</td></tr>
               )}
             </tbody>
           </table>
@@ -312,15 +416,20 @@ function Compras() {
                       className="form-input"
                       value={formData.proveedor}
                       onChange={(e) => {
-                        const prov = proveedores.find(p => p.id === parseInt(e.target.value));
-                        setFormData(prev => ({
-                          ...prev,
-                          proveedor: e.target.value,
-                          proveedor_nombre: prov ? prov.nombre : ''
-                        }));
+                        if (e.target.value === 'NEW') {
+                           openNestedModal('proveedor');
+                        } else {
+                           const prov = proveedores.find(p => p.id === parseInt(e.target.value));
+                           setFormData(prev => ({
+                             ...prev,
+                             proveedor: e.target.value,
+                             proveedor_nombre: prov ? prov.nombre : ''
+                           }));
+                        }
                       }}
                     >
                       <option value="">Sin proveedor</option>
+                      <option value="NEW" style={{ fontWeight: 'bold', color: '#1677ff' }}>➕ Crear Nuevo Proveedor</option>
                       {proveedores.map(p => (
                         <option key={p.id} value={p.id}>{p.nombre}</option>
                       ))}
@@ -371,10 +480,18 @@ function Compras() {
                         <select
                           className={`form-input${errors[`detalle_${index}`] ? ' input-error' : ''}`}
                           value={item.producto}
-                          onChange={(e) => updateDetalle(index, 'producto', e.target.value)}
+                          onChange={(e) => {
+                            if (e.target.value === 'NEW') {
+                              setNestedModalIndex(index);
+                              openNestedModal('producto');
+                            } else {
+                              updateDetalle(index, 'producto', e.target.value);
+                            }
+                          }}
                           style={{ flex: 2, minWidth: 0 }}
                         >
                           <option value="">— Seleccionar producto —</option>
+                          <option value="NEW" style={{ fontWeight: 'bold', color: '#1677ff' }}>➕ Crear Nuevo Producto</option>
                           {productos.map(p => (
                             <option key={p.id} value={p.id}>{p.nombre}</option>
                           ))}
@@ -432,12 +549,57 @@ function Compras() {
                   <label className="form-label">Notas</label>
                   <textarea name="notas" className="form-input" value={formData.notas} onChange={handleChange} rows={2} />
                 </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Comprobante de Pago (Archivo)</label>
+                  <input type="file" name="comprobante_archivo" className="form-input" accept="image/*,.pdf" onChange={(e) => {
+                    if (e.target.files.length > 0) {
+                      setFormData(prev => ({ ...prev, comprobante_archivo: e.target.files[0] }));
+                    }
+                  }} />
+                </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>Cancelar</button>
                 <button type="submit" className="btn btn-primary">
                   {modalMode === 'create' ? 'Crear Compra' : 'Guardar Cambios'}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Nested Create Forms */}
+      {nestedModal && (
+        <div className="modal-overlay" onClick={() => setNestedModal(null)} style={{ zIndex: 1100 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">
+                Crear Nuevo {nestedModal === 'proveedor' ? 'Proveedor' : 'Producto'}
+              </h3>
+              <button className="modal-close" onClick={() => setNestedModal(null)}>×</button>
+            </div>
+            <form onSubmit={handleNestedSubmit} style={{ padding: '20px' }}>
+              {nestedModal === 'proveedor' && (
+                <>
+                  <div className="form-group"><label className="form-label">Nombre *</label><input required className="form-input" value={nestedFormData.nombre} onChange={(e) => setNestedFormData(p => ({...p, nombre: e.target.value}))} /></div>
+                  <div className="form-group"><label className="form-label">Email</label><input type="email" className="form-input" value={nestedFormData.email} onChange={(e) => setNestedFormData(p => ({...p, email: e.target.value}))} /></div>
+                  <div className="form-group"><label className="form-label">Teléfono</label><input className="form-input" value={nestedFormData.telefono} onChange={(e) => setNestedFormData(p => ({...p, telefono: e.target.value}))} /></div>
+                </>
+              )}
+              {nestedModal === 'producto' && (
+                <>
+                  <div className="form-group"><label className="form-label">Nombre del Producto *</label><input required className="form-input" value={nestedFormData.nombre} onChange={(e) => setNestedFormData(p => ({...p, nombre: e.target.value}))} /></div>
+                  <div className="form-group"><label className="form-label">Código</label><input required className="form-input" value={nestedFormData.codigo} onChange={(e) => setNestedFormData(p => ({...p, codigo: e.target.value}))} /></div>
+                  <div className="grid grid-2">
+                     <div className="form-group"><label className="form-label">Precio Compra</label><input type="number" step="0.01" required className="form-input" value={nestedFormData.precio_compra} onChange={(e) => setNestedFormData(p => ({...p, precio_compra: Number(e.target.value)}))} /></div>
+                     <div className="form-group"><label className="form-label">Precio Venta</label><input type="number" step="0.01" required className="form-input" value={nestedFormData.precio_venta} onChange={(e) => setNestedFormData(p => ({...p, precio_venta: Number(e.target.value)}))} /></div>
+                  </div>
+                </>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setNestedModal(null)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary">Guardar {nestedModal === 'proveedor' ? 'Proveedor' : 'Producto'}</button>
               </div>
             </form>
           </div>

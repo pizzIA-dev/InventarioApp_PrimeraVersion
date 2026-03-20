@@ -1,3 +1,7 @@
+from django.http import HttpResponse
+from apps.core.export_utils import (
+    get_period_range, get_period_label, create_excel_response
+)
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -20,9 +24,41 @@ class CompraViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'create':
             return CompraCreateSerializer
-        elif self.action == 'partial_update':
+        elif self.action == 'partial_update' or self.action == 'update':
             return CompraUpdateSerializer
         return CompraSerializer
+    
+    def _parse_multipart_data(self, request):
+        data = request.data.copy() if hasattr(request.data, 'copy') else request.data
+        if hasattr(data, '_mutable'):
+            data._mutable = True
+        detalle = data.get('detalle')
+        if isinstance(detalle, str):
+            import json
+            try:
+                data['detalle'] = json.loads(detalle)
+            except Exception:
+                pass
+        return data
+
+    def create(self, request, *args, **kwargs):
+        data = self._parse_multipart_data(request)
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        data = self._parse_multipart_data(request)
+        serializer = self.get_serializer(instance, data=data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        if getattr(instance, '_prefetched_objects_cache', None):
+            instance._prefetched_objects_cache = {}
+        return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
     def confirmar(self, request, pk=None):
@@ -94,6 +130,45 @@ class CompraViewSet(viewsets.ModelViewSet):
             'monto_total': monto_total,
             'compras_por_proveedor': list(compras_por_proveedor)
         })
+
+    @action(detail=False, methods=['get'])
+    def exportar(self, request):
+        """Exportar compras a Excel con filtro de período"""
+        periodo = request.query_params.get('periodo', 'todo')
+        anio = request.query_params.get('anio')
+        anio = int(anio) if anio else None
+
+        queryset = self.filter_queryset(self.get_queryset())
+
+        period_range = get_period_range(periodo, anio)
+        if period_range:
+            date_from, date_to = period_range
+            queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
+
+        headers = ['ID', 'Comprobante', 'Proveedor', 'Tipo', 'Estado', 'Fecha', 'Subtotal (S/.)', 'Impuesto (S/.)', 'Total (S/.)']
+        rows = []
+        for obj in queryset:
+            rows.append([
+                obj.id,
+                f"{obj.tipo_comprobante or ''} {obj.numero_comprobante or ''}".strip(),
+                obj.proveedor_nombre or (obj.proveedor.nombre if obj.proveedor else 'Sin Proveedor'),
+                obj.get_tipo_compra_display(),
+                obj.get_estado_display(),
+                obj.creado_en.strftime("%Y-%m-%d %H:%M"),
+                float(obj.subtotal),
+                float(obj.impuesto),
+                float(obj.total)
+            ])
+
+        period_label = get_period_label(periodo, anio)
+        return create_excel_response(
+            filename='compras.xlsx',
+            sheet_name='Compras',
+            headers=headers,
+            rows=rows,
+            title='Historial de Compras',
+            period_label=period_label
+        )
 
 
 class DetalleCompraViewSet(viewsets.ReadOnlyModelViewSet):

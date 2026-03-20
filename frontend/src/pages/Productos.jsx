@@ -2,10 +2,14 @@ import { useState, useEffect } from 'react';
 import { productosAPI } from '../services/api';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ExportDropdown from '../components/ExportDropdown';
 
 function Productos() {
   const [loading, setLoading] = useState(true);
   const [productos, setProductos] = useState([]);
+  const [categorias, setCategorias] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStock, setFilterStock] = useState('ALL');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedProducto, setSelectedProducto] = useState(null);
@@ -16,7 +20,6 @@ function Productos() {
     nombre: '',
     descripcion: '',
     categoria: '',
-    stock_inicial: 0,
     stock_actual: 0,
     stock_minimo: 0,
     unidad_medida: 'UN',
@@ -27,7 +30,17 @@ function Productos() {
 
   useEffect(() => {
     fetchProductos();
+    fetchCategorias();
   }, []);
+
+  const fetchCategorias = async () => {
+    try {
+      const response = await productosAPI.getCategorias();
+      setCategorias(response.data.results || response.data);
+    } catch (error) {
+      console.error('Error fetching categorias:', error);
+    }
+  };
 
   const fetchProductos = async () => {
     try {
@@ -49,7 +62,6 @@ function Productos() {
         nombre: producto.nombre || '',
         descripcion: producto.descripcion || '',
         categoria: producto.categoria || '',
-        stock_inicial: producto.stock_inicial || 0,
         stock_actual: producto.stock_actual || 0,
         stock_minimo: producto.stock_minimo || 0,
         unidad_medida: producto.unidad_medida || 'UN',
@@ -63,7 +75,6 @@ function Productos() {
         nombre: '',
         descripcion: '',
         categoria: '',
-        stock_inicial: 0,
         stock_actual: 0,
         stock_minimo: 0,
         unidad_medida: 'UN',
@@ -95,11 +106,9 @@ function Productos() {
         categoria: formData.categoria || null,
         precio_compra: Number(formData.precio_compra),
         precio_venta: Number(formData.precio_venta),
-        stock_inicial: Number(formData.stock_inicial),
+        stock_actual: Number(formData.stock_actual),
         stock_minimo: Number(formData.stock_minimo)
       };
-      // Quitar stock_actual para dejar que el backend lo inicialice o lo mantenga
-      delete submitData.stock_actual;
 
       if (modalMode === 'create') {
         await productosAPI.create(submitData);
@@ -138,6 +147,34 @@ function Productos() {
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
   };
 
+  const handleExportar = async (periodo, anio) => {
+    try {
+      const params = { periodo };
+      if (anio) params.anio = anio;
+      const response = await productosAPI.exportar(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `productos_${periodo}${anio ? '_' + anio : ''}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error al exportar productos:', error);
+      alert('Error al exportar datos.');
+    }
+  };
+
+  const filteredProductos = productos.filter(p => {
+    const searchMatch = p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                        p.codigo.toLowerCase().includes(searchTerm.toLowerCase());
+    const stockMatch = filterStock === 'ALL' ? true : 
+                       filterStock === 'LOW' ? p.stock_bajo : 
+                       filterStock === 'OUT' ? p.stock_actual <= 0 : 
+                       filterStock === 'IN_STOCK' ? p.stock_actual > 0 : true;
+    return searchMatch && stockMatch;
+  });
+
   return (
     <div>
       <ConfirmDialog
@@ -154,9 +191,38 @@ function Productos() {
           <h1 className="page-title">Productos</h1>
           <p className="page-subtitle">Gestión de productos en stock</p>
         </div>
-        <button className="btn btn-primary" onClick={() => openModal('create')}>
-          <PlusOutlined /> Nuevo Producto
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <ExportDropdown onExport={handleExportar} />
+          <button className="btn btn-primary" onClick={() => openModal('create')}>
+            <PlusOutlined /> Nuevo Producto
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '250px' }}>
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Buscar por código o nombre..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div style={{ width: '200px' }}>
+            <select 
+              className="form-input" 
+              value={filterStock}
+              onChange={(e) => setFilterStock(e.target.value)}
+            >
+              <option value="ALL">Todos los estados</option>
+              <option value="IN_STOCK">Con Stock</option>
+              <option value="LOW">Stock Bajo</option>
+              <option value="OUT">Agotados</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <div className="card">
@@ -167,8 +233,7 @@ function Productos() {
                 <th>Código</th>
                 <th>Nombre</th>
                 <th>Categoría</th>
-                <th>Stock Inicial</th>
-                <th>Stock Actual</th>
+                <th>Stock</th>
                 <th>P. Compra</th>
                 <th>P. Venta</th>
                 <th>Margen</th>
@@ -177,12 +242,11 @@ function Productos() {
               </tr>
             </thead>
             <tbody>
-              {productos.map((producto) => (
+              {filteredProductos.map((producto) => (
                 <tr key={producto.id}>
                   <td>{producto.codigo}</td>
                   <td>{producto.nombre}</td>
                   <td>{producto.categoria_nombre || '-'}</td>
-                  <td>{producto.stock_inicial} {producto.unidad_medida}</td>
                   <td>
                     <span style={{ color: producto.stock_bajo ? '#ff4d4f' : 'inherit' }}>
                       {producto.stock_actual} {producto.unidad_medida}
@@ -206,6 +270,13 @@ function Productos() {
                   </td>
                 </tr>
               ))}
+              {filteredProductos.length === 0 && (
+                <tr>
+                  <td colSpan="10" style={{ textAlign: 'center', padding: '24px', color: '#888' }}>
+                    No se encontraron productos que coincidan con los filtros.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -280,12 +351,12 @@ function Productos() {
                     </select>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Stock Inicial *</label>
+                    <label className="form-label">Stock *</label>
                     <input
                       type="number"
-                      name="stock_inicial"
+                      name="stock_actual"
                       className="form-input"
-                      value={formData.stock_inicial}
+                      value={formData.stock_actual}
                       onChange={handleChange}
                       onFocus={(e) => e.target.select()}
                       min="0"

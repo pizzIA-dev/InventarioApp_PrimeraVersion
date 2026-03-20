@@ -1,3 +1,7 @@
+from django.http import HttpResponse
+from apps.core.export_utils import (
+    get_period_range, get_period_label, create_excel_response
+)
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -88,5 +92,42 @@ class TransaccionViewSet(viewsets.ModelViewSet):
                 'total': total,
                 'cantidad': cat.transacciones.count()
             })
-        
         return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def exportar(self, request):
+        """Exportar transacciones a Excel con filtro de período"""
+        periodo = request.query_params.get('periodo', 'todo')
+        anio = request.query_params.get('anio')
+        anio = int(anio) if anio else None
+
+        queryset = self.filter_queryset(self.get_queryset())
+
+        period_range = get_period_range(periodo, anio)
+        if period_range:
+            date_from, date_to = period_range
+            queryset = queryset.filter(fecha__date__gte=date_from, fecha__date__lte=date_to)
+
+        headers = ['ID', 'Tipo', 'Categoría', 'Descripción', 'Monto (S/.)', 'Método de Pago', 'Referencia', 'Fecha']
+        rows = []
+        for obj in queryset:
+            rows.append([
+                obj.id,
+                obj.get_tipo_display(),
+                obj.categoria.nombre if obj.categoria else 'Sin Categoría',
+                obj.descripcion or '',
+                float(obj.monto),
+                obj.get_metodo_pago_display(),
+                obj.referencia or '',
+                obj.fecha.strftime("%Y-%m-%d %H:%M") if obj.fecha else ''
+            ])
+
+        period_label = get_period_label(periodo, anio)
+        return create_excel_response(
+            filename='transacciones.xlsx',
+            sheet_name='Transacciones',
+            headers=headers,
+            rows=rows,
+            title='Registro de Transacciones',
+            period_label=period_label
+        )

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { ventasAPI, productosAPI, clientesAPI } from '../services/api';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { ventasAPI, productosAPI, clientesAPI, serviciosAPI } from '../services/api';
+import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ExportDropdown from '../components/ExportDropdown';
 
 function Ventas() {
   const [loading, setLoading] = useState(true);
@@ -9,8 +10,27 @@ function Ventas() {
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedVenta, setSelectedVenta] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterEstado, setFilterEstado] = useState('ALL');
   const [productos, setProductos] = useState([]);
   const [clientes, setClientes] = useState([]);
+
+  const [activeTab, setActiveTab] = useState('PRODUCTOS');
+  const [ventasServicios, setVentasServicios] = useState([]);
+  const [servicios, setServicios] = useState([]);
+  const [ventaConfirmDialog, setVentaConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
+  const [ventaErrors, setVentaErrors] = useState({});
+  const [ventaData, setVentaData] = useState({
+    servicio: '',
+    servicio_nombre: '',
+    cliente: '',
+    cliente_nombre: '',
+    precio: 0,
+    descuento: 0,
+    fecha_programada: '',
+    estado: 'PENDIENTE',
+    notas: '',
+  });
   const [errors, setErrors] = useState({});
   const [confirmDialog, setConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
   const [formData, setFormData] = useState({
@@ -25,10 +45,61 @@ function Ventas() {
     detalle: [],
   });
 
+  const [nestedModal, setNestedModal] = useState(null);
+  const [nestedFormData, setNestedFormData] = useState({});
+  const [nestedModalIndex, setNestedModalIndex] = useState(null);
+
+  const openNestedModal = (type) => {
+    setNestedModal(type);
+    if (type === 'cliente') {
+      setNestedFormData({ nombre: '', tipo_documento: 'DNI', numero_documento: '', email: '', telefono: '', direccion: '' });
+    } else if (type === 'producto') {
+      setNestedFormData({ nombre: '', codigo: '', precio_compra: 0, precio_venta: 0, stock_actual: 0 });
+    } else if (type === 'servicio') {
+      setNestedFormData({ nombre: '', precio_base: 0, duracion_minutos: 60 });
+    }
+  };
+
+  const handleNestedSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (nestedModal === 'cliente') {
+        const res = await clientesAPI.create(nestedFormData);
+        await fetchClientes();
+        if (modalMode === 'venta' || modalMode === 'editVenta') {
+           setVentaData(prev => ({ ...prev, cliente: res.data.id, cliente_nombre: res.data.nombre }));
+        } else {
+           setFormData(prev => ({ ...prev, cliente: res.data.id, cliente_nombre: res.data.nombre }));
+        }
+      } else if (nestedModal === 'producto') {
+        const res = await productosAPI.create(nestedFormData);
+        await fetchProductos();
+        if (nestedModalIndex !== null) {
+           updateDetalle(nestedModalIndex, 'producto', res.data.id);
+        }
+      } else if (nestedModal === 'servicio') {
+        const res = await serviciosAPI.create(nestedFormData);
+        await fetchServicios();
+        setVentaData(prev => ({
+          ...prev, 
+          servicio: res.data.id, 
+          servicio_nombre: res.data.nombre,
+          precio: res.data.precio_base
+        }));
+      }
+      setNestedModal(null);
+      setNestedModalIndex(null);
+    } catch (err) {
+      alert('Error creando registro: ' + (err.response?.data?.message || typeof err.response?.data === 'string' ? err.response.data : JSON.stringify(err.response?.data) || err.message));
+    }
+  };
+
   useEffect(() => {
     fetchVentas();
     fetchProductos();
     fetchClientes();
+    fetchVentasServicios();
+    fetchServicios();
   }, []);
 
   const fetchVentas = async () => {
@@ -57,6 +128,24 @@ function Ventas() {
       setClientes(response.data.results || response.data);
     } catch (error) {
       console.error('Error fetching clientes:', error);
+    }
+  };
+
+  const fetchVentasServicios = async () => {
+    try {
+      const response = await serviciosAPI.getVentas();
+      setVentasServicios(response.data.results || response.data);
+    } catch (error) {
+      console.error('Error fetching ventas servicios:', error);
+    }
+  };
+
+  const fetchServicios = async () => {
+    try {
+      const response = await serviciosAPI.getAll();
+      setServicios(response.data.results || response.data);
+    } catch (error) {
+      console.error('Error fetching servicios:', error);
     }
   };
 
@@ -115,10 +204,11 @@ function Ventas() {
     setModalVisible(true);
   };
 
-  const closeModal = () => {
+    const closeModal = () => {
     setModalVisible(false);
     setSelectedVenta(null);
     setErrors({});
+    setVentaErrors({});
   };
 
   const addProducto = () => {
@@ -182,17 +272,29 @@ function Ventas() {
     }
 
     try {
-      const submitData = {
-        ...formData,
-        impuesto: Number(formData.impuesto || 0),
-        descuento: Number(formData.descuento || 0),
-        detalle: formData.detalle.map(d => ({
-          producto: parseInt(d.producto),
-          cantidad: Number(d.cantidad || 0),
-          precio_venta: Number(d.precio_venta || 0),
-          descuento: Number(d.descuento || 0),
-        }))
-      };
+      const submitData = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (key === 'detalle') {
+          submitData.append(key, JSON.stringify(formData.detalle.map(d => ({
+            producto: parseInt(d.producto),
+            cantidad: Number(d.cantidad || 0),
+            precio_venta: Number(d.precio_venta || 0),
+            descuento: Number(d.descuento || 0),
+          }))));
+        } else if (key === 'comprobante_archivo') {
+          if (formData[key] instanceof File) {
+            submitData.append(key, formData[key]);
+          }
+        } else if (key === 'impuesto') {
+            submitData.append(key, Number(formData.impuesto || 0));
+        } else if (key === 'descuento') {
+            submitData.append(key, Number(formData.descuento || 0));
+        } else {
+            if (formData[key] !== null && formData[key] !== '') {
+                submitData.append(key, formData[key]);
+            }
+        }
+      });
 
       if (modalMode === 'create') {
         await ventasAPI.create(submitData);
@@ -253,6 +355,11 @@ function Ventas() {
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
   };
 
+  const handleChangeVenta = (e) => {
+    const { name, value } = e.target;
+    setVentaData(prev => ({ ...prev, [name]: value }));
+  };
+
   const calcularTotal = () => {
     const subtotal = formData.detalle.reduce((sum, d) => {
       const cantidad = Number(d.cantidad || 0);
@@ -262,6 +369,172 @@ function Ventas() {
     }, 0);
     return subtotal - Number(formData.descuento || 0) + Number(formData.impuesto || 0);
   };
+
+  
+  const openVentaModal = () => {
+    setVentaErrors({});
+    setVentaData({
+      servicio: '',
+      servicio_nombre: '',
+      cliente: '',
+      cliente_nombre: '',
+      precio: 0,
+      descuento: 0,
+      fecha_programada: '',
+      estado: 'PENDIENTE',
+      notas: '',
+    });
+    setModalMode('venta');
+    setModalVisible(true);
+  };
+
+  const openVentaEditModal = (venta) => {
+    setSelectedVenta(venta);
+    setVentaData({
+      servicio: venta.servicio || '',
+      servicio_nombre: venta.servicio_nombre || '',
+      cliente: venta.cliente || '',
+      cliente_nombre: venta.cliente_nombre || '',
+      precio: venta.precio || 0,
+      descuento: venta.descuento || 0,
+      fecha_programada: venta.fecha_programada ? venta.fecha_programada.substring(0, 16) : '',
+      estado: venta.estado || 'PENDIENTE',
+      notas: venta.notas || '',
+    });
+    setModalMode('editVenta');
+    setVentaErrors({});
+    setModalVisible(true);
+  };
+
+  const handleCompletarServicio = async (id) => {
+    try {
+      await serviciosAPI.completarVenta(id);
+      fetchVentasServicios();
+    } catch (error) {
+      console.error('Error completing servicio:', error);
+    }
+  };
+
+  const handleIniciarServicio = async (id) => {
+    try {
+      await serviciosAPI.iniciarVenta(id);
+      fetchVentasServicios();
+    } catch (error) {
+      console.error('Error initiating servicio:', error);
+    }
+  };
+
+  const handleCancelarServicio = async (id) => {
+    try {
+      await serviciosAPI.cancelarVenta(id);
+      fetchVentasServicios();
+    } catch (error) {
+      console.error('Error canceling servicio:', error);
+    }
+  };
+
+  const handleDeleteVentaClick = (venta) => {
+    setVentaConfirmDialog({ visible: true, id: venta.id, nombre: venta.servicio_nombre || 'Venta de Servicio' });
+  };
+
+  const handleDeleteVentaConfirm = async () => {
+    try {
+      await serviciosAPI.deleteVenta(ventaConfirmDialog.id);
+      setVentaConfirmDialog({ visible: false, id: null, nombre: '' });
+      fetchVentasServicios();
+    } catch (error) {
+      console.error('Error deleting venta de servicio:', error);
+      alert('Error al eliminar');
+    }
+  };
+
+  const handleExportarServicios = async (periodo, anio) => {
+    try {
+      const params = { periodo };
+      if (anio) params.anio = anio;
+      const response = await serviciosAPI.exportar(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `ventas_servicios_${periodo}${anio ? '_' + anio : ''}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error al exportar ventas de servicios:', error);
+      alert('Error al exportar datos.');
+    }
+  };
+
+  const handleVentaSubmit = async (e) => {
+    e.preventDefault();
+    const newVentaErrors = {};
+    if (!ventaData.servicio) newVentaErrors.servicio = 'Debes seleccionar un servicio';
+    if (!ventaData.precio || Number(ventaData.precio) <= 0) newVentaErrors.precio = 'El precio debe ser mayor a 0';
+    if (!ventaData.fecha_programada) newVentaErrors.fecha_programada = 'La fecha programada es obligatoria';
+    
+    if (Object.keys(newVentaErrors).length > 0) {
+      setVentaErrors(newVentaErrors);
+      return;
+    }
+
+    const ventaSubmitData = new FormData();
+    Object.keys(ventaData).forEach(key => {
+        if (key === 'precio') {
+            ventaSubmitData.append(key, Number(ventaData.precio || 0));
+        } else if (key === 'descuento') {
+            ventaSubmitData.append(key, Number(ventaData.descuento || 0));
+        } else if (key === 'comprobante_archivo') {
+            if (ventaData[key] instanceof File) {
+                ventaSubmitData.append(key, ventaData[key]);
+            }
+        } else {
+            if (ventaData[key] !== null && ventaData[key] !== '') {
+                ventaSubmitData.append(key, ventaData[key]);
+            }
+        }
+    });
+
+    try {
+      if (modalMode === 'venta') {
+        await serviciosAPI.createVenta(ventaSubmitData);
+      } else {
+        await serviciosAPI.updateVenta(selectedVenta.id, ventaSubmitData);
+      }
+      closeModal();
+      fetchVentasServicios();
+    } catch (error) {
+      console.error('Error saving venta servicio:', error);
+      alert('Error al guardar la venta de servicio');
+    }
+  };
+
+  const handleExportar = async (periodo, anio) => {
+    try {
+      const params = { periodo };
+      if (anio) params.anio = anio;
+      const response = await ventasAPI.exportar(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `ventas_${periodo}${anio ? '_' + anio : ''}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error al exportar ventas:', error);
+      alert('Error al exportar datos.');
+    }
+  };
+
+
+  const filteredVentas = ventas.filter(v => {
+    const term = searchTerm.toLowerCase();
+    const searchMatch = (v.cliente_nombre || 'Cliente General').toLowerCase().includes(term) || 
+                        (v.numero_comprobante || `#${v.id}`).toLowerCase().includes(term);
+    const estadoMatch = filterEstado === 'ALL' ? true : v.estado === filterEstado;
+    return searchMatch && estadoMatch;
+  });
 
   return (
     <div>
@@ -275,22 +548,92 @@ function Ventas() {
         danger={true}
       />
 
+            <ConfirmDialog
+        visible={ventaConfirmDialog.visible}
+        title="Eliminar Venta de Servicio"
+        message={`¿Estás seguro de que deseas eliminar la venta del servicio "${ventaConfirmDialog.nombre}"? Esta acción no se puede deshacer.`}
+        onConfirm={handleDeleteVentaConfirm}
+        onCancel={() => setVentaConfirmDialog({ visible: false, id: null, nombre: '' })}
+        danger={true}
+      />
+
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">Ventas</h1>
           <p className="page-subtitle">Registro de ventas a clientes</p>
         </div>
-        <button className="btn btn-primary" onClick={() => openModal('create')}>
-          <PlusOutlined /> Nueva Venta
-        </button>
+                <div style={{ display: 'flex', gap: '10px' }}>
+          {activeTab === 'PRODUCTOS' ? (
+            <>
+              <ExportDropdown onExport={handleExportar} label="Exportar Ventas" />
+              <button className="btn btn-primary" onClick={() => openModal('create')}>
+                <PlusOutlined /> Nueva Venta
+              </button>
+            </>
+          ) : (
+            <>
+              <ExportDropdown onExport={handleExportarServicios} label="Exportar Servicios" />
+              <button className="btn btn-primary" onClick={openVentaModal}>
+                <PlusOutlined /> Nueva Venta de Servicio
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      <div className="card">
+      
+      <div className="card" style={{ marginBottom: '24px', padding: 0, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid #eee' }}>
+          <button 
+            style={{ flex: 1, padding: '16px', fontSize: '16px', background: activeTab === 'PRODUCTOS' ? '#ffffff' : '#fafafa', border: 'none', borderBottom: activeTab === 'PRODUCTOS' ? '2px solid #1890ff' : '2px solid transparent', fontWeight: activeTab === 'PRODUCTOS' ? 'bold' : 'normal', color: activeTab === 'PRODUCTOS' ? '#1890ff' : '#666', cursor: 'pointer', transition: 'all 0.3s' }}
+            onClick={() => setActiveTab('PRODUCTOS')}
+          >
+            Venta de Productos
+          </button>
+          <button 
+            style={{ flex: 1, padding: '16px', fontSize: '16px', background: activeTab === 'SERVICIOS' ? '#ffffff' : '#fafafa', border: 'none', borderBottom: activeTab === 'SERVICIOS' ? '2px solid #1890ff' : '2px solid transparent', fontWeight: activeTab === 'SERVICIOS' ? 'bold' : 'normal', color: activeTab === 'SERVICIOS' ? '#1890ff' : '#666', cursor: 'pointer', transition: 'all 0.3s' }}
+            onClick={() => setActiveTab('SERVICIOS')}
+          >
+            Venta de Servicios
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '250px' }}>
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Buscar por cliente o comprobante..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div style={{ width: '200px' }}>
+            <select 
+              className="form-input" 
+              value={filterEstado}
+              onChange={(e) => setFilterEstado(e.target.value)}
+            >
+              <option value="ALL">Todos los estados</option>
+              <option value="CONFIRMADA">Confirmada</option>
+              <option value="BORRADOR">Borrador</option>
+              <option value="CANCELADA">Cancelada</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      
+      {activeTab === 'PRODUCTOS' ? (
+        <div className="card">
         <div className="table-container">
           <table>
             <thead>
               <tr>
                 <th>Nro</th>
+                <th>Detalle</th>
                 <th>Cliente</th>
                 <th>Fecha</th>
                 <th>Estado</th>
@@ -299,9 +642,12 @@ function Ventas() {
               </tr>
             </thead>
             <tbody>
-              {ventas.map((venta) => (
+              {filteredVentas.map((venta) => (
                 <tr key={venta.id}>
-                  <td>{venta.numero_comprobante || `#${venta.id}`}</td>
+                                    <td>{venta.numero_comprobante || `#${venta.id}`}</td>
+                  <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={venta.detalle?.map(d => productos.find(p => p.id === d.producto)?.nombre || 'Producto').join(', ')}>
+                    {venta.detalle?.map(d => productos.find(p => p.id === d.producto)?.nombre || 'Producto').join(', ') || '-'}
+                  </td>
                   <td>{venta.cliente_nombre || 'Cliente General'}</td>
                   <td>{new Date(venta.creado_en).toLocaleDateString()}</td>
                   <td>
@@ -333,26 +679,211 @@ function Ventas() {
                   </td>
                 </tr>
               ))}
-              {ventas.length === 0 && (
-                <tr><td colSpan="6" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay ventas registradas</td></tr>
+              {filteredVentas.length === 0 && (
+                <tr><td colSpan="6" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay ventas registradas que coincidan con los filtros</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
+      ) : (
+        <div className="card">
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Servicio</th>
+                  <th>Cliente</th>
+                  <th>Fecha Programada</th>
+                  <th>Estado</th>
+                  <th>Total</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ventasServicios.filter(v => {
+                  const searchMatch = (v.cliente_nombre || 'Cliente').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                      (v.servicio_nombre || v.servicio).toString().toLowerCase().includes(searchTerm.toLowerCase());
+                  const estadoMatch = filterEstado === 'ALL' ? true : v.estado === filterEstado;
+                  return searchMatch && estadoMatch;
+                }).map((venta) => (
+                  <tr key={venta.id}>
+                    <td>{venta.servicio_nombre || venta.servicio}</td>
+                    <td>{venta.cliente_nombre || 'Cliente General'}</td>
+                    <td>{venta.fecha_programada ? new Date(venta.fecha_programada).toLocaleDateString() : '-'}</td>
+                    <td>
+                      <span className={`badge ${
+                        venta.estado === 'TERMINADO' ? 'badge-success' :
+                        venta.estado === 'CANCELADO' ? 'badge-danger' :
+                        venta.estado === 'EN_PROGRESO' ? 'badge-info' : 'badge-warning'
+                      }`}>
+                        {venta.estado}
+                      </span>
+                    </td>
+                    <td>S/. {Number(venta.total || 0).toFixed(2)}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button className="btn btn-secondary" onClick={() => openVentaEditModal(venta)} title="Editar"><EditOutlined /></button>
+                        {venta.estado === 'PENDIENTE' && (
+                          <button className="btn btn-primary" onClick={() => handleIniciarServicio(venta.id)} title="Iniciar"><PlayCircleOutlined /></button>
+                        )}
+                        {venta.estado === 'EN_PROGRESO' && (
+                          <button className="btn btn-success" onClick={() => handleCompletarServicio(venta.id)} title="Terminar"><CheckOutlined /></button>
+                        )}
+                        {(venta.estado === 'PENDIENTE' || venta.estado === 'EN_PROGRESO') && (
+                          <button className="btn btn-warning" onClick={() => handleCancelarServicio(venta.id)} title="Cancelar" style={{ color: 'white' }}><CloseOutlined /></button>
+                        )}
+                        <button className="btn btn-danger" onClick={() => handleDeleteVentaClick(venta)} title="Eliminar"><DeleteOutlined /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
 
       {modalVisible && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '820px' }}>
             <div className="modal-header">
               <h3 className="modal-title">
-                {modalMode === 'create' ? 'Nueva Venta' : 'Editar Venta'}
+                {modalMode === 'create' ? 'Nueva Venta' : modalMode === 'edit' ? 'Editar Venta' : modalMode === 'venta' ? 'Nueva Venta de Servicio' : 'Editar Venta de Servicio'}
               </h3>
               <button className="modal-close" onClick={closeModal}>×</button>
             </div>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={modalMode === 'venta' || modalMode === 'editVenta' ? handleVentaSubmit : handleSubmit}>
+              
               <div className="modal-body">
-                <div className="grid grid-2">
+                {(modalMode === 'venta' || modalMode === 'editVenta') ? (
+                  <>
+                    <div className="grid grid-2">
+                      <div className="form-group">
+                        <label className="form-label">Servicio</label>
+                        <select
+                          name="servicio"
+                          className={`form-input${ventaErrors.servicio ? ' input-error' : ''}`}
+                          value={ventaData.servicio}
+                          onChange={(e) => {
+                            if (e.target.value === 'NEW') {
+                              openNestedModal('servicio');
+                            } else {
+                              const serv = servicios.find(s => s.id === parseInt(e.target.value));
+                              setVentaData(prev => ({
+                                ...prev,
+                                servicio: e.target.value,
+                                servicio_nombre: serv ? serv.nombre : '',
+                                precio: serv ? Number(serv.precio_base || 0) : 0
+                              }));
+                              if (ventaErrors.servicio) setVentaErrors(prev => ({ ...prev, servicio: null }));
+                            }
+                          }}
+                        >
+                          <option value="">Seleccionar servicio</option>
+                          <option value="NEW" style={{ fontWeight: 'bold', color: '#1677ff' }}>➕ Crear Nuevo Servicio</option>
+                          {servicios.map(s => (
+                            <option key={s.id} value={s.id}>{s.nombre}</option>
+                          ))}
+                        </select>
+                        {ventaErrors.servicio && <div className="error-message" style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{ventaErrors.servicio}</div>}
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Cliente</label>
+                        <select
+                          name="cliente"
+                          className="form-input"
+                          value={ventaData.cliente}
+                          onChange={(e) => {
+                            if (e.target.value === 'NEW') {
+                               openNestedModal('cliente');
+                            } else {
+                               const cli = clientes.find(c => c.id === parseInt(e.target.value));
+                               setVentaData(prev => ({
+                                 ...prev,
+                                 cliente: e.target.value,
+                                 cliente_nombre: cli ? cli.nombre : ''
+                               }));
+                            }
+                          }}
+                        >
+                          <option value="">Cliente General</option>
+                          <option value="NEW" style={{ fontWeight: 'bold', color: '#1677ff' }}>➕ Crear Nuevo Cliente</option>
+                          {clientes.map(c => (
+                            <option key={c.id} value={c.id}>{c.nombre}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-2">
+                      <div className="form-group">
+                        <label className="form-label">Precio (S/.)</label>
+                        <input
+                          type="number"
+                          name="precio"
+                          className={`form-input${ventaErrors.precio ? ' input-error' : ''}`}
+                          value={ventaData.precio}
+                          onChange={handleChangeVenta}
+                          onFocus={(e) => e.target.select()}
+                          min="0"
+                          step="0.01"
+                        />
+                        {ventaErrors.precio && <div className="error-message" style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{ventaErrors.precio}</div>}
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Descuento (S/.)</label>
+                        <input
+                          type="number"
+                          name="descuento"
+                          className="form-input"
+                          value={ventaData.descuento}
+                          onChange={handleChangeVenta}
+                          onFocus={(e) => e.target.select()}
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Fecha Programada</label>
+                      <input
+                        type="datetime-local"
+                        name="fecha_programada"
+                        className={`form-input${ventaErrors.fecha_programada ? ' input-error' : ''}`}
+                        value={ventaData.fecha_programada}
+                        onChange={(e) => {
+                          handleChangeVenta(e);
+                          if (ventaErrors.fecha_programada) setVentaErrors(prev => ({ ...prev, fecha_programada: null }));
+                        }}
+                      />
+                      {ventaErrors.fecha_programada && <div className="error-message" style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{ventaErrors.fecha_programada}</div>}
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Estado</label>
+                        <select
+                          name="estado"
+                          className="form-input"
+                          value={ventaData.estado}
+                          onChange={handleChangeVenta}
+                        >
+                          <option value="PENDIENTE">Pendiente</option>
+                          <option value="EN_PROGRESO">En Progreso</option>
+                          <option value="TERMINADO">Terminado</option>
+                        </select>
+                    </div>
+                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                        <label className="form-label">Comprobante (Archivo)</label>
+                        <input type="file" className="form-input" accept="image/*,.pdf" onChange={(e) => {
+                            if (e.target.files.length > 0) {
+                                setVentaData(prev => ({ ...prev, comprobante_archivo: e.target.files[0] }));
+                            }
+                        }} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="grid grid-2">
                   <div className="form-group">
                     <label className="form-label">Cliente</label>
                     <select
@@ -360,15 +891,20 @@ function Ventas() {
                       className="form-input"
                       value={formData.cliente}
                       onChange={(e) => {
-                        const cliente = clientes.find(c => c.id === parseInt(e.target.value));
-                        setFormData(prev => ({
-                          ...prev,
-                          cliente: e.target.value,
-                          cliente_nombre: cliente ? cliente.nombre : ''
-                        }));
+                        if (e.target.value === 'NEW') {
+                           openNestedModal('cliente');
+                        } else {
+                           const cliente = clientes.find(c => c.id === parseInt(e.target.value));
+                           setFormData(prev => ({
+                             ...prev,
+                             cliente: e.target.value,
+                             cliente_nombre: cliente ? cliente.nombre : ''
+                           }));
+                        }
                       }}
                     >
                       <option value="">Cliente General</option>
+                      <option value="NEW" style={{ fontWeight: 'bold', color: '#1677ff' }}>➕ Crear Nuevo Cliente</option>
                       {clientes.map(c => (
                         <option key={c.id} value={c.id}>{c.nombre}</option>
                       ))}
@@ -398,6 +934,14 @@ function Ventas() {
                       <option value="CANCELADA">Cancelada</option>
                     </select>
                   </div>
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                    <label className="form-label">Comprobante (Archivo)</label>
+                    <input type="file" className="form-input" accept="image/*,.pdf" onChange={(e) => {
+                      if (e.target.files.length > 0) {
+                        setFormData(prev => ({ ...prev, comprobante_archivo: e.target.files[0] }));
+                      }
+                    }} />
+                  </div>
                 </div>
 
                 <div className="form-group">
@@ -422,10 +966,18 @@ function Ventas() {
                         <select
                           className={`form-input${errors[`detalle_${index}`] ? ' input-error' : ''}`}
                           value={item.producto}
-                          onChange={(e) => updateDetalle(index, 'producto', e.target.value)}
+                          onChange={(e) => {
+                            if (e.target.value === 'NEW') {
+                              setNestedModalIndex(index);
+                              openNestedModal('producto');
+                            } else {
+                              updateDetalle(index, 'producto', e.target.value);
+                            }
+                          }}
                           style={{ flex: 2, minWidth: 0 }}
                         >
                           <option value="">— Seleccionar producto —</option>
+                          <option value="NEW" style={{ fontWeight: 'bold', color: '#1677ff' }}>➕ Crear Nuevo Producto</option>
                           {productos.map(p => (
                             <option key={p.id} value={p.id}>
                               {p.nombre} (Stock: {p.stock_actual})
@@ -500,12 +1052,59 @@ function Ventas() {
                   <label className="form-label">Notas</label>
                   <textarea name="notas" className="form-input" value={formData.notas} onChange={handleChange} rows={2} />
                 </div>
+                  </>
+                )}
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>Cancelar</button>
                 <button type="submit" className="btn btn-primary">
-                  {modalMode === 'create' ? 'Crear Venta' : 'Guardar Cambios'}
+                  {modalMode === 'create' || modalMode === 'venta' ? 'Crear Venta' : 'Guardar Cambios'}
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Nested Create Forms */}
+      {nestedModal && (
+        <div className="modal-overlay" onClick={() => setNestedModal(null)} style={{ zIndex: 1100 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">
+                Crear Nuevo {nestedModal === 'cliente' ? 'Cliente' : nestedModal === 'producto' ? 'Producto' : 'Servicio'}
+              </h3>
+              <button className="modal-close" onClick={() => setNestedModal(null)}>×</button>
+            </div>
+            <form onSubmit={handleNestedSubmit} style={{ padding: '20px' }}>
+              {nestedModal === 'cliente' && (
+                <>
+                  <div className="form-group"><label className="form-label">Nombre *</label><input required className="form-input" value={nestedFormData.nombre} onChange={(e) => setNestedFormData(p => ({...p, nombre: e.target.value}))} /></div>
+                  <div className="form-group"><label className="form-label">Email</label><input type="email" className="form-input" value={nestedFormData.email} onChange={(e) => setNestedFormData(p => ({...p, email: e.target.value}))} /></div>
+                  <div className="form-group"><label className="form-label">Teléfono</label><input className="form-input" value={nestedFormData.telefono} onChange={(e) => setNestedFormData(p => ({...p, telefono: e.target.value}))} /></div>
+                </>
+              )}
+              {nestedModal === 'producto' && (
+                <>
+                  <div className="form-group"><label className="form-label">Nombre del Producto *</label><input required className="form-input" value={nestedFormData.nombre} onChange={(e) => setNestedFormData(p => ({...p, nombre: e.target.value}))} /></div>
+                  <div className="form-group"><label className="form-label">Código</label><input required className="form-input" value={nestedFormData.codigo} onChange={(e) => setNestedFormData(p => ({...p, codigo: e.target.value}))} /></div>
+                  <div className="grid grid-2">
+                     <div className="form-group"><label className="form-label">Precio Compra</label><input type="number" step="0.01" required className="form-input" value={nestedFormData.precio_compra} onChange={(e) => setNestedFormData(p => ({...p, precio_compra: Number(e.target.value)}))} /></div>
+                     <div className="form-group"><label className="form-label">Precio Venta</label><input type="number" step="0.01" required className="form-input" value={nestedFormData.precio_venta} onChange={(e) => setNestedFormData(p => ({...p, precio_venta: Number(e.target.value)}))} /></div>
+                  </div>
+                </>
+              )}
+              {nestedModal === 'servicio' && (
+                <>
+                  <div className="form-group"><label className="form-label">Nombre del Servicio *</label><input required className="form-input" value={nestedFormData.nombre} onChange={(e) => setNestedFormData(p => ({...p, nombre: e.target.value}))} /></div>
+                  <div className="grid grid-2">
+                     <div className="form-group"><label className="form-label">Precio Base</label><input type="number" step="0.01" required className="form-input" value={nestedFormData.precio_base} onChange={(e) => setNestedFormData(p => ({...p, precio_base: Number(e.target.value)}))} /></div>
+                     <div className="form-group"><label className="form-label">Duración (min)</label><input type="number" required className="form-input" value={nestedFormData.duracion_minutos} onChange={(e) => setNestedFormData(p => ({...p, duracion_minutos: Number(e.target.value)}))} /></div>
+                  </div>
+                </>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setNestedModal(null)}>Cancelar</button>
+                <button type="submit" className="btn btn-primary">Guardar {nestedModal === 'cliente' ? 'Cliente' : nestedModal === 'producto' ? 'Producto' : 'Servicio'}</button>
               </div>
             </form>
           </div>

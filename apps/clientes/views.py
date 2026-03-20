@@ -1,3 +1,7 @@
+from django.http import HttpResponse
+from apps.core.export_utils import (
+    get_period_range, get_period_label, create_excel_response
+)
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -82,6 +86,44 @@ class ClienteViewSet(viewsets.ModelViewSet):
             })
         
         return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def exportar(self, request):
+        """Exportar clientes a Excel con filtro de período"""
+        periodo = request.query_params.get('periodo', 'todo')
+        anio = request.query_params.get('anio')
+        anio = int(anio) if anio else None
+
+        queryset = self.filter_queryset(self.get_queryset())
+
+        period_range = get_period_range(periodo, anio)
+        if period_range:
+            date_from, date_to = period_range
+            queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
+
+        headers = ['ID', 'Nombre', 'Tipo Cliente', 'Documento', 'Email', 'Teléfono', 'Total Comprado (S/.)', 'Activo']
+        rows = []
+        for obj in queryset:
+            rows.append([
+                obj.id,
+                obj.nombre,
+                obj.tipo_cliente,
+                f"{obj.tipo_documento}: {obj.numero_documento}",
+                obj.email or '',
+                obj.telefono or '',
+                float(obj.total_comprado) if obj.total_comprado else 0.0,
+                'Sí' if obj.activo else 'No'
+            ])
+
+        period_label = get_period_label(periodo, anio)
+        return create_excel_response(
+            filename='clientes.xlsx',
+            sheet_name='Clientes',
+            headers=headers,
+            rows=rows,
+            title='Registro de Clientes',
+            period_label=period_label
+        )
 
 
 class SegmentoClienteViewSet(viewsets.ModelViewSet):

@@ -17,6 +17,7 @@ export const productosAPI = {
   getStockBajo: () => api.get('/productos/stock_bajo/'),
   getMovimientos: (id) => api.get(`/productos/${id}/movimientos/`),
   getCategorias: () => api.get('/productos/categorias/'),
+  exportar: (params) => api.get('/productos/exportar/', { params, responseType: 'blob' }),
 };
 
 // Proveedores
@@ -28,6 +29,7 @@ export const proveedoresAPI = {
   delete: (id) => api.delete(`/proveedores/${id}/`),
   getHistoricoPrecios: (id) => api.get(`/proveedores/${id}/historico_precios/`),
   getEstadisticas: (id) => api.get(`/proveedores/${id}/estadisticas/`),
+  exportar: (params) => api.get('/proveedores/exportar/', { params, responseType: 'blob' }),
 };
 
 // Clientes
@@ -39,31 +41,34 @@ export const clientesAPI = {
   delete: (id) => api.delete(`/clientes/${id}/`),
   getEstadisticas: (id) => api.get(`/clientes/${id}/estadisticas/`),
   getTopClientes: () => api.get('/clientes/top_clientes/'),
+  exportar: (params) => api.get('/clientes/exportar/', { params, responseType: 'blob' }),
 };
 
 // Ventas
 export const ventasAPI = {
   getAll: (params) => api.get('/ventas/', { params }),
   getById: (id) => api.get(`/ventas/${id}/`),
-  create: (data) => api.post('/ventas/', data),
-  update: (id, data) => api.patch(`/ventas/${id}/`, data),
+  create: (data) => api.post('/ventas/', data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {}),
+  update: (id, data) => api.patch(`/ventas/${id}/`, data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {}),
   delete: (id) => api.delete(`/ventas/${id}/`),
   confirmar: (id) => api.post(`/ventas/${id}/confirmar/`),
   cancelar: (id) => api.post(`/ventas/${id}/cancelar/`),
   getResumen: () => api.get('/ventas/resumen/'),
   getProductosMasVendidos: () => api.get('/ventas/productos_mas_vendidos/'),
+  exportar: (params) => api.get('/ventas/exportar/', { params, responseType: 'blob' }),
 };
 
 // Compras
 export const comprasAPI = {
   getAll: (params) => api.get('/compras/', { params }),
   getById: (id) => api.get(`/compras/${id}/`),
-  create: (data) => api.post('/compras/', data),
-  update: (id, data) => api.patch(`/compras/${id}/`, data),
+  create: (data) => api.post('/compras/', data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {}),
+  update: (id, data) => api.patch(`/compras/${id}/`, data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {}),
   delete: (id) => api.delete(`/compras/${id}/`),
   confirmar: (id) => api.post(`/compras/${id}/confirmar/`),
   cancelar: (id) => api.post(`/compras/${id}/cancelar/`),
   getResumen: () => api.get('/compras/resumen/'),
+  exportar: (params) => api.get('/compras/exportar/', { params, responseType: 'blob' }),
 };
 
 // Capital
@@ -86,13 +91,14 @@ export const serviciosAPI = {
   update: (id, data) => api.patch(`/servicios/${id}/`, data),
   delete: (id) => api.delete(`/servicios/${id}/`),
   getVentas: (params) => api.get('/servicios/ventas/', { params }),
-  createVenta: (data) => api.post('/servicios/ventas/', data),
-  updateVenta: (id, data) => api.patch(`/servicios/ventas/${id}/`, data),
+  createVenta: (data) => api.post('/servicios/ventas/', data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {}),
+  updateVenta: (id, data) => api.patch(`/servicios/ventas/${id}/`, data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {}),
   deleteVenta: (id) => api.delete(`/servicios/ventas/${id}/`),
   completarVenta: (id) => api.post(`/servicios/ventas/${id}/completar/`),
   iniciarVenta: (id) => api.post(`/servicios/ventas/${id}/iniciar/`),
   cancelarVenta: (id) => api.post(`/servicios/ventas/${id}/cancelar/`),
   getCategorias: () => api.get('/servicios/categorias/'),
+  exportarVentas: (params) => api.get('/servicios/ventas/exportar/', { params, responseType: 'blob' }),
 };
 
 // Transacciones
@@ -105,12 +111,13 @@ export const transaccionesAPI = {
   getResumen: () => api.get('/transacciones/resumen/'),
   getPorCategoria: () => api.get('/transacciones/por_categoria/'),
   getCategorias: () => api.get('/transacciones/categorias/'),
+  exportar: (params) => api.get('/transacciones/exportar/', { params, responseType: 'blob' }),
 };
 
 // Reportes
 export const reportesAPI = {
   getBalance: (params) => api.get('/reportes/balance/', { params }),
-  getDashboard: () => api.get('/reportes/dashboard/'),
+  getDashboard: (params) => api.get('/reportes/dashboard/', { params }),
   getReporteMensual: (params) => api.get('/reportes/reporte-mensual/', { params }),
 };
 

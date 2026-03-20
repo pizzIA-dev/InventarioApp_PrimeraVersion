@@ -2,10 +2,13 @@ import { useState, useEffect } from 'react';
 import { proveedoresAPI } from '../services/api';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ExportDropdown from '../components/ExportDropdown';
 
 function Proveedores() {
   const [loading, setLoading] = useState(true);
   const [proveedores, setProveedores] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterCategoria, setFilterCategoria] = useState('ALL');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedProveedor, setSelectedProveedor] = useState(null);
@@ -134,6 +137,31 @@ function Proveedores() {
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
   };
 
+  const handleExportar = async (periodo, anio) => {
+    try {
+      const params = { periodo };
+      if (anio) params.anio = anio;
+      const response = await proveedoresAPI.exportar(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `proveedores_${periodo}${anio ? '_' + anio : ''}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error al exportar proveedores:', error);
+      alert('Error al exportar datos.');
+    }
+  };
+
+  const filteredProveedores = proveedores.filter(p => {
+    const term = searchTerm.toLowerCase();
+    const searchMatch = p.nombre.toLowerCase().includes(term) || p.identificador.toLowerCase().includes(term);
+    const catMatch = filterCategoria === 'ALL' ? true : p.categoria === filterCategoria;
+    return searchMatch && catMatch;
+  });
+
   return (
     <div>
       <ConfirmDialog
@@ -150,9 +178,40 @@ function Proveedores() {
           <h1 className="page-title">Proveedores</h1>
           <p className="page-subtitle">Gestión de proveedores y histórico de precios</p>
         </div>
-        <button className="btn btn-primary" onClick={() => openModal('create')}>
-          <PlusOutlined /> Nuevo Proveedor
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <ExportDropdown onExport={handleExportar} />
+          <button className="btn btn-primary" onClick={() => openModal('create')}>
+            <PlusOutlined /> Nuevo Proveedor
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '250px' }}>
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Buscar por nombre o identificador..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div style={{ width: '200px' }}>
+            <select 
+              className="form-input" 
+              value={filterCategoria}
+              onChange={(e) => setFilterCategoria(e.target.value)}
+            >
+              <option value="ALL">Todas las categorías</option>
+              <option value="MAYORISTA">Mayorista</option>
+              <option value="MINORISTA">Minorista</option>
+              <option value="PRODUCTOR">Productor/Fabricante</option>
+              <option value="IMPORTADOR">Importador</option>
+              <option value="DISTRIBUIDOR">Distribuidor</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <div className="card">
@@ -171,7 +230,7 @@ function Proveedores() {
               </tr>
             </thead>
             <tbody>
-              {proveedores.map((proveedor) => (
+              {filteredProveedores.map((proveedor) => (
                 <tr key={proveedor.id}>
                   <td>{proveedor.nombre}</td>
                   <td>{proveedor.identificador}</td>
@@ -199,6 +258,13 @@ function Proveedores() {
                   </td>
                 </tr>
               ))}
+              {filteredProveedores.length === 0 && (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '24px', color: '#888' }}>
+                    No se encontraron proveedores que coincidan con los filtros.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

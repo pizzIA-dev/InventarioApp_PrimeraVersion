@@ -18,6 +18,7 @@ class Cliente(models.Model):
         ('PASAPORTE', 'Pasaporte'),
     ]
     
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='clientes', null=True)
     nombre = models.CharField(max_length=200)
     tipo_cliente = models.CharField(max_length=10, choices=TIPO_CLIENTE_CHOICES, default='PERSONA')
     tipo_documento = models.CharField(max_length=20, choices=TIPO_DOCUMENTO_CHOICES, default='DNI')
@@ -60,6 +61,7 @@ class Cliente(models.Model):
 
 class SegmentoCliente(models.Model):
     """Segmentación de clientes"""
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='segmentos_cliente', null=True)
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(blank=True, null=True)
     descuento_por_defecto = models.DecimalField(

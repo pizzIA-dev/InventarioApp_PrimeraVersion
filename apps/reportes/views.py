@@ -4,8 +4,8 @@ from django.utils import timezone
 from datetime import timedelta, date
 from django.db.models import Sum, Count
 from apps.inventario.models import Producto, MovimientoStock
-from apps.ventas.models import Venta
-from apps.compras.models import Compra
+from apps.ventas.models import Venta, DetalleVenta
+from apps.compras.models import Compra, DetalleCompra
 from apps.servicios.models import VentaServicio
 from apps.transacciones.models import Transaccion
 from apps.clientes.models import Cliente
@@ -94,7 +94,7 @@ class BalanceGeneralView(APIView):
             },
             'balance': {
                 'total': balance,
-                'margen_porcentaje': round(margen, 2),
+                'margen_porcentaje': round(float(margen), 2),
                 'estado': 'GANANCIA' if balance > 0 else ('PÉRDIDA' if balance < 0 else 'EQUILIBRIO')
             }
         })
@@ -105,25 +105,76 @@ class DashboardView(APIView):
     
     def get(self, request):
         hoy = timezone.now().date()
-        inicio_mes = hoy.replace(day=1)
-        inicio_semana = hoy - timedelta(days=hoy.weekday())
+        anio = request.query_params.get('anio')
+        producto_id = request.query_params.get('producto_id')
+        servicio_id = request.query_params.get('servicio_id')
+        
+        if anio:
+            inicio_periodo = date(int(anio), 1, 1)
+            fin_periodo = date(int(anio) + 1, 1, 1)
+            filtro_fechas = {'creado_en__date__gte': inicio_periodo, 'creado_en__date__lt': fin_periodo}
+        else:
+            inicio_periodo = hoy.replace(day=1)
+            filtro_fechas = {'creado_en__date__gte': inicio_periodo}
         
         # MÉTRICAS DE VENTAS
-        ventas_mes = Venta.objects.filter(
-            estado='CONFIRMADA', creado_en__date__gte=inicio_mes
-        )
-        total_ventas_mes = sum(v.total for v in ventas_mes)
+        if producto_id:
+            detalles = DetalleVenta.objects.filter(
+                venta__estado='CONFIRMADA', 
+                producto_id=producto_id,
+                venta__creado_en__date__gte=filtro_fechas.get('creado_en__date__gte')
+            )
+            if 'creado_en__date__lt' in filtro_fechas:
+                detalles = detalles.filter(venta__creado_en__date__lt=filtro_fechas['creado_en__date__lt'])
+            
+            total_ventas_mes = detalles.aggregate(total=Sum('subtotal'))['total'] or 0
+            cantidad_ventas = detalles.values('venta').distinct().count()
+        elif servicio_id:
+            total_ventas_mes = 0
+            cantidad_ventas = 0
+        else:
+            ventas_mes = Venta.objects.filter(estado='CONFIRMADA', **filtro_fechas)
+            total_ventas_mes = sum(v.total for v in ventas_mes)
+            cantidad_ventas = ventas_mes.count()
         
-        servicios_mes = VentaServicio.objects.filter(
-            estado='TERMINADO', creado_en__date__gte=inicio_mes
-        )
-        total_servicios_mes = sum(s.total for s in servicios_mes)
+        # MÉTRICAS DE SERVICIOS
+        if servicio_id:
+            servicios_mes = VentaServicio.objects.filter(
+                estado='TERMINADO', 
+                servicio_id=servicio_id,
+                creado_en__date__gte=filtro_fechas.get('creado_en__date__gte')
+            )
+            if 'creado_en__date__lt' in filtro_fechas:
+                servicios_mes = servicios_mes.filter(creado_en__date__lt=filtro_fechas['creado_en__date__lt'])
+            total_servicios_mes = sum(s.total for s in servicios_mes)
+            cantidad_servicios = servicios_mes.count()
+        elif producto_id:
+            total_servicios_mes = 0
+            cantidad_servicios = 0
+        else:
+            servicios_mes = VentaServicio.objects.filter(estado='TERMINADO', **filtro_fechas)
+            total_servicios_mes = sum(s.total for s in servicios_mes)
+            cantidad_servicios = servicios_mes.count()
         
         # MÉTRICAS DE COMPRAS
-        compras_mes = Compra.objects.filter(
-            estado='CONFIRMADA', creado_en__date__gte=inicio_mes
-        )
-        total_compras_mes = sum(c.total for c in compras_mes)
+        if producto_id:
+            detalles_c = DetalleCompra.objects.filter(
+                compra__estado='CONFIRMADA', 
+                producto_id=producto_id,
+                compra__creado_en__date__gte=filtro_fechas.get('creado_en__date__gte')
+            )
+            if 'creado_en__date__lt' in filtro_fechas:
+                detalles_c = detalles_c.filter(compra__creado_en__date__lt=filtro_fechas['creado_en__date__lt'])
+            
+            total_compras_mes = detalles_c.aggregate(total=Sum('subtotal'))['total'] or 0
+            cantidad_compras = detalles_c.values('compra').distinct().count()
+        elif servicio_id:
+            total_compras_mes = 0
+            cantidad_compras = 0
+        else:
+            compras_mes = Compra.objects.filter(estado='CONFIRMADA', **filtro_fechas)
+            total_compras_mes = sum(c.total for c in compras_mes)
+            cantidad_compras = compras_mes.count()
         
         # STOCK
         total_productos = Producto.objects.filter(activo=True).count()
@@ -134,7 +185,7 @@ class DashboardView(APIView):
         total_clientes = Cliente.objects.filter(activo=True).count()
         total_proveedores = Proveedor.objects.filter(activo=True).count()
         
-        # BALANCE DEL MES
+        # BALANCE DEL PERIODO
         ingresos_mes = total_ventas_mes + total_servicios_mes
         egresos_mes = total_compras_mes
         balance_mes = ingresos_mes - egresos_mes
@@ -142,15 +193,15 @@ class DashboardView(APIView):
         return Response({
             'ventas': {
                 'total_mes': total_ventas_mes,
-                'cantidad_ventas': ventas_mes.count()
+                'cantidad_ventas': cantidad_ventas
             },
             'servicios': {
                 'total_mes': total_servicios_mes,
-                'cantidad_servicios': servicios_mes.count()
+                'cantidad_servicios': cantidad_servicios
             },
             'compras': {
                 'total_mes': total_compras_mes,
-                'cantidad_compras': compras_mes.count()
+                'cantidad_compras': cantidad_compras
             },
             'inventario': {
                 'total_productos': total_productos,
@@ -177,6 +228,8 @@ class ReporteMensualView(APIView):
     
     def get(self, request):
         anio = request.query_params.get('anio', timezone.now().year)
+        producto_id = request.query_params.get('producto_id')
+        servicio_id = request.query_params.get('servicio_id')
         
         datos_mensuales = []
         
@@ -188,28 +241,61 @@ class ReporteMensualView(APIView):
                 fin_mes = date(int(anio), mes + 1, 1)
             
             # Ventas del mes
-            ventas = Venta.objects.filter(
-                estado='CONFIRMADA',
-                creado_en__date__gte=inicio_mes,
-                creado_en__date__lt=fin_mes
-            )
-            total_ventas = sum(v.total for v in ventas)
+            if producto_id:
+                detalles = DetalleVenta.objects.filter(
+                    venta__estado='CONFIRMADA', 
+                    producto_id=producto_id,
+                    venta__creado_en__date__gte=inicio_mes,
+                    venta__creado_en__date__lt=fin_mes
+                )
+                total_ventas = detalles.aggregate(total=Sum('subtotal'))['total'] or 0
+            elif servicio_id:
+                total_ventas = 0
+            else:
+                ventas = Venta.objects.filter(
+                    estado='CONFIRMADA',
+                    creado_en__date__gte=inicio_mes,
+                    creado_en__date__lt=fin_mes
+                )
+                total_ventas = sum(v.total for v in ventas)
             
             # Compras del mes
-            compras = Compra.objects.filter(
-                estado='CONFIRMADA',
-                creado_en__date__gte=inicio_mes,
-                creado_en__date__lt=fin_mes
-            )
-            total_compras = sum(c.total for c in compras)
+            if producto_id:
+                detalles_c = DetalleCompra.objects.filter(
+                    compra__estado='CONFIRMADA', 
+                    producto_id=producto_id,
+                    compra__creado_en__date__gte=inicio_mes,
+                    compra__creado_en__date__lt=fin_mes
+                )
+                total_compras = detalles_c.aggregate(total=Sum('subtotal'))['total'] or 0
+            elif servicio_id:
+                total_compras = 0
+            else:
+                compras = Compra.objects.filter(
+                    estado='CONFIRMADA',
+                    creado_en__date__gte=inicio_mes,
+                    creado_en__date__lt=fin_mes
+                )
+                total_compras = sum(c.total for c in compras)
             
             # Servicios del mes
-            servicios = VentaServicio.objects.filter(
-                estado='TERMINADO',
-                creado_en__date__gte=inicio_mes,
-                creado_en__date__lt=fin_mes
-            )
-            total_servicios = sum(s.total for s in servicios)
+            if servicio_id:
+                servicios = VentaServicio.objects.filter(
+                    estado='TERMINADO',
+                    servicio_id=servicio_id,
+                    creado_en__date__gte=inicio_mes,
+                    creado_en__date__lt=fin_mes
+                )
+                total_servicios = sum(s.total for s in servicios)
+            elif producto_id:
+                total_servicios = 0
+            else:
+                servicios = VentaServicio.objects.filter(
+                    estado='TERMINADO',
+                    creado_en__date__gte=inicio_mes,
+                    creado_en__date__lt=fin_mes
+                )
+                total_servicios = sum(s.total for s in servicios)
             
             # Balance
             ingresos = total_ventas + total_servicios

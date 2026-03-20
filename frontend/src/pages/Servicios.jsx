@@ -2,21 +2,19 @@ import { useState, useEffect } from 'react';
 import { serviciosAPI, clientesAPI } from '../services/api';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ExportDropdown from '../components/ExportDropdown';
 
 function Servicios() {
   const [loading, setLoading] = useState(true);
   const [servicios, setServicios] = useState([]);
-  const [ventasServicios, setVentasServicios] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
-  const [modalMode, setModalMode] = useState('create'); // 'create', 'edit', 'venta', 'editVenta'
+  const [modalMode, setModalMode] = useState('create'); // 'create', 'edit'
   const [selectedServicio, setSelectedServicio] = useState(null);
-  const [selectedVenta, setSelectedVenta] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterActivo, setFilterActivo] = useState('ALL');
   const [confirmDialog, setConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
-  const [ventaConfirmDialog, setVentaConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
   const [categorias, setCategorias] = useState([]);
-  const [clientes, setClientes] = useState([]);
   const [errors, setErrors] = useState({});
-  const [ventaErrors, setVentaErrors] = useState({});
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
@@ -26,23 +24,10 @@ function Servicios() {
     duracion_minutos: '',
     activo: true,
   });
-  const [ventaData, setVentaData] = useState({
-    servicio: '',
-    servicio_nombre: '',
-    cliente: '',
-    cliente_nombre: '',
-    precio: 0,
-    descuento: 0,
-    fecha_programada: '',
-    estado: 'PENDIENTE',
-    notas: '',
-  });
 
   useEffect(() => {
     fetchServicios();
-    fetchVentas();
     fetchCategorias();
-    fetchClientes();
   }, []);
 
   const fetchServicios = async () => {
@@ -56,30 +41,12 @@ function Servicios() {
     }
   };
 
-  const fetchVentas = async () => {
-    try {
-      const response = await serviciosAPI.getVentas();
-      setVentasServicios(response.data.results || response.data);
-    } catch (error) {
-      console.error('Error fetching ventas servicios:', error);
-    }
-  };
-
   const fetchCategorias = async () => {
     try {
       const response = await serviciosAPI.getCategorias();
       setCategorias(response.data.results || response.data);
     } catch (error) {
       console.error('Error fetching categorias:', error);
-    }
-  };
-
-  const fetchClientes = async () => {
-    try {
-      const response = await clientesAPI.getAll();
-      setClientes(response.data.results || response.data);
-    } catch (error) {
-      console.error('Error fetching clientes:', error);
     }
   };
 
@@ -111,47 +78,10 @@ function Servicios() {
     setModalVisible(true);
   };
 
-  const openVentaModal = () => {
-    setVentaErrors({});
-    setVentaData({
-      servicio: '',
-      servicio_nombre: '',
-      cliente: '',
-      cliente_nombre: '',
-      precio: 0,
-      descuento: 0,
-      fecha_programada: '',
-      estado: 'PENDIENTE',
-      notas: '',
-    });
-    setModalMode('venta');
-    setModalVisible(true);
-  };
-
   const closeModal = () => {
     setModalVisible(false);
     setSelectedServicio(null);
-    setSelectedVenta(null);
     setErrors({});
-    setVentaErrors({});
-  };
-
-  const openVentaEditModal = (venta) => {
-    setSelectedVenta(venta);
-    setVentaData({
-      servicio: venta.servicio || '',
-      servicio_nombre: venta.servicio_nombre || '',
-      cliente: venta.cliente || '',
-      cliente_nombre: venta.cliente_nombre || '',
-      precio: venta.precio || 0,
-      descuento: venta.descuento || 0,
-      fecha_programada: venta.fecha_programada ? venta.fecha_programada.substring(0, 16) : '',
-      estado: venta.estado || 'PENDIENTE',
-      notas: venta.notas || '',
-    });
-    setModalMode('editVenta');
-    setVentaErrors({});
-    setModalVisible(true);
   };
 
   const handleSubmit = async (e) => {
@@ -179,35 +109,9 @@ function Servicios() {
         } else {
           await serviciosAPI.update(selectedServicio.id, submitData);
         }
-      } else if (modalMode === 'venta' || modalMode === 'editVenta') {
-        // Validation for Service Sale
-        const newVentaErrors = {};
-        if (!ventaData.servicio) newVentaErrors.servicio = 'Debes seleccionar un servicio';
-        if (!ventaData.precio || Number(ventaData.precio) <= 0) newVentaErrors.precio = 'El precio debe ser mayor a 0';
-        if (!ventaData.fecha_programada) newVentaErrors.fecha_programada = 'La fecha programada es obligatoria';
-        
-        if (Object.keys(newVentaErrors).length > 0) {
-          setVentaErrors(newVentaErrors);
-          return;
-        }
-
-        const ventaSubmitData = {
-          ...ventaData,
-          precio: Number(ventaData.precio || 0),
-          descuento: Number(ventaData.descuento || 0)
-        };
-        if (modalMode === 'venta') {
-          await serviciosAPI.createVenta(ventaSubmitData);
-        } else {
-          await serviciosAPI.updateVenta(selectedVenta.id, ventaSubmitData);
-        }
       }
       closeModal();
-      if (modalMode === 'venta') {
-        fetchVentas();
-      } else {
-        fetchServicios();
-      }
+      fetchServicios();
     } catch (error) {
       console.error('Error saving:', error);
       const errData = error.response?.data;
@@ -215,33 +119,6 @@ function Servicios() {
         : errData?.detail || errData?.message
         || JSON.stringify(errData) || 'Error al guardar';
       alert(msg);
-    }
-  };
-
-  const handleCompletar = async (id) => {
-    try {
-      await serviciosAPI.completarVenta(id);
-      fetchVentas();
-    } catch (error) {
-      console.error('Error completing servicio:', error);
-    }
-  };
-
-  const handleIniciar = async (id) => {
-    try {
-      await serviciosAPI.iniciarVenta(id);
-      fetchVentas();
-    } catch (error) {
-      console.error('Error initiating servicio:', error);
-    }
-  };
-
-  const handleCancelar = async (id) => {
-    try {
-      await serviciosAPI.cancelarVenta(id);
-      fetchVentas();
-    } catch (error) {
-      console.error('Error canceling servicio:', error);
     }
   };
 
@@ -261,26 +138,6 @@ function Servicios() {
     }
   };
 
-  const handleDeleteVentaClick = (venta) => {
-    setVentaConfirmDialog({ 
-      visible: true, 
-      id: venta.id, 
-      nombre: venta.servicio_nombre || 'Venta' 
-    });
-  };
-
-  const handleDeleteVentaConfirm = async () => {
-    if (!ventaConfirmDialog.id) return;
-    try {
-      await serviciosAPI.deleteVenta(ventaConfirmDialog.id);
-      fetchVentas();
-      setVentaConfirmDialog({ visible: false, id: null, nombre: '' });
-    } catch (error) {
-      console.error('Error deleting venta:', error);
-      alert('Error al eliminar la venta');
-    }
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (modalMode === 'venta') {
@@ -289,6 +146,32 @@ function Servicios() {
       setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
+
+  const handleExportar = async (periodo, anio) => {
+    try {
+      const params = { periodo };
+      if (anio) params.anio = anio;
+      const response = await serviciosAPI.exportar(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `servicios_${periodo}${anio ? '_' + anio : ''}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error al exportar servicios:', error);
+      alert('Error al exportar datos.');
+    }
+  };
+
+  const filteredServicios = servicios.filter(s => {
+    const term = searchTerm.toLowerCase();
+    const searchMatch = (s.nombre || '').toLowerCase().includes(term);
+    const activoMatch = filterActivo === 'ALL' ? true : 
+                        (filterActivo === 'ACTIVO' ? s.activo : !s.activo);
+    return searchMatch && activoMatch;
+  });
 
   return (
     <div>
@@ -301,27 +184,41 @@ function Servicios() {
         danger={true}
       />
 
-      <ConfirmDialog 
-        visible={ventaConfirmDialog.visible}
-        onCancel={() => setVentaConfirmDialog({ visible: false, id: null, nombre: '' })}
-        onConfirm={handleDeleteVentaConfirm}
-        title="Eliminar Registro de Venta"
-        message={`¿Estás seguro de que deseas eliminar el registro de venta del servicio "${ventaConfirmDialog.nombre}"? Esta acción no se puede deshacer.`}
-        danger={true}
-      />
-      
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">Servicios</h1>
           <p className="page-subtitle">Gestión de servicios y ventas de servicios</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="btn btn-success" onClick={openVentaModal}>
-            <PlusOutlined /> Nueva Venta de Servicio
-          </button>
+          <ExportDropdown onExport={handleExportar} />
           <button className="btn btn-primary" onClick={() => openModal('create')}>
             <PlusOutlined /> Nuevo Servicio
           </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: '250px' }}>
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Buscar por nombre..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div style={{ width: '200px' }}>
+            <select 
+              className="form-input" 
+              value={filterActivo}
+              onChange={(e) => setFilterActivo(e.target.value)}
+            >
+              <option value="ALL">Todos los estados</option>
+              <option value="ACTIVO">Activos</option>
+              <option value="INACTIVO">Inactivos</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -345,7 +242,7 @@ function Servicios() {
               </tr>
             </thead>
             <tbody>
-              {servicios.map((servicio) => (
+              {filteredServicios.map((servicio) => (
                 <tr key={servicio.id}>
                   <td>{servicio.nombre}</td>
                   <td>{servicio.categoria_nombre || '-'}</td>
@@ -368,94 +265,9 @@ function Servicios() {
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Ventas de Servicios */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">Ventas de Servicios</h3>
-        </div>
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Servicio</th>
-                <th>Cliente</th>
-                <th>Fecha Programada</th>
-                <th>Estado</th>
-                <th>Total</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ventasServicios.map((venta) => (
-                <tr key={venta.id}>
-                  <td>{venta.servicio_nombre || venta.servicio}</td>
-                  <td>{venta.cliente_nombre || 'Cliente'}</td>
-                  <td>{venta.fecha_programada ? new Date(venta.fecha_programada).toLocaleDateString() : '-'}</td>
-                  <td>
-                    <span className={`badge ${
-                      venta.estado === 'TERMINADO' ? 'badge-success' :
-                      venta.estado === 'CANCELADO' ? 'badge-danger' :
-                      venta.estado === 'EN_PROGRESO' ? 'badge-info' : 'badge-warning'
-                    }`}>
-                      {venta.estado}
-                    </span>
-                  </td>
-                  <td>S/. {Number(venta.total || 0).toFixed(2)}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      <button 
-                        className="btn btn-secondary" 
-                        onClick={() => openVentaEditModal(venta)}
-                        title="Editar Venta"
-                      >
-                        <EditOutlined />
-                      </button>
-                      
-                      {venta.estado === 'PENDIENTE' && (
-                        <button 
-                          className="btn btn-primary" 
-                          onClick={() => handleIniciar(venta.id)}
-                          title="Iniciar Servicio"
-                        >
-                          <PlayCircleOutlined />
-                        </button>
-                      )}
-                      {venta.estado === 'EN_PROGRESO' && (
-                        <button 
-                          className="btn btn-success" 
-                          onClick={() => handleCompletar(venta.id)}
-                          title="Terminar"
-                        >
-                          <CheckOutlined />
-                        </button>
-                      )}
-                      {(venta.estado === 'PENDIENTE' || venta.estado === 'EN_PROGRESO') && (
-                        <button 
-                          className="btn btn-warning" 
-                          onClick={() => handleCancelar(venta.id)}
-                          title="Cancelar"
-                          style={{ color: 'white' }}
-                        >
-                          <CloseOutlined />
-                        </button>
-                      )}
-
-                      <button 
-                        className="btn btn-danger" 
-                        onClick={() => handleDeleteVentaClick(venta)}
-                        title="Eliminar Registro"
-                      >
-                        <DeleteOutlined />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filteredServicios.length === 0 && (
+                <tr><td colSpan="8" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay servicios que coincidan con los filtros</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -466,126 +278,13 @@ function Servicios() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">
-                {modalMode === 'create' ? 'Nuevo Servicio' :
-                 modalMode === 'edit' ? 'Editar Servicio' : 
-                 modalMode === 'venta' ? 'Nueva Venta de Servicio' : 'Editar Venta de Servicio'}
+                {modalMode === 'create' ? 'Nuevo Servicio' : 'Editar Servicio'}
               </h3>
               <button className="modal-close" onClick={closeModal}>×</button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
-                {modalMode === 'venta' ? (
-                  <>
-                    <div className="grid grid-2">
-                      <div className="form-group">
-                        <label className="form-label">Servicio</label>
-                        <select
-                          name="servicio"
-                          className={`form-input${ventaErrors.servicio ? ' input-error' : ''}`}
-                          value={ventaData.servicio}
-                          onChange={(e) => {
-                            const serv = servicios.find(s => s.id === parseInt(e.target.value));
-                            setVentaData(prev => ({
-                              ...prev,
-                              servicio: e.target.value,
-                              servicio_nombre: serv ? serv.nombre : '',
-                              precio: serv ? Number(serv.precio_base || 0) : 0
-                            }));
-                            if (ventaErrors.servicio) setVentaErrors(prev => ({ ...prev, servicio: null }));
-                          }}
-                        >
-                          <option value="">Seleccionar servicio</option>
-                          {servicios.map(s => (
-                            <option key={s.id} value={s.id}>{s.nombre}</option>
-                          ))}
-                        </select>
-                        {ventaErrors.servicio && <div className="error-message" style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{ventaErrors.servicio}</div>}
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Cliente</label>
-                        <select
-                          name="cliente"
-                          className="form-input"
-                          value={ventaData.cliente}
-                          onChange={(e) => {
-                            const cli = clientes.find(c => c.id === parseInt(e.target.value));
-                            setVentaData(prev => ({
-                              ...prev,
-                              cliente: e.target.value,
-                              cliente_nombre: cli ? cli.nombre : ''
-                            }));
-                          }}
-                        >
-                          <option value="">Cliente General</option>
-                          {clientes.map(c => (
-                            <option key={c.id} value={c.id}>{c.nombre}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="grid grid-2">
-                      <div className="form-group">
-                        <label className="form-label">Precio (S/.)</label>
-                        <input
-                          type="number"
-                          name="precio"
-                          className={`form-input${ventaErrors.precio ? ' input-error' : ''}`}
-                          value={ventaData.precio}
-                          onChange={(e) => {
-                            handleChange(e);
-                            if (ventaErrors.precio) setVentaErrors(prev => ({ ...prev, precio: null }));
-                          }}
-                          onFocus={(e) => e.target.select()}
-                          min="0"
-                          step="0.01"
-                        />
-                        {ventaErrors.precio && <div className="error-message" style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{ventaErrors.precio}</div>}
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Descuento (S/.)</label>
-                        <input
-                          type="number"
-                          name="descuento"
-                          className="form-input"
-                          value={ventaData.descuento}
-                          onChange={handleChange}
-                          onFocus={(e) => e.target.select()}
-                          min="0"
-                          step="0.01"
-                        />
-                      </div>
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Fecha Programada</label>
-                      <input
-                        type="datetime-local"
-                        name="fecha_programada"
-                        className={`form-input${ventaErrors.fecha_programada ? ' input-error' : ''}`}
-                        value={ventaData.fecha_programada}
-                        onChange={(e) => {
-                          handleChange(e);
-                          if (ventaErrors.fecha_programada) setVentaErrors(prev => ({ ...prev, fecha_programada: null }));
-                        }}
-                      />
-                      {ventaErrors.fecha_programada && <div className="error-message" style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{ventaErrors.fecha_programada}</div>}
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Estado</label>
-                        <select
-                          name="estado"
-                          className="form-input"
-                          value={ventaData.estado}
-                          onChange={handleChange}
-                        >
-                          <option value="PENDIENTE">Pendiente</option>
-                          <option value="EN_PROGRESO">En Progreso</option>
-                          <option value="TERMINADO">Terminado</option>
-                        </select>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="grid grid-2">
+                <div className="grid grid-2">
                       <div className="form-group">
                         <label className="form-label">Nombre *</label>
                         <input
@@ -672,15 +371,13 @@ function Servicios() {
                         min="0"
                       />
                     </div>
-                  </>
-                )}
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>
                   Cancelar
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  {modalMode === 'create' || modalMode === 'venta' ? 'Crear' : 'Guardar'}
+                  {modalMode === 'create' ? 'Crear' : 'Guardar'}
                 </button>
               </div>
             </form>

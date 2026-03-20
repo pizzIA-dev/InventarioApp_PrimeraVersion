@@ -1,3 +1,7 @@
+from django.http import HttpResponse
+from apps.core.export_utils import (
+    get_period_range, get_period_label, create_excel_response
+)
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -118,3 +122,42 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
             'pendientes': pendientes,
             'en_progreso': en_progreso
         })
+
+    @action(detail=False, methods=['get'])
+    def exportar(self, request):
+        """Exportar ventas de servicios a Excel con filtro de período"""
+        periodo = request.query_params.get('periodo', 'todo')
+        anio = request.query_params.get('anio')
+        anio = int(anio) if anio else None
+
+        queryset = self.filter_queryset(self.get_queryset())
+
+        period_range = get_period_range(periodo, anio)
+        if period_range:
+            date_from, date_to = period_range
+            queryset = queryset.filter(fecha_programada__date__gte=date_from, fecha_programada__date__lte=date_to)
+
+        headers = ['ID', 'Servicio', 'Cliente', 'Estado', 'Fecha Programada', 'Fecha Completado', 'Precio (S/.)', 'Descuento (S/.)', 'Total (S/.)']
+        rows = []
+        for obj in queryset:
+            rows.append([
+                obj.id,
+                obj.servicio_nombre or (obj.servicio.nombre if obj.servicio else 'Sin Servicio'),
+                obj.cliente_nombre or (obj.cliente.nombre if obj.cliente else 'Sin Cliente'),
+                obj.get_estado_display(),
+                obj.fecha_programada.strftime("%Y-%m-%d %H:%M") if obj.fecha_programada else '',
+                obj.fecha_completado.strftime("%Y-%m-%d %H:%M") if obj.fecha_completado else '',
+                float(obj.precio),
+                float(obj.descuento),
+                float(obj.total)
+            ])
+
+        period_label = get_period_label(periodo, anio)
+        return create_excel_response(
+            filename='ventas_servicios.xlsx',
+            sheet_name='Ventas de Servicios',
+            headers=headers,
+            rows=rows,
+            title='Historial de Ventas de Servicios',
+            period_label=period_label
+        )

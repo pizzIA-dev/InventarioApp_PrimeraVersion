@@ -1,0 +1,46 @@
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 57 modules transformed.
+
+[31mx[39m Build failed in 441ms
+[31merror during build:
+[31m[vite:esbuild] Transform failed with 3 errors:
+D:/PROYECTOPROGRAMACION/ProyectoInventario/frontend/src/pages/Servicios.jsx:374:16: ERROR: Unexpected closing "div" tag does not match opening "form" tag
+D:/PROYECTOPROGRAMACION/ProyectoInventario/frontend/src/pages/Servicios.jsx:383:14: ERROR: Unexpected closing "form" tag does not match opening "div" tag
+D:/PROYECTOPROGRAMACION/ProyectoInventario/frontend/src/pages/Servicios.jsx:385:14: ERROR: Unterminated regular expression[31m
+file: [36mD:/PROYECTOPROGRAMACION/ProyectoInventario/frontend/src/pages/Servicios.jsx:374:16[31m
+[33m
+[33mUnexpected closing "div" tag does not match opening "form" tag[33m
+372|                      </div>
+373|                  </div>
+374|                </div>
+   |                  ^
+375|                <div className="modal-footer">
+376|                  <button type="button" className="btn btn-secondary" onClick={closeModal}>
+
+[33mUnexpected closing "form" tag does not match opening "div" tag[33m
+381|                  </button>
+382|                </div>
+383|              </form>
+   |                ^
+384|            </div>
+385|          </div>
+
+[33mUnterminated regular expression[33m
+383|              </form>
+384|            </div>
+385|          </div>
+   |                ^
+386|        )}
+387|      </div>
+[31m
+    at failureErrorWithLog (D:\PROYECTOPROGRAMACION\ProyectoInventario\frontend\node_modules\esbuild\lib\main.js:1472:15)
+    at D:\PROYECTOPROGRAMACION\ProyectoInventario\frontend\node_modules\esbuild\lib\main.js:755:50
+    at responseCallbacks.<computed> (D:\PROYECTOPROGRAMACION\ProyectoInventario\frontend\node_modules\esbuild\lib\main.js:622:9)
+    at handleIncomingPacket (D:\PROYECTOPROGRAMACION\ProyectoInventario\frontend\node_modules\esbuild\lib\main.js:677:12)
+    at Socket.readFromStdout (D:\PROYECTOPROGRAMACION\ProyectoInventario\frontend\node_modules\esbuild\lib\main.js:600:7)
+    at Socket.emit (node:events:518:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:191:23)[39m

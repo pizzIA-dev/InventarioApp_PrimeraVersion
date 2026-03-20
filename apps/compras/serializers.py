@@ -41,7 +41,7 @@ class CompraSerializer(serializers.ModelSerializer):
             'id', 'proveedor', 'proveedor_nombre', 'tipo_compra',
             'numero_comprobante', 'tipo_comprobante', 'estado',
             'subtotal', 'impuesto', 'total', 'notas',
-            'creado_en', 'actualizado_en', 'detalle'
+            'creado_en', 'actualizado_en', 'detalle', 'comprobante_archivo'
         ]
         read_only_fields = ['subtotal', 'impuesto', 'total', 'creado_en', 'actualizado_en']
 
@@ -54,7 +54,7 @@ class CompraCreateSerializer(serializers.ModelSerializer):
         fields = [
             'proveedor', 'proveedor_nombre', 'tipo_compra',
             'numero_comprobante', 'tipo_comprobante', 'estado',
-            'impuesto', 'notas', 'detalle'
+            'impuesto', 'notas', 'detalle', 'comprobante_archivo'
         ]
     
     def create(self, validated_data):
@@ -80,7 +80,7 @@ class CompraCreateSerializer(serializers.ModelSerializer):
 class CompraUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Compra
-        fields = ['estado', 'notas']
+        fields = ['estado', 'notas', 'comprobante_archivo']
     
     def update(self, instance, validated_data):
         estado_anterior = instance.estado

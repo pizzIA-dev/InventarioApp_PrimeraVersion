@@ -27,7 +27,7 @@ class ProductoSerializer(serializers.ModelSerializer):
             'precio_compra', 'precio_venta', 'margen_ganancia',
             'activo', 'creado_en', 'actualizado_en'
         ]
-        read_only_fields = ['stock_actual', 'creado_en', 'actualizado_en']
+        read_only_fields = ['creado_en', 'actualizado_en']
     
     def validate_codigo(self, value):
         return value.upper()
@@ -48,7 +48,7 @@ class ProductoCreateSerializer(serializers.ModelSerializer):
             'stock_inicial', 'stock_actual', 'stock_minimo', 'unidad_medida',
             'precio_compra', 'precio_venta', 'activo'
         ]
-        read_only_fields = ['stock_actual']
+        read_only_fields = []
     
     def validate_codigo(self, value):
         return value.upper()
