@@ -1,0 +1,117 @@
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'http://localhost:8000/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Productos
+export const productosAPI = {
+  getAll: (params) => api.get('/productos/', { params }),
+  getById: (id) => api.get(`/productos/${id}/`),
+  create: (data) => api.post('/productos/', data),
+  update: (id, data) => api.patch(`/productos/${id}/`, data),
+  delete: (id) => api.delete(`/productos/${id}/`),
+  getStockBajo: () => api.get('/productos/stock_bajo/'),
+  getMovimientos: (id) => api.get(`/productos/${id}/movimientos/`),
+  getCategorias: () => api.get('/productos/categorias/'),
+};
+
+// Proveedores
+export const proveedoresAPI = {
+  getAll: (params) => api.get('/proveedores/', { params }),
+  getById: (id) => api.get(`/proveedores/${id}/`),
+  create: (data) => api.post('/proveedores/', data),
+  update: (id, data) => api.patch(`/proveedores/${id}/`, data),
+  delete: (id) => api.delete(`/proveedores/${id}/`),
+  getHistoricoPrecios: (id) => api.get(`/proveedores/${id}/historico_precios/`),
+  getEstadisticas: (id) => api.get(`/proveedores/${id}/estadisticas/`),
+};
+
+// Clientes
+export const clientesAPI = {
+  getAll: (params) => api.get('/clientes/', { params }),
+  getById: (id) => api.get(`/clientes/${id}/`),
+  create: (data) => api.post('/clientes/', data),
+  update: (id, data) => api.patch(`/clientes/${id}/`, data),
+  delete: (id) => api.delete(`/clientes/${id}/`),
+  getEstadisticas: (id) => api.get(`/clientes/${id}/estadisticas/`),
+  getTopClientes: () => api.get('/clientes/top_clientes/'),
+};
+
+// Ventas
+export const ventasAPI = {
+  getAll: (params) => api.get('/ventas/', { params }),
+  getById: (id) => api.get(`/ventas/${id}/`),
+  create: (data) => api.post('/ventas/', data),
+  update: (id, data) => api.patch(`/ventas/${id}/`, data),
+  delete: (id) => api.delete(`/ventas/${id}/`),
+  confirmar: (id) => api.post(`/ventas/${id}/confirmar/`),
+  cancelar: (id) => api.post(`/ventas/${id}/cancelar/`),
+  getResumen: () => api.get('/ventas/resumen/'),
+  getProductosMasVendidos: () => api.get('/ventas/productos_mas_vendidos/'),
+};
+
+// Compras
+export const comprasAPI = {
+  getAll: (params) => api.get('/compras/', { params }),
+  getById: (id) => api.get(`/compras/${id}/`),
+  create: (data) => api.post('/compras/', data),
+  update: (id, data) => api.patch(`/compras/${id}/`, data),
+  delete: (id) => api.delete(`/compras/${id}/`),
+  confirmar: (id) => api.post(`/compras/${id}/confirmar/`),
+  cancelar: (id) => api.post(`/compras/${id}/cancelar/`),
+  getResumen: () => api.get('/compras/resumen/'),
+};
+
+// Capital
+export const capitalAPI = {
+  getAll: (params) => api.get('/capital/', { params }),
+  getById: (id) => api.get(`/capital/${id}/`),
+  create: (data) => api.post('/capital/', data),
+  update: (id, data) => api.patch(`/capital/${id}/`, data),
+  delete: (id) => api.delete(`/capital/${id}/`),
+  getResumen: () => api.get('/capital/resumen/'),
+  getPorTipo: () => api.get('/capital/por_tipo/'),
+  getTipos: () => api.get('/capital/tipos/'),
+};
+
+// Servicios
+export const serviciosAPI = {
+  getAll: (params) => api.get('/servicios/', { params }),
+  getById: (id) => api.get(`/servicios/${id}/`),
+  create: (data) => api.post('/servicios/', data),
+  update: (id, data) => api.patch(`/servicios/${id}/`, data),
+  delete: (id) => api.delete(`/servicios/${id}/`),
+  getVentas: (params) => api.get('/servicios/ventas/', { params }),
+  createVenta: (data) => api.post('/servicios/ventas/', data),
+  updateVenta: (id, data) => api.patch(`/servicios/ventas/${id}/`, data),
+  deleteVenta: (id) => api.delete(`/servicios/ventas/${id}/`),
+  completarVenta: (id) => api.post(`/servicios/ventas/${id}/completar/`),
+  iniciarVenta: (id) => api.post(`/servicios/ventas/${id}/iniciar/`),
+  cancelarVenta: (id) => api.post(`/servicios/ventas/${id}/cancelar/`),
+  getCategorias: () => api.get('/servicios/categorias/'),
+};
+
+// Transacciones
+export const transaccionesAPI = {
+  getAll: (params) => api.get('/transacciones/', { params }),
+  getById: (id) => api.get(`/transacciones/${id}/`),
+  create: (data) => api.post('/transacciones/', data),
+  update: (id, data) => api.patch(`/transacciones/${id}/`, data),
+  delete: (id) => api.delete(`/transacciones/${id}/`),
+  getResumen: () => api.get('/transacciones/resumen/'),
+  getPorCategoria: () => api.get('/transacciones/por_categoria/'),
+  getCategorias: () => api.get('/transacciones/categorias/'),
+};
+
+// Reportes
+export const reportesAPI = {
+  getBalance: (params) => api.get('/reportes/balance/', { params }),
+  getDashboard: () => api.get('/reportes/dashboard/'),
+  getReporteMensual: (params) => api.get('/reportes/reporte-mensual/', { params }),
+};
+
+export default api;
