@@ -15,9 +15,16 @@ export const productosAPI = {
   update: (id, data) => api.patch(`/productos/${id}/`, data),
   delete: (id) => api.delete(`/productos/${id}/`),
   getStockBajo: () => api.get('/productos/stock_bajo/'),
-  getMovimientos: (id) => api.get(`/productos/${id}/movimientos/`),
-  getCategorias: () => api.get('/productos/categorias/'),
+  getMovimientos: (id, params = {}) => api.get(`/productos/${id}/movimientos/`, { params }),
   exportar: (params) => api.get('/productos/exportar/', { params, responseType: 'blob' }),
+  exportarMovimientos: (id) => api.get(`/productos/${id}/exportar_movimientos/`, { responseType: 'blob' }),
+  exportarDiarioMovimientos: (params) => api.get('/productos/movimientos/exportar/', { params, responseType: 'blob' }),
+};
+
+// Categorias
+export const categoriasAPI = {
+  getAll: (params) => api.get('/productos/categorias/', { params }),
+  create: (data) => api.post('/productos/categorias/', data),
 };
 
 // Proveedores

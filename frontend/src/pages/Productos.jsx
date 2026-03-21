@@ -1,32 +1,58 @@
 import { useState, useEffect } from 'react';
-import { productosAPI } from '../services/api';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { productosAPI, categoriasAPI } from '../services/api';
+import { PlusOutlined, EditOutlined, DeleteOutlined, HistoryOutlined } from '@ant-design/icons';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
+import ProductFormModal from '../components/ProductFormModal';
 
 function Productos() {
   const [loading, setLoading] = useState(true);
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterEstado, setFilterEstado] = useState('ALL');
+  const [filterCategoria, setFilterCategoria] = useState('ALL');
   const [filterStock, setFilterStock] = useState('ALL');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedProducto, setSelectedProducto] = useState(null);
-  const [errors, setErrors] = useState({});
   const [confirmDialog, setConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
-  const [formData, setFormData] = useState({
-    codigo: '',
-    nombre: '',
-    descripcion: '',
-    categoria: '',
-    stock_actual: 0,
-    stock_minimo: 0,
-    unidad_medida: 'UN',
-    precio_compra: 0,
-    precio_venta: 0,
-    activo: true,
-  });
+
+  // Products table pagination
+  const PRODUCTS_PAGE_SIZE = 15;
+  const [productsPage, setProductsPage] = useState(1);
+
+  // History Modal States
+  const [historyModalVisible, setHistoryModalVisible] = useState(false);
+  const [selectedHistoryProduct, setSelectedHistoryProduct] = useState(null);
+  const [stockHistory, setStockHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize] = useState(15);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyFechaDesde, setHistoryFechaDesde] = useState('');
+  const [historyFechaHasta, setHistoryFechaHasta] = useState('');
+
+  const fetchHistory = async (productoId, page = 1, fechaDesde = '', fechaHasta = '') => {
+    setLoadingHistory(true);
+    try {
+      const params = { page, page_size: historyPageSize };
+      if (fechaDesde) params.fecha_desde = fechaDesde;
+      if (fechaHasta) params.fecha_hasta = fechaHasta;
+      const response = await productosAPI.getMovimientos(productoId, params);
+      const data = response.data;
+      setStockHistory(data.results || []);
+      setHistoryTotal(data.count || 0);
+      setHistoryTotalPages(data.total_pages || 1);
+      setHistoryPage(data.page || 1);
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      alert('Error al cargar el historial del producto.');
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
 
   useEffect(() => {
     fetchProductos();
@@ -35,7 +61,7 @@ function Productos() {
 
   const fetchCategorias = async () => {
     try {
-      const response = await productosAPI.getCategorias();
+      const response = await categoriasAPI.getAll();
       setCategorias(response.data.results || response.data);
     } catch (error) {
       console.error('Error fetching categorias:', error);
@@ -55,72 +81,13 @@ function Productos() {
 
   const openModal = (mode, producto = null) => {
     setModalMode(mode);
-    if (producto) {
-      setSelectedProducto(producto);
-      setFormData({
-        codigo: producto.codigo || '',
-        nombre: producto.nombre || '',
-        descripcion: producto.descripcion || '',
-        categoria: producto.categoria || '',
-        stock_actual: producto.stock_actual || 0,
-        stock_minimo: producto.stock_minimo || 0,
-        unidad_medida: producto.unidad_medida || 'UN',
-        precio_compra: producto.precio_compra || 0,
-        precio_venta: producto.precio_venta || 0,
-        activo: producto.activo !== undefined ? producto.activo : true,
-      });
-    } else {
-      setFormData({
-        codigo: '',
-        nombre: '',
-        descripcion: '',
-        categoria: '',
-        stock_actual: 0,
-        stock_minimo: 0,
-        unidad_medida: 'UN',
-        precio_compra: 0,
-        precio_venta: 0,
-        activo: true,
-      });
-    }
+    setSelectedProducto(producto);
     setModalVisible(true);
   };
 
   const closeModal = () => {
     setModalVisible(false);
     setSelectedProducto(null);
-    setErrors({});
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    // Inline validation
-    const newErrors = {};
-    if (!formData.nombre.trim()) newErrors.nombre = 'El nombre es obligatorio';
-    if (!formData.codigo.trim()) newErrors.codigo = 'El código es obligatorio';
-    if (Number(formData.precio_venta) <= 0) newErrors.precio_venta = 'El precio de venta debe ser mayor a 0';
-    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
-    try {
-      const submitData = {
-        ...formData,
-        categoria: formData.categoria || null,
-        precio_compra: Number(formData.precio_compra),
-        precio_venta: Number(formData.precio_venta),
-        stock_actual: Number(formData.stock_actual),
-        stock_minimo: Number(formData.stock_minimo)
-      };
-
-      if (modalMode === 'create') {
-        await productosAPI.create(submitData);
-      } else {
-        await productosAPI.update(selectedProducto.id, submitData);
-      }
-      closeModal();
-      fetchProductos();
-    } catch (error) {
-      console.error('Error saving producto:', error);
-      alert(error.response?.data?.message || 'Error al guardar');
-    }
   };
 
   const handleDelete = async (id) => {
@@ -134,8 +101,66 @@ function Productos() {
     }
   };
 
+  const handleExportDiario = async (periodo, anio) => {
+    try {
+      const response = await productosAPI.exportarDiarioMovimientos({ periodo, anio });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `diario_movimientos_${periodo}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error al exportar diario:', error);
+      alert('Error al exportar el diario de movimientos.');
+    }
+  };
+
+  const handleExportHistorialIndividual = async () => {
+    try {
+      const response = await productosAPI.exportarMovimientos(selectedHistoryProduct.id);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `historial_${selectedHistoryProduct.codigo}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error al exportar historial:', error);
+      alert('Error al exportar el historial del producto.');
+    }
+  };
+
   const handleDeleteClick = (producto) => {
     setConfirmDialog({ visible: true, id: producto.id, nombre: producto.nombre });
+  };
+
+  const handleViewHistory = async (producto) => {
+    setSelectedHistoryProduct(producto);
+    setHistoryModalVisible(true);
+    setHistoryFechaDesde('');
+    setHistoryFechaHasta('');
+    fetchHistory(producto.id, 1, '', '');
+  };
+
+  const closeHistoryModal = () => {
+    setHistoryModalVisible(false);
+    setSelectedHistoryProduct(null);
+    setStockHistory([]);
+    setHistoryPage(1);
+    setHistoryTotalPages(1);
+    setHistoryFechaDesde('');
+    setHistoryFechaHasta('');
+  };
+
+  const handleHistoryFilter = () => {
+    fetchHistory(selectedHistoryProduct.id, 1, historyFechaDesde, historyFechaHasta);
+  };
+
+  const handleHistoryPageChange = (newPage) => {
+    fetchHistory(selectedHistoryProduct.id, newPage, historyFechaDesde, historyFechaHasta);
   };
 
   const handleChange = (e) => {
@@ -166,14 +191,40 @@ function Productos() {
   };
 
   const filteredProductos = productos.filter(p => {
+    // Search filter
     const searchMatch = p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
                         p.codigo.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Status filter
+    const estadoMatch = filterEstado === 'ALL' ? true :
+                        filterEstado === 'ACTIVO' ? p.activo :
+                        filterEstado === 'INACTIVO' ? !p.activo : true;
+    
+    // Category filter
+    const categoriaMatch = filterCategoria === 'ALL' ? true :
+                           String(p.categoria) === filterCategoria;
+    
+    // Stock filter
     const stockMatch = filterStock === 'ALL' ? true : 
-                       filterStock === 'LOW' ? p.stock_bajo : 
                        filterStock === 'OUT' ? p.stock_actual <= 0 : 
                        filterStock === 'IN_STOCK' ? p.stock_actual > 0 : true;
-    return searchMatch && stockMatch;
+    
+    return searchMatch && estadoMatch && categoriaMatch && stockMatch;
   });
+
+  // Pagination derived values - resets to page 1 when filters change
+  const productsTotalPages = Math.max(1, Math.ceil(filteredProductos.length / PRODUCTS_PAGE_SIZE));
+  const safeProductsPage = Math.min(productsPage, productsTotalPages);
+  const paginatedProductos = filteredProductos.slice(
+    (safeProductsPage - 1) * PRODUCTS_PAGE_SIZE,
+    safeProductsPage * PRODUCTS_PAGE_SIZE
+  );
+
+  // Reset to page 1 when any filter changes
+  const handleSearchChange = (val) => { setSearchTerm(val); setProductsPage(1); };
+  const handleFilterEstadoChange = (val) => { setFilterEstado(val); setProductsPage(1); };
+  const handleFilterCategoriaChange = (val) => { setFilterCategoria(val); setProductsPage(1); };
+  const handleFilterStockChange = (val) => { setFilterStock(val); setProductsPage(1); };
 
   return (
     <div>
@@ -186,15 +237,16 @@ function Productos() {
         confirmText="Sí, eliminar"
         danger={true}
       />
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h1 className="page-title">Productos</h1>
-          <p className="page-subtitle">Gestión de productos en stock</p>
+          <h1 style={{ margin: 0, fontSize: '24px', color: 'var(--text-primary, #f8fafc)' }}>Productos</h1>
+          <p style={{ margin: '4px 0 0', color: 'var(--text-muted, #94a3b8)' }}>Gestión de productos en stock</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <ExportDropdown onExport={handleExportar} />
+          <ExportDropdown onExport={handleExportDiario} label="Diario de Movimientos" />
+          <ExportDropdown onExport={handleExportar} label="Exportar Productos" />
           <button className="btn btn-primary" onClick={() => openModal('create')}>
-            <PlusOutlined /> Nuevo Producto
+            <PlusOutlined style={{ marginRight: '8px' }} /> Nuevo Producto
           </button>
         </div>
       </div>
@@ -202,23 +254,49 @@ function Productos() {
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: '250px' }}>
+            <label className="form-label" style={{ fontSize: '13px' }}>Búsqueda</label>
             <input 
               type="text" 
               className="form-input" 
               placeholder="Buscar por código o nombre..." 
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>
-          <div style={{ width: '200px' }}>
+          <div style={{ width: '150px' }}>
+            <label className="form-label" style={{ fontSize: '13px' }}>Estado</label>
+            <select 
+              className="form-input" 
+              value={filterEstado}
+              onChange={(e) => handleFilterEstadoChange(e.target.value)}
+            >
+              <option value="ALL">Todos</option>
+              <option value="ACTIVO">Activo</option>
+              <option value="INACTIVO">Inactivo</option>
+            </select>
+          </div>
+          <div style={{ width: '180px' }}>
+            <label className="form-label" style={{ fontSize: '13px' }}>Categoría</label>
+            <select 
+              className="form-input" 
+              value={filterCategoria}
+              onChange={(e) => handleFilterCategoriaChange(e.target.value)}
+            >
+              <option value="ALL">Todas las categorías</option>
+              {categorias.map(cat => (
+                <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ width: '150px' }}>
+            <label className="form-label" style={{ fontSize: '13px' }}>Stock</label>
             <select 
               className="form-input" 
               value={filterStock}
-              onChange={(e) => setFilterStock(e.target.value)}
+              onChange={(e) => handleFilterStockChange(e.target.value)}
             >
-              <option value="ALL">Todos los estados</option>
+              <option value="ALL">Todos los niveles</option>
               <option value="IN_STOCK">Con Stock</option>
-              <option value="LOW">Stock Bajo</option>
               <option value="OUT">Agotados</option>
             </select>
           </div>
@@ -242,7 +320,7 @@ function Productos() {
               </tr>
             </thead>
             <tbody>
-              {filteredProductos.map((producto) => (
+              {paginatedProductos.map((producto) => (
                 <tr key={producto.id}>
                   <td>{producto.codigo}</td>
                   <td>{producto.nombre}</td>
@@ -261,6 +339,9 @@ function Productos() {
                     </span>
                   </td>
                   <td>
+                    <button className="btn btn-secondary" onClick={() => handleViewHistory(producto)} title="Ver Historial" style={{ marginRight: '8px' }}>
+                      <HistoryOutlined />
+                    </button>
                     <button className="btn btn-secondary" onClick={() => openModal('edit', producto)}>
                       <EditOutlined />
                     </button>
@@ -279,159 +360,211 @@ function Productos() {
               )}
             </tbody>
           </table>
+      </div>
+      {/* Pagination bar */}
+      {filteredProductos.length > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 4px 4px' }}>
+          <span style={{ fontSize: '13px', color: '#888' }}>
+            Mostrando {(safeProductsPage - 1) * PRODUCTS_PAGE_SIZE + 1}–{Math.min(safeProductsPage * PRODUCTS_PAGE_SIZE, filteredProductos.length)} de {filteredProductos.length} producto{filteredProductos.length !== 1 ? 's' : ''}
+          </span>
+          {productsTotalPages > 1 && (
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setProductsPage(p => Math.max(1, p - 1))}
+                disabled={safeProductsPage <= 1}
+                style={{ padding: '4px 12px', fontSize: '12px' }}
+              >
+                Anterior
+              </button>
+              {Array.from({ length: productsTotalPages }, (_, i) => i + 1).map(pg => (
+                <button
+                  key={pg}
+                  className={`btn ${pg === safeProductsPage ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => setProductsPage(pg)}
+                  style={{ padding: '4px 10px', fontSize: '12px', minWidth: '32px' }}
+                >
+                  {pg}
+                </button>
+              ))}
+              <button
+                className="btn btn-secondary"
+                onClick={() => setProductsPage(p => Math.min(productsTotalPages, p + 1))}
+                disabled={safeProductsPage >= productsTotalPages}
+                style={{ padding: '4px 12px', fontSize: '12px' }}
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
         </div>
+      )}
       </div>
 
-      {modalVisible && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <ProductFormModal 
+        visible={modalVisible}
+        mode={modalMode}
+        initialData={selectedProducto}
+        onClose={closeModal}
+        onSave={() => {
+          fetchProductos();
+        }}
+      />
+      {historyModalVisible && (
+        <div className="modal-overlay" onClick={closeHistoryModal}>
+          <div className="modal" style={{ maxWidth: '960px', width: '95vw' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">
-                {modalMode === 'create' ? 'Nuevo Producto' : 'Editar Producto'}
+                Historial: {selectedHistoryProduct?.nombre} ({selectedHistoryProduct?.codigo})
               </h3>
-              <button className="modal-close" onClick={closeModal}>×</button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button className="btn btn-secondary" onClick={handleExportHistorialIndividual} style={{ padding: '4px 12px', fontSize: '12px' }}>
+                  Exportar Excel
+                </button>
+                <button className="modal-close" onClick={closeHistoryModal}>x</button>
+              </div>
             </div>
-            <form onSubmit={handleSubmit}>
-              <div className="modal-body">
-                <div className="grid grid-2">
-                  <div className="form-group">
-                    <label className="form-label">Código *</label>
-                    <input
-                      type="text"
-                      name="codigo"
-                      className={`form-input${errors.codigo ? ' input-error' : ''}`}
-                      value={formData.codigo}
-                      onChange={handleChange}
-                      onFocus={(e) => e.target.select()}
-                    />
-                    {errors.codigo && <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{errors.codigo}</div>}
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Nombre *</label>
-                    <input
-                      type="text"
-                      name="nombre"
-                      className={`form-input${errors.nombre ? ' input-error' : ''}`}
-                      value={formData.nombre}
-                      onChange={handleChange}
-                      onFocus={(e) => e.target.select()}
-                    />
-                    {errors.nombre && <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{errors.nombre}</div>}
-                  </div>
-                </div>
 
-                <div className="form-group">
-                  <label className="form-label">Descripción</label>
-                  <textarea
-                    name="descripcion"
-                    className="form-input"
-                    value={formData.descripcion}
-                    onChange={handleChange}
-                    rows={3}
-                  />
-                </div>
-
-                <div className="grid grid-3">
-                  <div className="form-group">
-                    <label className="form-label">Unidad de Medida</label>
-                    <select
-                      name="unidad_medida"
-                      className="form-input"
-                      value={formData.unidad_medida}
-                      onChange={handleChange}
-                    >
-                      <option value="UN">Unidad</option>
-                      <option value="KG">Kilogramo</option>
-                      <option value="LB">Libra</option>
-                      <option value="MT">Metro</option>
-                      <option value="LT">Litro</option>
-                      <option value="GL">Galón</option>
-                      <option value="CJ">Caja</option>
-                      <option value="PK">Pack</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Stock *</label>
-                    <input
-                      type="number"
-                      name="stock_actual"
-                      className="form-input"
-                      value={formData.stock_actual}
-                      onChange={handleChange}
-                      onFocus={(e) => e.target.select()}
-                      min="0"
-                      step="0.01"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Stock Mínimo</label>
-                    <input
-                      type="number"
-                      name="stock_minimo"
-                      className="form-input"
-                      value={formData.stock_minimo}
-                      onChange={handleChange}
-                      onFocus={(e) => e.target.select()}
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-2">
-                  <div className="form-group">
-                    <label className="form-label">Precio de Compra (S/.) *</label>
-                    <input
-                      type="number"
-                      name="precio_compra"
-                      className="form-input"
-                      value={formData.precio_compra}
-                      onChange={handleChange}
-                      onFocus={(e) => e.target.select()}
-                      min="0"
-                      step="0.01"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Precio de Venta (S/.) *</label>
-                    <input
-                      type="number"
-                      name="precio_venta"
-                      className={`form-input${errors.precio_venta ? ' input-error' : ''}`}
-                      value={formData.precio_venta}
-                      onChange={handleChange}
-                      onFocus={(e) => e.target.select()}
-                      min="0"
-                      step="0.01"
-                    />
-                    {errors.precio_venta && <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{errors.precio_venta}</div>}
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">
-                    <input
-                      type="checkbox"
-                      name="activo"
-                      checked={formData.activo}
-                      onChange={handleChange}
-                      style={{ marginRight: '8px' }}
-                    />
-                    Producto Activo
-                  </label>
-                </div>
+            {/* Date filter bar */}
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid #e2e8f0', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', marginBottom: '4px', color: '#666' }}>Desde</label>
+                <input
+                  type="date"
+                  value={historyFechaDesde}
+                  onChange={(e) => setHistoryFechaDesde(e.target.value)}
+                  className="form-input"
+                  style={{ padding: '5px 8px', fontSize: '13px', width: 'auto' }}
+                />
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={closeModal}>
-                  Cancelar
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', marginBottom: '4px', color: '#666' }}>Hasta</label>
+                <input
+                  type="date"
+                  value={historyFechaHasta}
+                  onChange={(e) => setHistoryFechaHasta(e.target.value)}
+                  className="form-input"
+                  style={{ padding: '5px 8px', fontSize: '13px', width: 'auto' }}
+                />
+              </div>
+              <button className="btn btn-primary" onClick={handleHistoryFilter} style={{ padding: '5px 14px', fontSize: '13px' }}>
+                Filtrar
+              </button>
+              {(historyFechaDesde || historyFechaHasta) && (
+                <button className="btn btn-secondary" onClick={() => {
+                  setHistoryFechaDesde('');
+                  setHistoryFechaHasta('');
+                  fetchHistory(selectedHistoryProduct.id, 1, '', '');
+                }} style={{ padding: '5px 14px', fontSize: '13px' }}>
+                  Limpiar
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  {modalMode === 'create' ? 'Crear' : 'Guardar'}
+              )}
+              <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#888', alignSelf: 'center' }}>
+                {historyTotal} registro{historyTotal !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {/* Table with BOTH scrollbars accessible — overflow on the table wrapper */}
+            <div style={{ padding: '0' }}>
+              <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '48vh' }}>
+                {loadingHistory ? (
+                  <div style={{ textAlign: 'center', padding: '40px' }}>Cargando historial...</div>
+                ) : stockHistory.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>
+                    No hay movimientos para este producto/período.
+                  </div>
+                ) : (
+                  <table style={{ minWidth: '1000px', width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>Fecha</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Tipo</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Origen</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>Cambio stock</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>P. Compra Ant.</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>P. Compra Nvo.</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>P. Venta Ant.</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>P. Venta Nvo.</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', color: '#888', whiteSpace: 'nowrap' }}>Stock Ant.</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>Stock Nvo.</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stockHistory.map((mov) => {
+                        const dateObj = new Date(mov.fecha);
+                        const displayDate = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        const isEntrada = mov.tipo === 'ENTRADA';
+                        return (
+                          <tr key={mov.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                            <td style={{ padding: '7px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}>{displayDate}</td>
+                            <td style={{ padding: '7px 10px' }}>
+                              <span style={{ color: isEntrada ? '#52c41a' : '#ff4d4f', fontWeight: 'bold', fontSize: '11px' }}>
+                                {mov.tipo}
+                              </span>
+                            </td>
+                            <td style={{ padding: '7px 10px', fontSize: '11px' }}>{mov.origen}</td>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 'bold' }}>
+                              <span style={{ color: isEntrada ? '#52c41a' : '#ff4d4f', fontSize: '12px' }}>
+                                {isEntrada ? '+' : '-'}{Number(mov.cantidad)}
+                              </span>
+                            </td>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', color: '#888', fontStyle: 'italic' }}>
+                              {mov.precio_compra_anterior ? `S/. ${Number(mov.precio_compra_anterior).toFixed(2)}` : '-'}
+                            </td>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', fontWeight: 'bold' }}>
+                              {mov.precio_compra_nuevo ? `S/. ${Number(mov.precio_compra_nuevo).toFixed(2)}` : '-'}
+                            </td>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', color: '#888', fontStyle: 'italic' }}>
+                              {mov.precio_venta_anterior ? `S/. ${Number(mov.precio_venta_anterior).toFixed(2)}` : '-'}
+                            </td>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', fontWeight: 'bold' }}>
+                              {mov.precio_venta_nuevo ? `S/. ${Number(mov.precio_venta_nuevo).toFixed(2)}` : '-'}
+                            </td>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', color: '#888', fontSize: '11px' }}>{Number(mov.stock_anterior)}</td>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 'bold', fontSize: '12px' }}>{Number(mov.stock_nuevo)}</td>
+                            <td style={{ padding: '7px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                              {mov.activo_nuevo === true && (
+                                <span style={{ color: '#52c41a', fontWeight: 'bold' }}>Activo desde {displayDate}</span>
+                              )}
+                              {mov.activo_nuevo === false && (
+                                <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>Inactivo desde {displayDate}</span>
+                              )}
+                              {(mov.activo_nuevo === null || mov.activo_nuevo === undefined) && '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+
+            {/* Pagination controls */}
+            {!loadingHistory && historyTotalPages > 1 && (
+              <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', borderTop: '1px solid #e2e8f0' }}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => handleHistoryPageChange(historyPage - 1)}
+                  disabled={historyPage <= 1}
+                  style={{ padding: '4px 12px', fontSize: '12px' }}
+                >
+                  Anterior
+                </button>
+                <span style={{ fontSize: '13px', color: '#666' }}>
+                  Página {historyPage} de {historyTotalPages}
+                </span>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => handleHistoryPageChange(historyPage + 1)}
+                  disabled={historyPage >= historyTotalPages}
+                  style={{ padding: '4px 12px', fontSize: '12px' }}
+                >
+                  Siguiente
                 </button>
               </div>
-            </form>
+            )}
           </div>
         </div>
       )}
@@ -440,3 +573,4 @@ function Productos() {
 }
 
 export default Productos;
+

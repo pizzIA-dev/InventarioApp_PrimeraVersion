@@ -3,7 +3,8 @@ from rest_framework.response import Response
 from django.utils import timezone
 from datetime import timedelta, date
 from django.db.models import Sum, Count
-from apps.inventario.models import Producto, MovimientoStock
+
+
 from apps.ventas.models import Venta, DetalleVenta
 from apps.compras.models import Compra, DetalleCompra
 from apps.servicios.models import VentaServicio
@@ -106,12 +107,20 @@ class DashboardView(APIView):
     def get(self, request):
         hoy = timezone.now().date()
         anio = request.query_params.get('anio')
+        mes = request.query_params.get('mes')
         producto_id = request.query_params.get('producto_id')
         servicio_id = request.query_params.get('servicio_id')
         
         if anio:
-            inicio_periodo = date(int(anio), 1, 1)
-            fin_periodo = date(int(anio) + 1, 1, 1)
+            if mes:
+                inicio_periodo = date(int(anio), int(mes), 1)
+                if int(mes) == 12:
+                    fin_periodo = date(int(anio) + 1, 1, 1)
+                else:
+                    fin_periodo = date(int(anio), int(mes) + 1, 1)
+            else:
+                inicio_periodo = date(int(anio), 1, 1)
+                fin_periodo = date(int(anio) + 1, 1, 1)
             filtro_fechas = {'creado_en__date__gte': inicio_periodo, 'creado_en__date__lt': fin_periodo}
         else:
             inicio_periodo = hoy.replace(day=1)
@@ -176,11 +185,6 @@ class DashboardView(APIView):
             total_compras_mes = sum(c.total for c in compras_mes)
             cantidad_compras = compras_mes.count()
         
-        # STOCK
-        total_productos = Producto.objects.filter(activo=True).count()
-        productos_stock_bajo = Producto.objects.filter(activo=True, stock_actual__lt=10).count()
-        valor_stock = sum(p.precio_compra * p.stock_actual for p in Producto.objects.filter(activo=True))
-        
         # CLIENTES Y PROVEEDORES
         total_clientes = Cliente.objects.filter(activo=True).count()
         total_proveedores = Proveedor.objects.filter(activo=True).count()
@@ -202,11 +206,6 @@ class DashboardView(APIView):
             'compras': {
                 'total_mes': total_compras_mes,
                 'cantidad_compras': cantidad_compras
-            },
-            'inventario': {
-                'total_productos': total_productos,
-                'productos_stock_bajo': productos_stock_bajo,
-                'valor_stock': valor_stock
             },
             'clientes': {
                 'total': total_clientes
@@ -230,6 +229,12 @@ class ReporteMensualView(APIView):
         anio = request.query_params.get('anio', timezone.now().year)
         producto_id = request.query_params.get('producto_id')
         servicio_id = request.query_params.get('servicio_id')
+        
+        MESES_ES = {
+            1: 'Enero', 2: 'Febrero', 3: 'Marzo', 4: 'Abril',
+            5: 'Mayo', 6: 'Junio', 7: 'Julio', 8: 'Agosto',
+            9: 'Septiembre', 10: 'Octubre', 11: 'Noviembre', 12: 'Diciembre'
+        }
         
         datos_mensuales = []
         
@@ -304,7 +309,7 @@ class ReporteMensualView(APIView):
             
             datos_mensuales.append({
                 'mes': mes,
-                'nombre_mes': inicio_mes.strftime('%B'),
+                'nombre_mes': MESES_ES[mes],
                 'ventas': total_ventas,
                 'compras': total_compras,
                 'servicios': total_servicios,

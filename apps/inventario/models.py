@@ -156,8 +156,41 @@ class MovimientoStock(models.Model):
         null=True,
         validators=[MinValueValidator(0)]
     )
+    precio_compra_anterior = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        blank=True, 
+        null=True,
+        validators=[MinValueValidator(0)]
+    )
+    precio_compra_nuevo = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        blank=True, 
+        null=True,
+        validators=[MinValueValidator(0)]
+    )
+    precio_venta_anterior = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        blank=True, 
+        null=True,
+        validators=[MinValueValidator(0)]
+    )
+    precio_venta_nuevo = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        blank=True, 
+        null=True,
+        validators=[MinValueValidator(0)]
+    )
     referencia = models.CharField(max_length=100, blank=True, null=True)
     notas = models.TextField(blank=True, null=True)
+    activo_nuevo = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text="Si no es None, indica un cambio de estado activo/inactivo del producto."
+    )
     fecha = models.DateTimeField(auto_now_add=True)
     
     class Meta:
@@ -173,6 +206,19 @@ class MovimientoStock(models.Model):
         else:
             self.stock_nuevo = self.stock_anterior - self.cantidad
         
+        # Capturar precios históricos si no se proporcionan
+        if self.precio_compra_nuevo is None and self.producto:
+            self.precio_compra_nuevo = self.producto.precio_compra
+            
+        if self.precio_venta_nuevo is None and self.producto:
+            self.precio_venta_nuevo = self.producto.precio_venta
+            
+        if self.precio_compra_anterior is None and self.producto:
+            self.precio_compra_anterior = self.precio_compra_nuevo
+            
+        if self.precio_venta_anterior is None and self.producto:
+            self.precio_venta_anterior = self.precio_venta_nuevo
+            
         # Actualizar stock del producto
         self.producto.stock_actual = self.stock_nuevo
         self.producto.save()

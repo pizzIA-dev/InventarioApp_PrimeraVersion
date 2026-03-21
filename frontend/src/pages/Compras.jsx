@@ -3,11 +3,13 @@ import { comprasAPI, proveedoresAPI, productosAPI } from '../services/api';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
+import ProductFormModal from '../components/ProductFormModal';
 
 function Compras() {
   const [loading, setLoading] = useState(true);
   const [compras, setCompras] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [productModalVisible, setProductModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedCompra, setSelectedCompra] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,8 +38,6 @@ function Compras() {
     setNestedModal(type);
     if (type === 'proveedor') {
       setNestedFormData({ nombre: '', tipo_documento: 'RUC', numero_documento: '', email: '', telefono: '', direccion: '' });
-    } else if (type === 'producto') {
-      setNestedFormData({ nombre: '', codigo: '', precio_compra: 0, precio_venta: 0, stock_actual: 0 });
     }
   };
 
@@ -46,14 +46,13 @@ function Compras() {
     try {
       if (nestedModal === 'proveedor') {
         const res = await proveedoresAPI.create(nestedFormData);
-        await fetchProveedores();
-        setFormData(prev => ({ ...prev, proveedor: res.data.id, proveedor_nombre: res.data.nombre }));
-      } else if (nestedModal === 'producto') {
-        const res = await productosAPI.create(nestedFormData);
-        await fetchProductos();
-        if (nestedModalIndex !== null) {
-           updateDetalle(nestedModalIndex, 'producto', res.data.id);
-        }
+        // Inject new supplier into state to bypass pagination missing the new record
+        setProveedores(prev => {
+          if (prev.find(p => p.id === res.data.id)) return prev;
+          return [...prev, res.data];
+        });
+        
+        setFormData(prev => ({ ...prev, proveedor: String(res.data.id), proveedor_nombre: res.data.nombre }));
       }
       setNestedModal(null);
       setNestedModalIndex(null);
@@ -483,7 +482,7 @@ function Compras() {
                           onChange={(e) => {
                             if (e.target.value === 'NEW') {
                               setNestedModalIndex(index);
-                              openNestedModal('producto');
+                              setProductModalVisible(true);
                             } else {
                               updateDetalle(index, 'producto', e.target.value);
                             }
@@ -587,24 +586,40 @@ function Compras() {
                   <div className="form-group"><label className="form-label">Teléfono</label><input className="form-input" value={nestedFormData.telefono} onChange={(e) => setNestedFormData(p => ({...p, telefono: e.target.value}))} /></div>
                 </>
               )}
-              {nestedModal === 'producto' && (
-                <>
-                  <div className="form-group"><label className="form-label">Nombre del Producto *</label><input required className="form-input" value={nestedFormData.nombre} onChange={(e) => setNestedFormData(p => ({...p, nombre: e.target.value}))} /></div>
-                  <div className="form-group"><label className="form-label">Código</label><input required className="form-input" value={nestedFormData.codigo} onChange={(e) => setNestedFormData(p => ({...p, codigo: e.target.value}))} /></div>
-                  <div className="grid grid-2">
-                     <div className="form-group"><label className="form-label">Precio Compra</label><input type="number" step="0.01" required className="form-input" value={nestedFormData.precio_compra} onChange={(e) => setNestedFormData(p => ({...p, precio_compra: Number(e.target.value)}))} /></div>
-                     <div className="form-group"><label className="form-label">Precio Venta</label><input type="number" step="0.01" required className="form-input" value={nestedFormData.precio_venta} onChange={(e) => setNestedFormData(p => ({...p, precio_venta: Number(e.target.value)}))} /></div>
-                  </div>
-                </>
-              )}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setNestedModal(null)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Guardar {nestedModal === 'proveedor' ? 'Proveedor' : 'Producto'}</button>
+                <button type="submit" className="btn btn-primary">Guardar Proveedor</button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      <ProductFormModal
+        visible={productModalVisible}
+        mode="create"
+        onClose={() => setProductModalVisible(false)}
+        onSave={(newProduct) => {
+          // Inject new product into state to bypass pagination missing the new record
+          setProductos(prev => {
+            if (prev.find(p => p.id === newProduct.id)) return prev;
+            return [...prev, newProduct];
+          });
+          
+          if (nestedModalIndex !== null) {
+            setFormData(prev => {
+              const newDetalle = [...prev.detalle];
+              newDetalle[nestedModalIndex] = {
+                ...newDetalle[nestedModalIndex],
+                producto: String(newProduct.id),
+                precio_compra: Number(newProduct.precio_compra || 0)
+              };
+              return { ...prev, detalle: newDetalle };
+            });
+            setNestedModalIndex(null);
+          }
+        }}
+      />
     </div>
   );
 }

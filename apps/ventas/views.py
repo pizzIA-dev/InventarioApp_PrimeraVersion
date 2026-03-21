@@ -87,6 +87,10 @@ class VentaViewSet(viewsets.ModelViewSet):
                     cantidad=detalle.cantidad,
                     stock_anterior=detalle.producto.stock_actual,
                     precio_unitario=detalle.precio_venta,
+                    precio_compra_anterior=detalle.producto.precio_compra,
+                    precio_compra_nuevo=detalle.producto.precio_compra,
+                    precio_venta_anterior=detalle.producto.precio_venta,
+                    precio_venta_nuevo=detalle.producto.precio_venta,
                     referencia=f"Cancelación Venta {venta.numero_comprobante or venta.id}"
                 )
         venta.estado = 'CANCELADA'
@@ -107,6 +111,10 @@ class VentaViewSet(viewsets.ModelViewSet):
                     cantidad=detalle.cantidad,
                     stock_anterior=detalle.producto.stock_actual,
                     precio_unitario=detalle.precio_venta,
+                    precio_compra_anterior=detalle.producto.precio_compra,
+                    precio_compra_nuevo=detalle.producto.precio_compra,
+                    precio_venta_anterior=detalle.producto.precio_venta,
+                    precio_venta_nuevo=detalle.producto.precio_venta,
                     referencia=f"Eliminación Venta {instance.numero_comprobante or instance.id}"
                 )
         instance.delete()

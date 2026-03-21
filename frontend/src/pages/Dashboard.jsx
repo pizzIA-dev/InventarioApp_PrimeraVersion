@@ -13,6 +13,7 @@ function Dashboard() {
   const [reporteMensual, setReporteMensual] = useState(null);
   
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState('');
   const [selectedProducto, setSelectedProducto] = useState('');
   const [selectedServicio, setSelectedServicio] = useState('');
   const [productos, setProductos] = useState([]);
@@ -26,7 +27,7 @@ function Dashboard() {
   useEffect(() => {
     fetchDashboardData();
     fetchReporteMensual();
-  }, [selectedYear, selectedProducto, selectedServicio]);
+  }, [selectedYear, selectedMonth, selectedProducto, selectedServicio]);
 
   const fetchProductos = async () => {
     try {
@@ -51,6 +52,7 @@ function Dashboard() {
     try {
       const params = {};
       if (selectedYear) params.anio = selectedYear;
+      if (selectedMonth) params.mes = selectedMonth;
       if (selectedProducto) params.producto_id = selectedProducto;
       if (selectedServicio) params.servicio_id = selectedServicio;
       
@@ -67,6 +69,7 @@ function Dashboard() {
     try {
       const params = {};
       if (selectedYear) params.anio = selectedYear;
+      if (selectedMonth) params.mes = selectedMonth;
       if (selectedProducto) params.producto_id = selectedProducto;
       if (selectedServicio) params.servicio_id = selectedServicio;
       
@@ -108,6 +111,28 @@ function Dashboard() {
               })}
             </select>
           </div>
+          <div style={{ width: '150px' }}>
+            <label className="form-label" style={{ fontSize: '13px', marginBottom: '4px' }}>Mes</label>
+            <select 
+              className="form-input" 
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+            >
+              <option value="">Todos los meses</option>
+              <option value="1">Enero</option>
+              <option value="2">Febrero</option>
+              <option value="3">Marzo</option>
+              <option value="4">Abril</option>
+              <option value="5">Mayo</option>
+              <option value="6">Junio</option>
+              <option value="7">Julio</option>
+              <option value="8">Agosto</option>
+              <option value="9">Septiembre</option>
+              <option value="10">Octubre</option>
+              <option value="11">Noviembre</option>
+              <option value="12">Diciembre</option>
+            </select>
+          </div>
           <div style={{ flex: 1, minWidth: '200px' }}>
             <label className="form-label" style={{ fontSize: '13px', marginBottom: '4px' }}>Filtrar por Producto</label>
             <select 
@@ -144,14 +169,14 @@ function Dashboard() {
       </div>
 
       {/* Tarjetas de estadísticas */}
-      <div className="grid grid-4" style={{ marginBottom: '24px' }}>
+      <div className="grid grid-3" style={{ marginBottom: '24px' }}>
         <div className="stat-card">
           <div className="stat-label">Ingresos del Periodo</div>
           <div className="stat-value">
             S/. {Number(dashboardData?.balance?.ingresos_mes || 0).toFixed(2)}
           </div>
-          <div style={{ fontSize: '12px', color: '#8c8c8c', marginTop: '8px' }}>
-            {dashboardData?.ventas?.cantidad_ventas || 0} vnt de prod / {dashboardData?.servicios?.cantidad_servicios || 0} de serv
+          <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.85)', marginTop: '8px' }}>
+            {dashboardData?.ventas?.cantidad_ventas || 0} venta de producto / {dashboardData?.servicios?.cantidad_servicios || 0} de servicio
           </div>
         </div>
 
@@ -175,15 +200,6 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="stat-card blue">
-          <div className="stat-label">Valor en Stock</div>
-          <div className="stat-value">
-            S/. {Number(dashboardData?.inventario?.valor_stock || 0).toFixed(2)}
-          </div>
-          <div className="stat-label">
-            {dashboardData?.inventario?.productos_stock_bajo || 0} productos con stock bajo
-          </div>
-        </div>
       </div>
 
       {/* Gráficos */}
@@ -228,19 +244,6 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* Alertas de stock bajo */}
-      {dashboardData?.inventario?.productos_stock_bajo > 0 && (
-        <div className="card" style={{ marginTop: '24px' }}>
-          <div className="card-header">
-            <h3 className="card-title" style={{ color: '#ff4d4f' }}>
-              <WarningOutlined /> Productos con Stock Bajo
-            </h3>
-          </div>
-          <p style={{ color: '#8c8c8c' }}>
-            Hay {dashboardData.inventario.productos_stock_bajo} productos con stock por debajo del mínimo recomendado.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

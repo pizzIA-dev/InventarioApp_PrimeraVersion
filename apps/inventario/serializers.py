@@ -44,7 +44,7 @@ class ProductoCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Producto
         fields = [
-            'codigo', 'nombre', 'descripcion', 'categoria',
+            'id', 'codigo', 'nombre', 'descripcion', 'categoria',
             'stock_inicial', 'stock_actual', 'stock_minimo', 'unidad_medida',
             'precio_compra', 'precio_venta', 'activo'
         ]
@@ -63,7 +63,9 @@ class MovimientoStockSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'producto', 'producto_nombre', 'producto_codigo',
             'tipo', 'origen', 'cantidad', 'stock_anterior', 'stock_nuevo',
-            'precio_unitario', 'referencia', 'notas', 'fecha'
+            'precio_unitario', 'precio_compra_anterior', 'precio_compra_nuevo', 
+            'precio_venta_anterior', 'precio_venta_nuevo', 'referencia', 'notas',
+            'activo_nuevo', 'fecha'
         ]
         read_only_fields = ['stock_anterior', 'stock_nuevo', 'fecha']
     
@@ -85,5 +87,6 @@ class MovimientoStockCreateSerializer(serializers.ModelSerializer):
         model = MovimientoStock
         fields = [
             'producto', 'tipo', 'origen', 'cantidad',
-            'precio_unitario', 'referencia', 'notas'
+            'precio_unitario', 'precio_compra_anterior', 'precio_compra_nuevo', 
+            'precio_venta_anterior', 'precio_venta_nuevo', 'referencia', 'notas'
         ]

@@ -85,6 +85,10 @@ class Venta(models.Model):
                     cantidad=detalle.cantidad,
                     stock_anterior=detalle.producto.stock_actual,
                     precio_unitario=detalle.precio_venta,
+                    precio_compra_anterior=detalle.producto.precio_compra,
+                    precio_compra_nuevo=detalle.producto.precio_compra,
+                    precio_venta_anterior=detalle.producto.precio_venta,
+                    precio_venta_nuevo=detalle.producto.precio_venta,
                     referencia=f"Venta {self.numero_comprobante or self.id}"
                 )
 
