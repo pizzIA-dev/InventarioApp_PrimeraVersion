@@ -9,6 +9,7 @@ function Clientes() {
   const [clientes, setClientes] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTipo, setFilterTipo] = useState('ALL');
+  const [filterEstado, setFilterEstado] = useState('ALL');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedCliente, setSelectedCliente] = useState(null);
@@ -144,7 +145,8 @@ function Clientes() {
     const term = searchTerm.toLowerCase();
     const searchMatch = c.nombre.toLowerCase().includes(term) || c.numero_documento.toLowerCase().includes(term);
     const tipoMatch = filterTipo === 'ALL' ? true : c.tipo_cliente === filterTipo;
-    return searchMatch && tipoMatch;
+    const estadoMatch = filterEstado === 'ALL' ? true : (filterEstado === 'ACTIVO' ? c.activo : !c.activo);
+    return searchMatch && tipoMatch && estadoMatch;
   });
 
   return (
@@ -194,6 +196,17 @@ function Clientes() {
               <option value="EMPRESA">Empresa</option>
             </select>
           </div>
+          <div style={{ width: '200px' }}>
+            <select 
+              className="form-input" 
+              value={filterEstado}
+              onChange={(e) => setFilterEstado(e.target.value)}
+            >
+              <option value="ALL">Todos los estados</option>
+              <option value="ACTIVO">Activos</option>
+              <option value="INACTIVO">Inactivos</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -205,6 +218,7 @@ function Clientes() {
                 <th>Nombre</th>
                 <th>Tipo</th>
                 <th>Documento</th>
+                <th>Contacto</th>
                 <th>Teléfono</th>
                 <th>Email</th>
                 <th>Recurrencia</th>
@@ -223,6 +237,7 @@ function Clientes() {
                   <td>
                     {cliente.tipo_documento}: {cliente.numero_documento}
                   </td>
+                  <td>{cliente.contacto || '-'}</td>
                   <td>{cliente.telefono || '-'}</td>
                   <td>{cliente.email || '-'}</td>
                   <td>
@@ -248,7 +263,7 @@ function Clientes() {
               ))}
               {filteredClientes.length === 0 && (
                 <tr>
-                  <td colSpan="9" style={{ textAlign: 'center', padding: '24px', color: '#888' }}>
+                  <td colSpan="10" style={{ textAlign: 'center', padding: '24px', color: '#888' }}>
                     No se encontraron clientes que coincidan con los filtros.
                   </td>
                 </tr>
@@ -358,15 +373,18 @@ function Clientes() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <input
                       type="checkbox"
                       name="activo"
                       checked={formData.activo}
                       onChange={handleChange}
+                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
                     />
-                    Cliente Activo
-                  </label>
+                    <span style={{ userSelect: 'none', color: 'inherit', fontSize: '14px', fontWeight: '500' }}>
+                      Cliente Activo
+                    </span>
+                  </div>
                 </div>
               </div>
               <div className="modal-footer">

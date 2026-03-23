@@ -17,7 +17,7 @@ from .serializers import (
 
 
 class CategoriaTransaccionViewSet(viewsets.ModelViewSet):
-    queryset = CategoriaTransaccion.objects.filter(activo=True)
+    queryset = CategoriaTransaccion.objects.all()
     serializer_class = CategoriaTransaccionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['nombre']

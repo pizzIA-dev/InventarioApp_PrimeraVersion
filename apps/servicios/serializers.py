@@ -32,7 +32,7 @@ class ServicioCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Servicio
         fields = [
-            'nombre', 'descripcion', 'categoria',
+            'id', 'nombre', 'descripcion', 'categoria',
             'precio_base', 'costo', 'duracion_minutos', 'activo'
         ]
 
@@ -56,6 +56,6 @@ class VentaServicioCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = VentaServicio
         fields = [
-            'servicio', 'servicio_nombre', 'cliente', 'cliente_nombre',
+            'id', 'servicio', 'servicio_nombre', 'cliente', 'cliente_nombre',
             'precio', 'descuento', 'fecha_programada', 'estado', 'notas'
         ]

@@ -22,6 +22,7 @@ class VentaViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.OrderingFilter, DjangoFilterBackend]
     filterset_fields = ['estado', 'cliente']
     ordering_fields = ['-creado_en']
+    pagination_class = None
     
     def get_serializer_class(self):
         if self.action == 'create':
@@ -30,22 +31,8 @@ class VentaViewSet(viewsets.ModelViewSet):
             return VentaUpdateSerializer
         return VentaSerializer
     
-    def _parse_multipart_data(self, request):
-        data = request.data.copy() if hasattr(request.data, 'copy') else request.data
-        if hasattr(data, '_mutable'):
-            data._mutable = True
-        detalle = data.get('detalle')
-        if isinstance(detalle, str):
-            import json
-            try:
-                data['detalle'] = json.loads(detalle)
-            except Exception:
-                pass
-        return data
-
     def create(self, request, *args, **kwargs):
-        data = self._parse_multipart_data(request)
-        serializer = self.get_serializer(data=data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
@@ -54,8 +41,7 @@ class VentaViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        data = self._parse_multipart_data(request)
-        serializer = self.get_serializer(instance, data=data, partial=partial)
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         if getattr(instance, '_prefetched_objects_cache', None):

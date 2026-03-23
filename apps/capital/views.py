@@ -11,7 +11,7 @@ from .serializers import (
 
 
 class TipoCapitalViewSet(viewsets.ModelViewSet):
-    queryset = TipoCapital.objects.filter(activo=True)
+    queryset = TipoCapital.objects.all()
     serializer_class = TipoCapitalSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['nombre']

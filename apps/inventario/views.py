@@ -15,11 +15,12 @@ from .serializers import (
 
 
 class CategoriaViewSet(viewsets.ModelViewSet):
-    queryset = Categoria.objects.filter(activo=True)
+    queryset = Categoria.objects.all()
     serializer_class = CategoriaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['nombre']
     ordering_fields = ['nombre', 'creado_en']
+    pagination_class = None
     
     def perform_destroy(self, instance):
         instance.activo = False
@@ -32,6 +33,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
     search_fields = ['codigo', 'nombre', 'descripcion']
     filterset_fields = ['categoria', 'activo', 'unidad_medida']
     ordering_fields = ['nombre', 'precio_venta', 'stock_actual', 'creado_en']
+    pagination_class = None
     
     def get_serializer_class(self):
         if self.action == 'create':

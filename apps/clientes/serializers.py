@@ -25,7 +25,7 @@ class ClienteCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Cliente
         fields = [
-            'nombre', 'tipo_cliente', 'tipo_documento', 'numero_documento',
+            'id', 'nombre', 'tipo_cliente', 'tipo_documento', 'numero_documento',
             'contacto', 'email', 'telefono', 'direccion', 'activo'
         ]
 

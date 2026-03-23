@@ -12,11 +12,12 @@ from .serializers import ClienteSerializer, ClienteCreateSerializer, SegmentoCli
 
 
 class ClienteViewSet(viewsets.ModelViewSet):
-    queryset = Cliente.objects.filter(activo=True)
+    queryset = Cliente.objects.all()
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre', 'numero_documento', 'email', 'telefono']
     filterset_fields = ['tipo_cliente', 'tipo_documento', 'activo']
     ordering_fields = ['nombre', 'creado_en']
+    pagination_class = None
     
     def get_serializer_class(self):
         if self.action == 'create':
@@ -70,7 +71,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def top_clientes(self, request):
         """Obtiene los top clientes por compras"""
-        clientes = Cliente.objects.filter(activo=True).annotate(
+        clientes = Cliente.objects.all().annotate(
             total_compras=Sum('ventas__total'),
             cantidad_compras=Count('ventas')
         ).order_by('-total_compras')[:10]
@@ -101,7 +102,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
-        headers = ['ID', 'Nombre', 'Tipo Cliente', 'Documento', 'Email', 'Teléfono', 'Total Comprado (S/.)', 'Activo']
+        headers = ['ID', 'Nombre', 'Tipo Cliente', 'Documento', 'Contacto', 'Email', 'Teléfono', 'Total Comprado (S/.)', 'Activo']
         rows = []
         for obj in queryset:
             rows.append([
@@ -109,6 +110,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 obj.nombre,
                 obj.tipo_cliente,
                 f"{obj.tipo_documento}: {obj.numero_documento}",
+                obj.contacto or '',
                 obj.email or '',
                 obj.telefono or '',
                 float(obj.total_comprado) if obj.total_comprado else 0.0,
@@ -127,11 +129,12 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
 
 class SegmentoClienteViewSet(viewsets.ModelViewSet):
-    queryset = SegmentoCliente.objects.filter(activo=True)
+    queryset = SegmentoCliente.objects.all()
     serializer_class = SegmentoClienteSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['nombre']
     ordering_fields = ['nombre']
+    pagination_class = None
     
     def perform_destroy(self, instance):
         instance.activo = False

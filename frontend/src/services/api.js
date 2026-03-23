@@ -36,7 +36,10 @@ export const proveedoresAPI = {
   delete: (id) => api.delete(`/proveedores/${id}/`),
   getHistoricoPrecios: (id) => api.get(`/proveedores/${id}/historico_precios/`),
   getEstadisticas: (id) => api.get(`/proveedores/${id}/estadisticas/`),
+  getMovimientos: (id, params = {}) => api.get(`/proveedores/${id}/historial/`, { params }),
   exportar: (params) => api.get('/proveedores/exportar/', { params, responseType: 'blob' }),
+  exportarMovimientos: (id) => api.get(`/proveedores/${id}/exportar_historial/`, { responseType: 'blob' }),
+  exportarDiarioMovimientos: (params) => api.get('/proveedores/movimientos/exportar/', { params, responseType: 'blob' }),
 };
 
 // Clientes

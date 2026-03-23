@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutline
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import ProductFormModal from '../components/ProductFormModal';
+import SearchableSelect from '../components/SearchableSelect';
 
 function Ventas() {
   const [loading, setLoading] = useState(true);
@@ -50,6 +51,51 @@ function Ventas() {
   const [nestedModal, setNestedModal] = useState(null);
   const [nestedFormData, setNestedFormData] = useState({});
   const [nestedModalIndex, setNestedModalIndex] = useState(null);
+  const [pendingSelection, setPendingSelection] = useState(null);
+
+  useEffect(() => {
+    if (!pendingSelection) return;
+
+    if (pendingSelection.type === 'cliente') {
+      const found = clientes.find(c => String(c.id) === String(pendingSelection.id));
+      if (found) {
+        if (modalMode === 'venta' || modalMode === 'editVenta') {
+          setVentaData(prev => ({ ...prev, cliente: String(found.id), cliente_nombre: found.nombre }));
+        } else {
+          setFormData(prev => ({ ...prev, cliente: String(found.id), cliente_nombre: found.nombre }));
+        }
+        setPendingSelection(null);
+      }
+    } else if (pendingSelection.type === 'servicio') {
+      const found = servicios.find(s => String(s.id) === String(pendingSelection.id));
+      if (found) {
+        setVentaData(prev => ({
+          ...prev, 
+          servicio: String(found.id), 
+          servicio_nombre: found.nombre,
+          precio: found.precio_base
+        }));
+        setPendingSelection(null);
+      }
+    } else if (pendingSelection.type === 'producto') {
+      const found = productos.find(p => String(p.id) === String(pendingSelection.id));
+      if (found) {
+        if (nestedModalIndex !== null) {
+          setFormData(prev => {
+            const newDetalle = [...prev.detalle];
+            newDetalle[nestedModalIndex] = {
+              ...newDetalle[nestedModalIndex],
+              producto: String(found.id),
+              precio_venta: Number(found.precio_venta || 0)
+            };
+            return { ...prev, detalle: newDetalle };
+          });
+          setNestedModalIndex(null);
+        }
+        setPendingSelection(null);
+      }
+    }
+  }, [clientes, servicios, productos, pendingSelection, modalMode, nestedModalIndex]);
 
   const openNestedModal = (type) => {
     setNestedModal(type);
@@ -65,31 +111,20 @@ function Ventas() {
     try {
       if (nestedModal === 'cliente') {
         const res = await clientesAPI.create(nestedFormData);
-        // Inject new client into state to bypass pagination missing the new record
+        setPendingSelection({ type: 'cliente', id: res.data.id, nombre: res.data.nombre });
         setClientes(prev => {
           if (prev.find(c => c.id === res.data.id)) return prev;
           return [...prev, res.data];
         });
-        
-        if (modalMode === 'venta' || modalMode === 'editVenta') {
-           setVentaData(prev => ({ ...prev, cliente: String(res.data.id), cliente_nombre: res.data.nombre }));
-        } else {
-           setFormData(prev => ({ ...prev, cliente: String(res.data.id), cliente_nombre: res.data.nombre }));
-        }
+        fetchClientes();
       } else if (nestedModal === 'servicio') {
         const res = await serviciosAPI.create(nestedFormData);
-        // Inject new service into state
+        setPendingSelection({ type: 'servicio', id: res.data.id, nombre: res.data.nombre });
         setServicios(prev => {
           if (prev.find(s => s.id === res.data.id)) return prev;
           return [...prev, res.data];
         });
-        
-        setVentaData(prev => ({
-          ...prev, 
-          servicio: String(res.data.id), 
-          servicio_nombre: res.data.nombre,
-          precio: res.data.precio_base
-        }));
+        fetchServicios();
       }
       setNestedModal(null);
       setNestedModalIndex(null);
@@ -285,6 +320,10 @@ function Ventas() {
             precio_venta: Number(d.precio_venta || 0),
             descuento: Number(d.descuento || 0),
           }))));
+        } else if (key === 'cliente') {
+            if (formData[key]) {
+                ventaSubmitData.append(key, parseInt(formData[key]));
+            }
         } else if (key === 'comprobante_archivo') {
           if (formData[key] instanceof File) {
             submitData.append(key, formData[key]);
@@ -670,7 +709,7 @@ function Ventas() {
                       </button>
                     )}
                     {venta.estado === 'BORRADOR' && (
-                      <button className="btn btn-danger" onClick={() => handleCancelar(venta.id)} title="Cancelar venta" style={{ background: '#ff7a00' }}>
+                      <button className="btn btn-warning" onClick={() => handleCancelar(venta.id)} title="Cancelar venta">
                         <CloseOutlined />
                       </button>
                     )}
@@ -766,58 +805,51 @@ function Ventas() {
                     <div className="grid grid-2">
                       <div className="form-group">
                         <label className="form-label">Servicio</label>
-                        <select
-                          name="servicio"
-                          className={`form-input${ventaErrors.servicio ? ' input-error' : ''}`}
+                        <SearchableSelect
+                          options={servicios.map(s => ({
+                            id: String(s.id),
+                            nombre: s.nombre,
+                            subtitle: `S/. ${Number(s.precio_base || 0).toFixed(2)}`
+                          }))}
                           value={ventaData.servicio}
-                          onChange={(e) => {
-                            if (e.target.value === 'NEW') {
-                              openNestedModal('servicio');
-                            } else {
-                              const serv = servicios.find(s => s.id === parseInt(e.target.value));
-                              setVentaData(prev => ({
-                                ...prev,
-                                servicio: e.target.value,
-                                servicio_nombre: serv ? serv.nombre : '',
-                                precio: serv ? Number(serv.precio_base || 0) : 0
-                              }));
-                              if (ventaErrors.servicio) setVentaErrors(prev => ({ ...prev, servicio: null }));
-                            }
+                          onChange={(val) => {
+                            const serv = servicios.find(s => String(s.id) === String(val));
+                            setVentaData(prev => ({
+                              ...prev,
+                              servicio: val,
+                              servicio_nombre: serv ? serv.nombre : '',
+                              precio: serv ? Number(serv.precio_base || 0) : 0
+                            }));
+                            if (ventaErrors.servicio) setVentaErrors(prev => ({ ...prev, servicio: null }));
                           }}
-                        >
-                          <option value="">Seleccionar servicio</option>
-                          <option value="NEW" style={{ fontWeight: 'bold', color: '#1677ff' }}>➕ Crear Nuevo Servicio</option>
-                          {servicios.map(s => (
-                            <option key={s.id} value={s.id}>{s.nombre}</option>
-                          ))}
-                        </select>
+                          placeholder="Buscar servicio..."
+                          onActionClick={() => openNestedModal('servicio')}
+                          actionLabel="➕ Crear Nuevo Servicio"
+                          error={ventaErrors.servicio}
+                        />
                         {ventaErrors.servicio && <div className="error-message" style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{ventaErrors.servicio}</div>}
                       </div>
                       <div className="form-group">
                         <label className="form-label">Cliente</label>
-                        <select
-                          name="cliente"
-                          className="form-input"
+                        <SearchableSelect
+                          options={clientes.map(c => ({
+                            id: String(c.id),
+                            nombre: c.nombre,
+                            subtitle: c.numero_documento
+                          }))}
                           value={ventaData.cliente}
-                          onChange={(e) => {
-                            if (e.target.value === 'NEW') {
-                               openNestedModal('cliente');
-                            } else {
-                               const cli = clientes.find(c => c.id === parseInt(e.target.value));
-                               setVentaData(prev => ({
-                                 ...prev,
-                                 cliente: e.target.value,
-                                 cliente_nombre: cli ? cli.nombre : ''
-                               }));
-                            }
+                          onChange={(val) => {
+                            const cli = clientes.find(c => String(c.id) === String(val));
+                            setVentaData(prev => ({
+                              ...prev,
+                              cliente: val,
+                              cliente_nombre: cli ? cli.nombre : ''
+                            }));
                           }}
-                        >
-                          <option value="">Cliente General</option>
-                          <option value="NEW" style={{ fontWeight: 'bold', color: '#1677ff' }}>➕ Crear Nuevo Cliente</option>
-                          {clientes.map(c => (
-                            <option key={c.id} value={c.id}>{c.nombre}</option>
-                          ))}
-                        </select>
+                          placeholder="Buscar cliente..."
+                          onActionClick={() => openNestedModal('cliente')}
+                          actionLabel="➕ Crear Nuevo Cliente"
+                        />
                       </div>
                     </div>
                     <div className="grid grid-2">
@@ -890,29 +922,25 @@ function Ventas() {
                     <div className="grid grid-2">
                   <div className="form-group">
                     <label className="form-label">Cliente</label>
-                    <select
-                      name="cliente"
-                      className="form-input"
+                    <SearchableSelect
+                      options={clientes.map(c => ({
+                        id: String(c.id),
+                        nombre: c.nombre,
+                        subtitle: c.numero_documento
+                      }))}
                       value={formData.cliente}
-                      onChange={(e) => {
-                        if (e.target.value === 'NEW') {
-                           openNestedModal('cliente');
-                        } else {
-                           const cliente = clientes.find(c => c.id === parseInt(e.target.value));
-                           setFormData(prev => ({
-                             ...prev,
-                             cliente: e.target.value,
-                             cliente_nombre: cliente ? cliente.nombre : ''
-                           }));
-                        }
+                      onChange={(val) => {
+                        const cliente = clientes.find(c => String(c.id) === String(val));
+                        setFormData(prev => ({
+                          ...prev,
+                          cliente: val,
+                          cliente_nombre: cliente ? cliente.nombre : ''
+                        }));
                       }}
-                    >
-                      <option value="">Cliente General</option>
-                      <option value="NEW" style={{ fontWeight: 'bold', color: '#1677ff' }}>➕ Crear Nuevo Cliente</option>
-                      {clientes.map(c => (
-                        <option key={c.id} value={c.id}>{c.nombre}</option>
-                      ))}
-                    </select>
+                      placeholder="Buscar cliente..."
+                      onActionClick={() => openNestedModal('cliente')}
+                      actionLabel="➕ Crear Nuevo Cliente"
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Tipo Comprobante</label>
@@ -955,11 +983,12 @@ function Ventas() {
 
                   {/* Header labels for rows */}
                   {formData.detalle.length > 0 && (
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '4px', padding: '0 2px', fontWeight: 600, fontSize: '12px', color: '#666' }}>
+                     <div style={{ display: 'flex', gap: '8px', marginBottom: '4px', padding: '0 2px', fontWeight: 600, fontSize: '12px', color: '#666' }}>
                       <div style={{ flex: 2, minWidth: 0 }}>Producto</div>
                       <div style={{ width: '90px' }}>Cantidad</div>
-                      <div style={{ width: '110px' }}>Precio Unitario</div>
+                      <div style={{ width: '110px' }}>P. Unitario</div>
                       <div style={{ width: '100px' }}>Descuento</div>
+                      <div style={{ width: '90px' }}>Subtotal</div>
                       <div style={{ width: '36px' }}></div>
                     </div>
                   )}
@@ -967,27 +996,25 @@ function Ventas() {
                   {formData.detalle.map((item, index) => (
                     <div key={index} style={{ marginBottom: '8px' }}>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <select
-                          className={`form-input${errors[`detalle_${index}`] ? ' input-error' : ''}`}
-                          value={item.producto}
-                          onChange={(e) => {
-                            if (e.target.value === 'NEW') {
+                        <div style={{ flex: 2, minWidth: 0 }}>
+                          <SearchableSelect
+                            options={productos.map(p => ({
+                              id: String(p.id),
+                              nombre: p.nombre,
+                              subtitle: `Stock: ${p.stock_actual}`,
+                              disabled: !p.activo
+                            }))}
+                            value={item.producto}
+                            onChange={(val) => updateDetalle(index, 'producto', val)}
+                            placeholder="Buscar producto..."
+                            onActionClick={() => {
                               setNestedModalIndex(index);
                               setProductModalVisible(true);
-                            } else {
-                              updateDetalle(index, 'producto', e.target.value);
-                            }
-                          }}
-                          style={{ flex: 2, minWidth: 0 }}
-                        >
-                          <option value="">— Seleccionar producto —</option>
-                          <option value="NEW" style={{ fontWeight: 'bold', color: '#1677ff' }}>➕ Crear Nuevo Producto</option>
-                          {productos.map(p => (
-                            <option key={p.id} value={p.id}>
-                              {p.nombre} (Stock: {p.stock_actual})
-                            </option>
-                          ))}
-                        </select>
+                            }}
+                            actionLabel="➕ Crear Nuevo Producto"
+                            error={errors[`detalle_${index}`]}
+                          />
+                        </div>
                         <input
                           type="number"
                           className={`form-input${errors[`cantidad_${index}`] ? ' input-error' : ''}`}
@@ -1021,6 +1048,20 @@ function Ventas() {
                           min="0"
                           step="0.01"
                         />
+                        <input
+                          type="text"
+                          className="form-input"
+                          readOnly
+                          value={`S/. ${((Number(item.cantidad || 0) * Number(item.precio_venta || 0)) - Number(item.descuento || 0)).toFixed(2)}`}
+                          style={{ 
+                            width: '90px', 
+                            fontSize: '12px', 
+                            background: 'var(--bg-input)', 
+                            color: 'var(--text-primary)', 
+                            fontWeight: 'bold',
+                            border: '1px solid var(--border-input)'
+                          }} 
+                        />
                         <button type="button" className="btn btn-danger" onClick={() => removeDetalle(index)} style={{ flexShrink: 0 }}>
                           <DeleteOutlined />
                         </button>
@@ -1048,7 +1089,18 @@ function Ventas() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Total Estimado</label>
-                    <input type="text" className="form-input" value={`S/. ${calcularTotal().toFixed(2)}`} readOnly style={{ fontWeight: 'bold', background: '#f5f5f5' }} />
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={`S/. ${calcularTotal().toFixed(2)}`} 
+                      readOnly 
+                      style={{ 
+                        fontWeight: 'bold', 
+                        background: 'var(--bg-input)',
+                        color: 'var(--accent, #1677ff)',
+                        border: '2px solid var(--accent, #1677ff)'
+                      }} 
+                    />
                   </div>
                 </div>
 
@@ -1083,6 +1135,20 @@ function Ventas() {
               {nestedModal === 'cliente' && (
                 <>
                   <div className="form-group"><label className="form-label">Nombre *</label><input required className="form-input" value={nestedFormData.nombre} onChange={(e) => setNestedFormData(p => ({...p, nombre: e.target.value}))} /></div>
+                  <div className="grid grid-2">
+                    <div className="form-group">
+                      <label className="form-label">Tipo Doc. *</label>
+                      <select required className="form-input" value={nestedFormData.tipo_documento} onChange={(e) => setNestedFormData(p => ({...p, tipo_documento: e.target.value}))}>
+                        <option value="DNI">DNI</option>
+                        <option value="RUC">RUC</option>
+                        <option value="CE">CE</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Nro Doc. *</label>
+                      <input required className="form-input" value={nestedFormData.numero_documento} onChange={(e) => setNestedFormData(p => ({...p, numero_documento: e.target.value}))} />
+                    </div>
+                  </div>
                   <div className="form-group"><label className="form-label">Email</label><input type="email" className="form-input" value={nestedFormData.email} onChange={(e) => setNestedFormData(p => ({...p, email: e.target.value}))} /></div>
                   <div className="form-group"><label className="form-label">Teléfono</label><input className="form-input" value={nestedFormData.telefono} onChange={(e) => setNestedFormData(p => ({...p, telefono: e.target.value}))} /></div>
                 </>
@@ -1110,24 +1176,13 @@ function Ventas() {
         mode="create"
         onClose={() => setProductModalVisible(false)}
         onSave={(newProduct) => {
-          // Inject new product into state to bypass pagination missing the new record
+          setPendingSelection({ type: 'producto', id: newProduct.id });
           setProductos(prev => {
             if (prev.find(p => p.id === newProduct.id)) return prev;
             return [...prev, newProduct];
           });
-          
-          if (nestedModalIndex !== null) {
-            setFormData(prev => {
-              const newDetalle = [...prev.detalle];
-              newDetalle[nestedModalIndex] = {
-                ...newDetalle[nestedModalIndex],
-                producto: String(newProduct.id),
-                precio_venta: Number(newProduct.precio_venta || 0)
-              };
-              return { ...prev, detalle: newDetalle };
-            });
-            setNestedModalIndex(null);
-          }
+          fetchProductos();
+          setProductModalVisible(false);
         }}
       />
     </div>

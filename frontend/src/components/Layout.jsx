@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import { useTheme } from '../ThemeContext';
 import { 
   DashboardOutlined, 
   ShoppingOutlined, 
@@ -14,6 +15,8 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   MenuOutlined,
+  BulbOutlined,
+  BulbFilled,
 } from '@ant-design/icons';
 
 const menuItems = [
@@ -33,6 +36,7 @@ function Layout() {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { isDark, toggleTheme } = useTheme();
 
   // Close mobile menu when route changes
   useEffect(() => {
@@ -44,12 +48,21 @@ function Layout() {
       {/* Mobile Header */}
       <div className="mobile-header">
         <div className="mobile-header-title">Inventario y Balance</div>
-        <button 
-          className="mobile-menu-btn"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        >
-          <MenuOutlined />
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            className="mobile-menu-btn"
+            onClick={toggleTheme}
+            style={{ fontSize: '18px' }}
+          >
+            {isDark ? <BulbFilled style={{ color: '#1b9cfc' }} /> : <BulbOutlined />}
+          </button>
+          <button 
+            className="mobile-menu-btn"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            <MenuOutlined />
+          </button>
+        </div>
       </div>
 
       {/* Mobile Overlay */}
@@ -78,19 +91,38 @@ function Layout() {
           ))}
         </nav>
         
-        <button 
-          className="btn btn-secondary"
-          onClick={() => setCollapsed(!collapsed)}
-          style={{
-            position: 'absolute',
-            bottom: '20px',
-            left: '20px',
-            right: '20px',
-          }}
-        >
-          {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-          {!collapsed && ' Colapsar menú'}
-        </button>
+        <div style={{
+          position: 'absolute',
+          bottom: '20px',
+          left: '20px',
+          right: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px'
+        }}>
+          <button 
+            className="btn btn-secondary"
+            onClick={toggleTheme}
+            title={isDark ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}
+            style={{ width: '100%', justifyContent: collapsed ? 'center' : 'flex-start' }}
+          >
+            <span style={{ display: 'inline-flex', width: '20px', justifyContent: 'center' }}>
+              {isDark ? <BulbFilled style={{ color: '#1b9cfc' }} /> : <BulbOutlined />}
+            </span>
+            {!collapsed && (isDark ? ' Modo Claro' : ' Modo Oscuro')}
+          </button>
+          
+          <button 
+            className="btn btn-secondary"
+            onClick={() => setCollapsed(!collapsed)}
+            style={{ width: '100%', justifyContent: collapsed ? 'center' : 'flex-start' }}
+          >
+            <span style={{ display: 'inline-flex', width: '20px', justifyContent: 'center' }}>
+              {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            </span>
+            {!collapsed && ' Colapsar menú'}
+          </button>
+        </div>
       </aside>
 
       <main className={`main-content ${collapsed ? 'collapsed' : ''}`}>

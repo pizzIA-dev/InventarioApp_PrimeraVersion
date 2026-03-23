@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Proveedor, HistoricoPrecio
+from .models import Proveedor, HistoricoPrecio, MovimientoProveedor
 
 
 class ProveedorSerializer(serializers.ModelSerializer):
@@ -23,7 +23,7 @@ class ProveedorCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Proveedor
         fields = [
-            'nombre', 'identificador', 'contacto', 'email', 'telefono', 'direccion',
+            'id', 'nombre', 'identificador', 'contacto', 'email', 'telefono', 'direccion',
             'categoria', 'tiene_contrato', 'detalles_contrato', 'dias_credito', 'limite_credito', 'activo'
         ]
 
@@ -47,3 +47,15 @@ class HistoricoPrecioPorProductoSerializer(serializers.ModelSerializer):
     class Meta:
         model = HistoricoPrecio
         fields = ['precio_compra', 'cantidad', 'fecha']
+
+class MovimientoProveedorSerializer(serializers.ModelSerializer):
+    proveedor_nombre = serializers.CharField(source='proveedor.nombre', read_only=True)
+    proveedor_identificador = serializers.CharField(source='proveedor.identificador', read_only=True)
+
+    class Meta:
+        model = MovimientoProveedor
+        fields = [
+            'id', 'proveedor', 'proveedor_nombre', 'proveedor_identificador',
+            'tipo', 'descripcion', 'fecha', 'activo_nuevo', 'contrato_nuevo'
+        ]
+        read_only_fields = ['fecha']

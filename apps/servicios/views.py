@@ -17,7 +17,7 @@ from .serializers import (
 
 
 class CategoriaServicioViewSet(viewsets.ModelViewSet):
-    queryset = CategoriaServicio.objects.filter(activo=True)
+    queryset = CategoriaServicio.objects.all()
     serializer_class = CategoriaServicioSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['nombre']
@@ -29,7 +29,7 @@ class CategoriaServicioViewSet(viewsets.ModelViewSet):
 
 
 class ServicioViewSet(viewsets.ModelViewSet):
-    queryset = Servicio.objects.filter(activo=True)
+    queryset = Servicio.objects.all()
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre', 'descripcion']
     filterset_fields = ['categoria', 'activo']

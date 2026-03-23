@@ -371,6 +371,20 @@ function Servicios() {
                         min="0"
                       />
                     </div>
+                    <div className="form-group">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="checkbox"
+                          name="activo"
+                          checked={formData.activo}
+                          onChange={(e) => setFormData(prev => ({ ...prev, activo: e.target.checked }))}
+                          style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                        />
+                        <span style={{ userSelect: 'none', color: 'inherit', fontSize: '14px', fontWeight: '500' }}>
+                          Servicio Activo
+                        </span>
+                      </div>
+                    </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>

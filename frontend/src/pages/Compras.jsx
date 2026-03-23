@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { comprasAPI, proveedoresAPI, productosAPI } from '../services/api';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import ProductFormModal from '../components/ProductFormModal';
+import ProveedorFormModal from '../components/ProveedorFormModal';
+import SearchableSelect from '../components/SearchableSelect';
 
 function Compras() {
   const [loading, setLoading] = useState(true);
@@ -17,7 +19,16 @@ function Compras() {
   const [proveedores, setProveedores] = useState([]);
   const [productos, setProductos] = useState([]);
   const [errors, setErrors] = useState({});
-  const [confirmDialog, setConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
+  const [confirmDialog, setConfirmDialog] = useState({ 
+    visible: false, 
+    id: null, 
+    nombre: '', 
+    type: 'delete', 
+    title: '', 
+    message: '',
+    confirmText: '',
+    danger: false
+  });
   const [formData, setFormData] = useState({
     proveedor: '',
     proveedor_nombre: '',
@@ -35,31 +46,44 @@ function Compras() {
   const [nestedModalIndex, setNestedModalIndex] = useState(null);
 
   const openNestedModal = (type) => {
-    setNestedModal(type);
     if (type === 'proveedor') {
-      setNestedFormData({ nombre: '', tipo_documento: 'RUC', numero_documento: '', email: '', telefono: '', direccion: '' });
+      setProveedorModalVisible(true);
     }
   };
 
-  const handleNestedSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (nestedModal === 'proveedor') {
-        const res = await proveedoresAPI.create(nestedFormData);
-        // Inject new supplier into state to bypass pagination missing the new record
-        setProveedores(prev => {
-          if (prev.find(p => p.id === res.data.id)) return prev;
-          return [...prev, res.data];
-        });
-        
-        setFormData(prev => ({ ...prev, proveedor: String(res.data.id), proveedor_nombre: res.data.nombre }));
+  const [proveedorModalVisible, setProveedorModalVisible] = useState(false);
+  const [pendingSelection, setPendingSelection] = useState(null);
+
+  useEffect(() => {
+    if (pendingSelection && pendingSelection.type === 'proveedor') {
+      const found = proveedores.find(p => String(p.id) === String(pendingSelection.id));
+      if (found) {
+        setFormData(prev => ({ 
+          ...prev, 
+          proveedor: String(found.id), 
+          proveedor_nombre: found.nombre 
+        }));
+        setPendingSelection(null);
       }
-      setNestedModal(null);
-      setNestedModalIndex(null);
-    } catch (err) {
-      alert('Error creando registro: ' + (err.response?.data?.message || typeof err.response?.data === 'string' ? err.response.data : JSON.stringify(err.response?.data) || err.message));
+    } else if (pendingSelection && pendingSelection.type === 'producto') {
+      const found = productos.find(p => String(p.id) === String(pendingSelection.id));
+      if (found) {
+        if (nestedModalIndex !== null) {
+          setFormData(prev => {
+            const newDetalle = [...prev.detalle];
+            newDetalle[nestedModalIndex] = {
+              ...newDetalle[nestedModalIndex],
+              producto: String(found.id),
+              precio_compra: Number(found.precio_compra || 0)
+            };
+            return { ...prev, detalle: newDetalle };
+          });
+          setNestedModalIndex(null);
+        }
+        setPendingSelection(null);
+      }
     }
-  };
+  }, [proveedores, productos, pendingSelection, nestedModalIndex]);
 
   useEffect(() => {
     fetchCompras();
@@ -117,6 +141,7 @@ function Compras() {
             producto: d.producto,
             cantidad: Number(d.cantidad || 1),
             precio_compra: Number(d.precio_compra || 0),
+            descuento: Number(d.descuento || 0),
           })),
         });
       } catch {
@@ -126,7 +151,7 @@ function Compras() {
           tipo_compra: compra.tipo_compra || 'PROVEEDOR',
           numero_comprobante: compra.numero_comprobante || '',
           tipo_comprobante: compra.tipo_comprobante || '',
-          estado: compra.estado || 'CONFIRMADA',
+          estado: compra.estado || 'BORRADOR',
           impuesto: Number(compra.impuesto || 0),
           notas: compra.notas || '',
           detalle: [],
@@ -140,7 +165,7 @@ function Compras() {
         tipo_compra: 'PROVEEDOR',
         numero_comprobante: '',
         tipo_comprobante: '',
-        estado: 'CONFIRMADA',
+        estado: 'BORRADOR',
         impuesto: 0,
         notas: '',
         detalle: [],
@@ -158,7 +183,7 @@ function Compras() {
   const addProducto = () => {
     setFormData(prev => ({
       ...prev,
-      detalle: [...prev.detalle, { producto: '', cantidad: 1, precio_compra: 0 }]
+      detalle: [...prev.detalle, { producto: '', cantidad: 1, precio_compra: 0, descuento: 0 }]
     }));
   };
 
@@ -199,6 +224,13 @@ function Compras() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
+    
+    // Check if provider is active
+    const selectedProv = proveedores.find(p => p.id === parseInt(formData.proveedor));
+    if (selectedProv && !selectedProv.activo) {
+      alert('No se puede realizar una compra a un proveedor inactivo. Por favor, activa el proveedor o selecciona otro.');
+      return;
+    }
     try {
       const submitData = new FormData();
       Object.keys(formData).forEach(key => {
@@ -207,7 +239,12 @@ function Compras() {
             producto: parseInt(d.producto),
             cantidad: Number(d.cantidad || 0),
             precio_compra: Number(d.precio_compra || 0),
+            descuento: Number(d.descuento || 0),
           }))));
+        } else if (key === 'proveedor') {
+            if (formData[key]) {
+                submitData.append(key, parseInt(formData[key]));
+            }
         } else if (key === 'comprobante_archivo') {
           if (formData[key] instanceof File) {
             submitData.append(key, formData[key]);
@@ -238,7 +275,60 @@ function Compras() {
   };
 
   const handleDeleteClick = (compra) => {
-    setConfirmDialog({ visible: true, id: compra.id, nombre: compra.numero_comprobante || `Compra #${compra.id}` });
+    setConfirmDialog({ 
+      visible: true, 
+      id: compra.id, 
+      nombre: compra.numero_comprobante || `#${compra.id}`,
+      type: 'delete',
+      title: 'Eliminar Compra',
+      message: `¿Estás seguro de que deseas eliminar "${compra.numero_comprobante || `#${compra.id}`}"? Esta acción no se puede deshacer.`,
+      confirmText: 'Sí, eliminar',
+      danger: true
+    });
+  };
+
+  const handleConfirmarClick = (compra) => {
+    setConfirmDialog({
+      visible: true,
+      id: compra.id,
+      nombre: compra.numero_comprobante || `#${compra.id}`,
+      type: 'confirmar',
+      title: 'Confirmar Compra',
+      message: `¿Deseas confirmar la compra "${compra.numero_comprobante || `#${compra.id}`}"? Esto registrará el ingreso de los productos al stock actual.`,
+      confirmText: 'Sí, confirmar',
+      danger: false
+    });
+  };
+
+  const handleCancelarClick = (compra) => {
+    setConfirmDialog({
+      visible: true,
+      id: compra.id,
+      nombre: compra.numero_comprobante || `#${compra.id}`,
+      type: 'cancelar',
+      title: 'Cancelar Compra',
+      message: `¿Estás seguro de que deseas cancelar la compra "${compra.numero_comprobante || `#${compra.id}`}"? Si ya fue confirmada, se revertirá el incremento de stock.`,
+      confirmText: 'Sí, cancelar',
+      danger: true
+    });
+  };
+
+  const handleGeneralConfirm = async () => {
+    const { id, type } = confirmDialog;
+    try {
+      if (type === 'delete') {
+        await comprasAPI.delete(id);
+      } else if (type === 'confirmar') {
+        await comprasAPI.confirmar(id);
+      } else if (type === 'cancelar') {
+        await comprasAPI.cancelar(id);
+      }
+      fetchCompras();
+      setConfirmDialog({ ...confirmDialog, visible: false });
+    } catch (error) {
+      console.error(`Error in ${type} operation:`, error);
+      alert(`Error al procesar la solicitud: ${type}`);
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -266,7 +356,9 @@ function Compras() {
     const subtotal = formData.detalle.reduce((sum, d) => {
       const cant = Number(d.cantidad || 0);
       const prec = Number(d.precio_compra || 0);
-      return sum + (cant * prec);
+      const desc = Number(d.descuento || 0);
+      const base = (cant * prec) - desc;
+      return sum + Math.max(0, base);
     }, 0);
     return Number(subtotal) + Number(formData.impuesto || 0);
   };
@@ -301,12 +393,12 @@ function Compras() {
     <div>
       <ConfirmDialog
         visible={confirmDialog.visible}
-        title="Eliminar Compra"
-        message={`¿Estás seguro de que deseas eliminar "${confirmDialog.nombre}"? Esta acción no se puede deshacer.`}
-        onConfirm={handleDeleteConfirm}
-        onCancel={() => setConfirmDialog({ visible: false, id: null, nombre: '' })}
-        confirmText="Sí, eliminar"
-        danger={true}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={handleGeneralConfirm}
+        onCancel={() => setConfirmDialog({ ...confirmDialog, visible: false })}
+        confirmText={confirmDialog.confirmText}
+        danger={confirmDialog.danger}
       />
 
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -353,21 +445,40 @@ function Compras() {
           <table>
             <thead>
               <tr>
-                <th>Nro</th>
+                <th style={{ width: '60px' }}>ID</th>
+                <th>Comprobante</th>
                 <th>Proveedor</th>
-                <th>Tipo</th>
+                <th>Productos</th>
                 <th>Fecha</th>
                 <th>Estado</th>
                 <th>Total</th>
-                <th>Acciones</th>
+                <th style={{ width: '100px' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {filteredCompras.map((compra) => (
                 <tr key={compra.id}>
-                  <td>{compra.numero_comprobante || `#${compra.id}`}</td>
-                  <td>{compra.proveedor_nombre || 'Sin proveedor'}</td>
-                  <td>{compra.tipo_compra}</td>
+                  <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>#{compra.id}</td>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{compra.numero_comprobante || 'S/N'}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                      {compra.tipo_comprobante || 'Sin tipo'}
+                    </div>
+                  </td>
+                  <td>
+                    <div>{compra.proveedor_nombre || 'Sin proveedor'}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{compra.tipo_compra}</div>
+                  </td>
+                  <td style={{ maxWidth: '250px' }}>
+                    <div style={{ 
+                      fontSize: '13px', 
+                      overflow: 'hidden', 
+                      textOverflow: 'ellipsis', 
+                      whiteSpace: 'nowrap'
+                    }} title={compra.productos_resumen}>
+                      {compra.productos_resumen || 'Sin productos'}
+                    </div>
+                  </td>
                   <td>{new Date(compra.creado_en).toLocaleDateString()}</td>
                   <td>
                     <span className={`badge ${
@@ -377,19 +488,31 @@ function Compras() {
                       {compra.estado}
                     </span>
                   </td>
-                  <td>S/. {Number(compra.total || 0).toFixed(2)}</td>
-                  <td style={{ display: 'flex', gap: '4px' }}>
-                    <button className="btn btn-secondary" onClick={() => openModal('edit', compra)} title="Editar">
-                      <EditOutlined />
-                    </button>
-                    <button className="btn btn-danger" onClick={() => handleDeleteClick(compra)} title="Eliminar">
-                      <DeleteOutlined />
-                    </button>
+                  <td style={{ fontWeight: 600 }}>S/. {Number(compra.total || 0).toFixed(2)}</td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button className="btn btn-secondary" onClick={() => openModal('edit', compra)} title="Editar">
+                        <EditOutlined />
+                      </button>
+                      {compra.estado === 'BORRADOR' && (
+                        <button className="btn btn-success" onClick={() => handleConfirmarClick(compra)} title="Confirmar">
+                          <CheckOutlined />
+                        </button>
+                      )}
+                      {(compra.estado === 'BORRADOR' || compra.estado === 'CONFIRMADA') && (
+                        <button className="btn btn-warning" onClick={() => handleCancelarClick(compra)} title="Cancelar">
+                          <CloseOutlined />
+                        </button>
+                      )}
+                      <button className="btn btn-danger" onClick={() => handleDeleteClick(compra)} title="Eliminar">
+                        <DeleteOutlined />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
               {filteredCompras.length === 0 && (
-                <tr><td colSpan="7" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay compras registradas que coincidan con los filtros</td></tr>
+                <tr><td colSpan="8" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay compras registradas que coincidan con los filtros</td></tr>
               )}
             </tbody>
           </table>
@@ -410,29 +533,34 @@ function Compras() {
                 <div className="grid grid-2">
                   <div className="form-group">
                     <label className="form-label">Proveedor</label>
-                    <select
-                      name="proveedor"
-                      className="form-input"
-                      value={formData.proveedor}
-                      onChange={(e) => {
-                        if (e.target.value === 'NEW') {
-                           openNestedModal('proveedor');
-                        } else {
-                           const prov = proveedores.find(p => p.id === parseInt(e.target.value));
-                           setFormData(prev => ({
-                             ...prev,
-                             proveedor: e.target.value,
-                             proveedor_nombre: prov ? prov.nombre : ''
-                           }));
-                        }
-                      }}
-                    >
-                      <option value="">Sin proveedor</option>
-                      <option value="NEW" style={{ fontWeight: 'bold', color: '#1677ff' }}>➕ Crear Nuevo Proveedor</option>
-                      {proveedores.map(p => (
-                        <option key={p.id} value={p.id}>{p.nombre}</option>
-                      ))}
-                    </select>
+                    <div style={{ position: 'relative' }}>
+                      <SearchableSelect
+                        options={proveedores.map(p => ({
+                          id: String(p.id),
+                          nombre: p.nombre,
+                          subtitle: `${p.identificador} ${!p.activo ? '(INACTIVO)' : ''}`,
+                          disabled: !p.activo
+                        }))}
+                        value={formData.proveedor}
+                        onChange={(val) => {
+                          const prov = proveedores.find(p => String(p.id) === String(val));
+                          setFormData(prev => ({
+                            ...prev,
+                            proveedor: val,
+                            proveedor_nombre: prov ? prov.nombre : ''
+                          }));
+                        }}
+                        placeholder="Buscar proveedor..."
+                        onActionClick={() => openNestedModal('proveedor')}
+                        actionLabel="➕ Crear Nuevo Proveedor"
+                        error={errors.proveedor}
+                      />
+                      {formData.proveedor && !proveedores.find(p => String(p.id) === String(formData.proveedor))?.activo && (
+                        <div style={{ color: 'var(--color-danger)', fontSize: '12px', marginTop: '4px', fontWeight: 'bold' }}>
+                          ⚠️ Este proveedor no está activo y no se puede usar para nuevas compras.
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Tipo de Compra</label>
@@ -459,42 +587,54 @@ function Compras() {
                   </div>
                 </div>
 
+                <div className="grid grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Estado</label>
+                    <select name="estado" className="form-input" value={formData.estado} onChange={handleChange}>
+                      <option value="BORRADOR">Borrador</option>
+                      <option value="CONFIRMADA">Confirmada (Registra Stock)</option>
+                      <option value="CANCELADA">Cancelada (Revierte Stock si aplica)</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="form-group">
                   <label className="form-label" style={{ fontWeight: 600 }}>
                     Productos {errors.detalle && <span style={{ color: '#ff4d4f', fontWeight: 400, marginLeft: 8 }}>{errors.detalle}</span>}
                   </label>
 
                   {formData.detalle.length > 0 && (
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '4px', fontWeight: 600, fontSize: '12px', color: '#666' }}>
-                      <div style={{ flex: 2, minWidth: 0 }}>Producto</div>
-                      <div style={{ width: '90px' }}>Cantidad</div>
-                      <div style={{ width: '110px' }}>Precio Compra</div>
-                      <div style={{ width: '36px' }}></div>
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '4px', fontWeight: 600, fontSize: '11px', color: '#666', paddingRight: '44px' }}>
+                      <div style={{ flex: '1.5', minWidth: 0 }}>Producto</div>
+                      <div style={{ width: '70px' }}>Cant.</div>
+                      <div style={{ width: '90px' }}>P. Compra</div>
+                      <div style={{ width: '90px' }}>Descuento</div>
+                      <div style={{ width: '90px' }}>Subtotal</div>
                     </div>
                   )}
 
                   {formData.detalle.map((item, index) => (
                     <div key={index} style={{ marginBottom: '8px' }}>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <select
-                          className={`form-input${errors[`detalle_${index}`] ? ' input-error' : ''}`}
-                          value={item.producto}
-                          onChange={(e) => {
-                            if (e.target.value === 'NEW') {
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                        <div style={{ flex: '1.5', minWidth: 0 }}>
+                          <SearchableSelect
+                            options={productos.map(p => ({
+                              id: String(p.id),
+                              nombre: p.nombre,
+                              subtitle: p.codigo,
+                              disabled: !p.activo
+                            }))}
+                            value={item.producto}
+                            onChange={(val) => updateDetalle(index, 'producto', val)}
+                            placeholder="Buscar producto..."
+                            onActionClick={() => {
                               setNestedModalIndex(index);
                               setProductModalVisible(true);
-                            } else {
-                              updateDetalle(index, 'producto', e.target.value);
-                            }
-                          }}
-                          style={{ flex: 2, minWidth: 0 }}
-                        >
-                          <option value="">— Seleccionar producto —</option>
-                          <option value="NEW" style={{ fontWeight: 'bold', color: '#1677ff' }}>➕ Crear Nuevo Producto</option>
-                          {productos.map(p => (
-                            <option key={p.id} value={p.id}>{p.nombre}</option>
-                          ))}
-                        </select>
+                            }}
+                            actionLabel="➕ Nuevo Producto"
+                            error={errors[`detalle_${index}`]}
+                          />
+                        </div>
                         <input
                           type="number"
                           className={`form-input${errors[`cantidad_${index}`] ? ' input-error' : ''}`}
@@ -502,7 +642,7 @@ function Compras() {
                           value={item.cantidad}
                           onChange={(e) => updateDetalle(index, 'cantidad', parseFloat(e.target.value) || 0)}
                           onFocus={(e) => e.target.select()}
-                          style={{ width: '90px' }}
+                          style={{ width: '70px', fontSize: '13px' }}
                           min="0.01"
                           step="0.01"
                         />
@@ -513,11 +653,36 @@ function Compras() {
                           value={item.precio_compra}
                           onChange={(e) => updateDetalle(index, 'precio_compra', parseFloat(e.target.value) || 0)}
                           onFocus={(e) => e.target.select()}
-                          style={{ width: '110px' }}
+                          style={{ width: '90px', fontSize: '13px' }}
                           min="0"
                           step="0.01"
                         />
-                        <button type="button" className="btn btn-danger" onClick={() => removeDetalle(index)} style={{ flexShrink: 0 }}>
+                        <input
+                          type="number"
+                          className="form-input"
+                          placeholder="Desc."
+                          value={item.descuento}
+                          onChange={(e) => updateDetalle(index, 'descuento', parseFloat(e.target.value) || 0)}
+                          onFocus={(e) => e.target.select()}
+                          style={{ width: '90px', fontSize: '13px' }}
+                          min="0"
+                          step="0.01"
+                        />
+                        <input
+                          type="text"
+                          className="form-input"
+                          readOnly
+                          value={`S/. ${((Number(item.cantidad || 0) * Number(item.precio_compra || 0)) - Number(item.descuento || 0)).toFixed(2)}`}
+                          style={{ 
+                            width: '90px', 
+                            fontSize: '12px', 
+                            background: 'var(--bg-input)', 
+                            color: 'var(--text-primary)', 
+                            fontWeight: 'bold',
+                            border: '1px solid var(--border-input)'
+                          }} 
+                        />
+                        <button type="button" className="btn btn-danger" onClick={() => removeDetalle(index)} style={{ flexShrink: 0, padding: '4px 8px' }}>
                           <DeleteOutlined />
                         </button>
                       </div>
@@ -540,7 +705,18 @@ function Compras() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Total Estimado</label>
-                    <input type="text" className="form-input" value={`S/. ${calcularTotal().toFixed(2)}`} readOnly style={{ fontWeight: 'bold', background: '#f5f5f5' }} />
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={`S/. ${calcularTotal().toFixed(2)}`} 
+                      readOnly 
+                      style={{ 
+                        fontWeight: 'bold', 
+                        background: 'var(--bg-input)',
+                        color: 'var(--accent, #1677ff)',
+                        border: '2px solid var(--accent, #1677ff)'
+                      }} 
+                    />
                   </div>
                 </div>
 
@@ -568,56 +744,33 @@ function Compras() {
           </div>
         </div>
       )}
-      {/* Nested Create Forms */}
-      {nestedModal && (
-        <div className="modal-overlay" onClick={() => setNestedModal(null)} style={{ zIndex: 1100 }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
-            <div className="modal-header">
-              <h3 className="modal-title">
-                Crear Nuevo {nestedModal === 'proveedor' ? 'Proveedor' : 'Producto'}
-              </h3>
-              <button className="modal-close" onClick={() => setNestedModal(null)}>×</button>
-            </div>
-            <form onSubmit={handleNestedSubmit} style={{ padding: '20px' }}>
-              {nestedModal === 'proveedor' && (
-                <>
-                  <div className="form-group"><label className="form-label">Nombre *</label><input required className="form-input" value={nestedFormData.nombre} onChange={(e) => setNestedFormData(p => ({...p, nombre: e.target.value}))} /></div>
-                  <div className="form-group"><label className="form-label">Email</label><input type="email" className="form-input" value={nestedFormData.email} onChange={(e) => setNestedFormData(p => ({...p, email: e.target.value}))} /></div>
-                  <div className="form-group"><label className="form-label">Teléfono</label><input className="form-input" value={nestedFormData.telefono} onChange={(e) => setNestedFormData(p => ({...p, telefono: e.target.value}))} /></div>
-                </>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setNestedModal(null)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Guardar Proveedor</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ProveedorFormModal
+        visible={proveedorModalVisible}
+        mode="create"
+        onClose={() => setProveedorModalVisible(false)}
+        onSave={(newProv) => {
+          setPendingSelection({ type: 'proveedor', id: newProv.id, nombre: newProv.nombre });
+          setProveedores(prev => {
+            if (prev.find(p => p.id === newProv.id)) return prev;
+            return [...prev, newProv];
+          });
+          fetchProveedores();
+          setProveedorModalVisible(false);
+        }}
+      />
 
       <ProductFormModal
         visible={productModalVisible}
         mode="create"
         onClose={() => setProductModalVisible(false)}
         onSave={(newProduct) => {
-          // Inject new product into state to bypass pagination missing the new record
+          setPendingSelection({ type: 'producto', id: newProduct.id });
           setProductos(prev => {
             if (prev.find(p => p.id === newProduct.id)) return prev;
             return [...prev, newProduct];
           });
-          
-          if (nestedModalIndex !== null) {
-            setFormData(prev => {
-              const newDetalle = [...prev.detalle];
-              newDetalle[nestedModalIndex] = {
-                ...newDetalle[nestedModalIndex],
-                producto: String(newProduct.id),
-                precio_compra: Number(newProduct.precio_compra || 0)
-              };
-              return { ...prev, detalle: newDetalle };
-            });
-            setNestedModalIndex(null);
-          }
+          fetchProductos();
+          setProductModalVisible(false);
         }}
       />
     </div>

@@ -68,7 +68,9 @@ class Compra(models.Model):
     
     def calcular_totales(self):
         """Calcula los totales de la compra"""
+        # Sumar los subtotales de los detalles (que ya incluyen descuentos)
         self.subtotal = sum(detalle.subtotal for detalle in self.detallecompra_set.all())
+        # El total es el subtotal (ya con descuentos) más el impuesto
         self.total = self.subtotal + self.impuesto
         self.save()
     
@@ -107,6 +109,12 @@ class DetalleCompra(models.Model):
         decimal_places=2,
         validators=[MinValueValidator(0)]
     )
+    descuento = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        default=0,
+        validators=[MinValueValidator(0)]
+    )
     subtotal = models.DecimalField(
         max_digits=12, 
         decimal_places=2,
@@ -120,6 +128,7 @@ class DetalleCompra(models.Model):
         return f"{self.producto.nombre} x {self.cantidad}"
     
     def save(self, *args, **kwargs):
-        # Calcular subtotal automáticamente
-        self.subtotal = self.cantidad * self.precio_compra
+        # Calcular subtotal automáticamente: (cantidad * precio) - descuento
+        base = self.cantidad * self.precio_compra
+        self.subtotal = max(0, base - self.descuento)
         super().save(*args, **kwargs)

@@ -65,6 +65,19 @@ class VentaCreateSerializer(serializers.ModelSerializer):
             'descuento', 'impuesto', 'notas', 'detalle', 'comprobante_archivo'
         ]
     
+    def to_internal_value(self, data):
+        import json
+        # Si viene de multipart/form-data, puede ser un QueryDict
+        if hasattr(data, 'dict'):
+            data = data.dict()
+        
+        if 'detalle' in data and isinstance(data.get('detalle'), str):
+            try:
+                data['detalle'] = json.loads(data['detalle'])
+            except (ValueError, TypeError):
+                pass
+        return super().to_internal_value(data)
+    
     def create(self, validated_data):
         detalle_data = validated_data.pop('detalle')
         
@@ -94,6 +107,19 @@ class VentaUpdateSerializer(serializers.ModelSerializer):
             'cliente', 'cliente_nombre', 'numero_comprobante', 'tipo_comprobante',
             'estado', 'descuento', 'impuesto', 'notas', 'detalle', 'comprobante_archivo'
         ]
+    
+    def to_internal_value(self, data):
+        import json
+        # Si viene de multipart/form-data, puede ser un QueryDict
+        if hasattr(data, 'dict'):
+            data = data.dict()
+        
+        if 'detalle' in data and isinstance(data.get('detalle'), str):
+            try:
+                data['detalle'] = json.loads(data['detalle'])
+            except (ValueError, TypeError):
+                pass
+        return super().to_internal_value(data)
     
     def get_fields(self):
         fields = super().get_fields()
