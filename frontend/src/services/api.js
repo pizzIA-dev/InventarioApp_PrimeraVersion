@@ -78,7 +78,12 @@ export const comprasAPI = {
   confirmar: (id) => api.post(`/compras/${id}/confirmar/`),
   cancelar: (id) => api.post(`/compras/${id}/cancelar/`),
   getResumen: () => api.get('/compras/resumen/'),
+  getHistoryEstados: (id, params) => api.get(`/compras/${id}/historial_estados/`, { params }),
+  getKardexProductos: (id, params) => api.get(`/compras/${id}/kardex_productos/`, { params }),
+  getKardexGlobalProductos: (params) => api.get('/compras/kardex_global_productos/', { params }),
   exportar: (params) => api.get('/compras/exportar/', { params, responseType: 'blob' }),
+  exportarHistorialIndividual: (id, params) => api.get(`/compras/${id}/exportar_historial/`, { params, responseType: 'blob' }),
+  exportarHistorialGlobal: (params) => api.get('/compras/exportar_historial_global/', { params, responseType: 'blob' }),
 };
 
 // Capital

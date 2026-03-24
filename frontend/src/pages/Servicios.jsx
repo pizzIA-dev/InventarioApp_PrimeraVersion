@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { serviciosAPI, clientesAPI } from '../services/api';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 
@@ -24,6 +25,10 @@ function Servicios() {
     duracion_minutos: '',
     activo: true,
   });
+
+  // Pagination
+  const SERVICIOS_PAGE_SIZE = 15;
+  const [serviciosPage, setServiciosPage] = useState(1);
 
   useEffect(() => {
     fetchServicios();
@@ -173,6 +178,17 @@ function Servicios() {
     return searchMatch && activoMatch;
   });
 
+  // Pagination logic
+  const totalPages = Math.max(1, Math.ceil(filteredServicios.length / SERVICIOS_PAGE_SIZE));
+  const safePage = Math.min(serviciosPage, totalPages);
+  const paginatedServicios = filteredServicios.slice(
+    (safePage - 1) * SERVICIOS_PAGE_SIZE,
+    safePage * SERVICIOS_PAGE_SIZE
+  );
+
+  const handleSearchChange = (val) => { setSearchTerm(val); setServiciosPage(1); };
+  const handleFilterActivoChange = (val) => { setFilterActivo(val); setServiciosPage(1); };
+
   return (
     <div>
       <ConfirmDialog 
@@ -205,14 +221,14 @@ function Servicios() {
               className="form-input" 
               placeholder="Buscar por nombre..." 
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>
           <div style={{ width: '200px' }}>
             <select 
               className="form-input" 
               value={filterActivo}
-              onChange={(e) => setFilterActivo(e.target.value)}
+              onChange={(e) => handleFilterActivoChange(e.target.value)}
             >
               <option value="ALL">Todos los estados</option>
               <option value="ACTIVO">Activos</option>
@@ -242,7 +258,7 @@ function Servicios() {
               </tr>
             </thead>
             <tbody>
-              {filteredServicios.map((servicio) => (
+              {paginatedServicios.map((servicio) => (
                 <tr key={servicio.id}>
                   <td>{servicio.nombre}</td>
                   <td>{servicio.categoria_nombre || '-'}</td>
@@ -271,6 +287,14 @@ function Servicios() {
             </tbody>
           </table>
         </div>
+        <Pagination 
+          currentPage={safePage}
+          totalPages={totalPages}
+          onPageChange={setServiciosPage}
+          pageSize={SERVICIOS_PAGE_SIZE}
+          totalItems={filteredServicios.length}
+          itemName="servicios"
+        />
       </div>
 
       {modalVisible && (

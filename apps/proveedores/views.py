@@ -1,6 +1,8 @@
 from django.http import HttpResponse
+from django.utils import timezone
 from apps.core.export_utils import (
-    get_period_range, get_period_label, create_excel_response
+    get_period_range, get_period_label, create_excel_response,
+    create_multi_sheet_excel_response
 )
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
@@ -93,15 +95,16 @@ class ProveedorViewSet(viewsets.ModelViewSet):
         
     @action(detail=True, methods=['get'])
     def exportar_historial(self, request, pk=None):
-        """Exportar el historial de un proveedor específico a Excel"""
+        """Exportar el historial de un proveedor específico a Excel con multi-hoja"""
         proveedor = self.get_object()
-        movimientos = proveedor.movimientos.all().order_by('-fecha')
         
-        headers = ['Fecha', 'Acción', 'Detalle', 'Estado', 'Contrato']
-        rows = []
+        # Hoja 1: Modificaciones de Estado
+        movimientos = proveedor.movimientos.all().order_by('-fecha')
+        headers_mod = ['Fecha', 'Acción', 'Detalle', 'Estado', 'Contrato']
+        rows_mod = []
         for mov in movimientos:
-            fecha_str = mov.fecha.strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
-            rows.append([
+            fecha_str = timezone.localtime(mov.fecha).strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
+            rows_mod.append([
                 fecha_str,
                 mov.tipo,
                 mov.descripcion,
@@ -109,13 +112,47 @@ class ProveedorViewSet(viewsets.ModelViewSet):
                 'Sí' if mov.contrato_nuevo else 'No'
             ])
 
-        return create_excel_response(
+        # Hoja 2: Detalle de Productos (Compras)
+        from apps.compras.models import DetalleCompra
+        detalles_qs = DetalleCompra.objects.filter(compra__proveedor=proveedor).select_related('producto', 'compra').order_by('-compra__creado_en')
+        
+        headers_prod = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra', 'Descuento', 'Total']
+        rows_prod = []
+        for d in detalles_qs:
+            c = d.compra
+            comp_num = c.numero_comprobante or f"#{c.id}"
+            rows_prod.append([
+                timezone.localtime(c.creado_en).strftime("%d/%m/%Y %H:%M:%S"),
+                c.tipo_comprobante or '',
+                comp_num,
+                d.producto.nombre,
+                d.producto.codigo,
+                float(d.cantidad),
+                float(d.precio_compra),
+                float(d.descuento),
+                float(d.subtotal)
+            ])
+
+        sheets_data = [
+            {
+                'sheet_name': 'Modificaciones de Estado',
+                'headers': headers_mod,
+                'rows': rows_mod,
+                'title': f'Historial de Modificaciones: {proveedor.nombre}',
+                'period_label': 'Historial Completo'
+            },
+            {
+                'sheet_name': 'Detalle de Productos',
+                'headers': headers_prod,
+                'rows': rows_prod,
+                'title': f'Detalle de Compras: {proveedor.nombre}',
+                'period_label': 'Historial Completo'
+            }
+        ]
+
+        return create_multi_sheet_excel_response(
             filename=f'historial_{proveedor.identificador}.xlsx',
-            sheet_name='Historial',
-            headers=headers,
-            rows=rows,
-            title=f'Historial de Modificaciones: {proveedor.nombre}',
-            period_label='Todos los registros'
+            sheets_data=sheets_data
         )
 
     @action(detail=True, methods=['get'])
@@ -158,7 +195,7 @@ class ProveedorViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
-        headers = ['ID', 'Nombre', 'Documento', 'Categoría', 'Contacto', 'Email', 'Teléfono', 'Límite Crédito (S/.)', 'Activo']
+        headers = ['ID', 'Nombre', 'Documento (RUC/DNI)', 'Categoría', 'Contrato', 'Contacto', 'Email', 'Teléfono', 'Días de Crédito', 'Límite Crédito (S/.)', 'Estado', 'Última Modificación']
         rows = []
         for obj in queryset:
             rows.append([
@@ -166,11 +203,14 @@ class ProveedorViewSet(viewsets.ModelViewSet):
                 obj.nombre,
                 obj.identificador or '',
                 obj.categoria or '',
+                'Sí' if obj.tiene_contrato else 'No',
                 obj.contacto or '',
                 obj.email or '',
                 obj.telefono or '',
+                obj.dias_credito or 0,
                 float(obj.limite_credito) if obj.limite_credito else 0.0,
-                'Sí' if obj.activo else 'No'
+                'Activo' if obj.activo else 'Inactivo',
+                timezone.localtime(obj.actualizado_en).strftime('%d/%m/%Y %H:%M:%S') if obj.actualizado_en else ''
             ])
 
         period_label = get_period_label(periodo, anio)
@@ -199,23 +239,30 @@ class MovimientoProveedorViewSet(viewsets.ReadOnlyModelViewSet):
     
     @action(detail=False, methods=['get'])
     def exportar(self, request):
-        """Exportar reporte de diario de movimientos a Excel"""
+        """Exportar reporte de diario de movimientos a Excel con multi-hoja"""
         periodo = request.query_params.get('periodo', 'todo')
         anio = request.query_params.get('anio')
         anio = int(anio) if anio else None
 
-        queryset = self.filter_queryset(self.get_queryset())
+        # Hoja 1: Modificaciones de Estado
+        movimientos_qs = self.filter_queryset(self.get_queryset())
+        
+        # Hoja 2: Detalle de Productos (Global)
+        from apps.compras.models import DetalleCompra
+        detalles_qs = DetalleCompra.objects.all().select_related('producto', 'compra', 'compra__proveedor').order_by('-compra__creado_en')
 
         period_range = get_period_range(periodo, anio)
         if period_range:
             date_from, date_to = period_range
-            queryset = queryset.filter(fecha__date__gte=date_from, fecha__date__lte=date_to)
+            movimientos_qs = movimientos_qs.filter(fecha__date__gte=date_from, fecha__date__lte=date_to)
+            detalles_qs = detalles_qs.filter(compra__creado_en__date__gte=date_from, compra__creado_en__date__lte=date_to)
 
-        headers = ['Fecha', 'Documento', 'Proveedor', 'Acción', 'Detalle', 'Estado', 'Contrato']
-        rows = []
-        for mov in queryset:
-            fecha_str = mov.fecha.strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
-            rows.append([
+        # Preparar filas Hoja 1
+        headers_mod = ['Fecha', 'ID Proveedor', 'Proveedor', 'Acción', 'Detalle', 'Estado', 'Contrato']
+        rows_mod = []
+        for mov in movimientos_qs:
+            fecha_str = timezone.localtime(mov.fecha).strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
+            rows_mod.append([
                 fecha_str,
                 mov.proveedor.identificador,
                 mov.proveedor.nombre,
@@ -225,12 +272,46 @@ class MovimientoProveedorViewSet(viewsets.ReadOnlyModelViewSet):
                 'Sí' if mov.contrato_nuevo else 'No'
             ])
 
+        # Preparar filas Hoja 2
+        headers_prod = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Proveedor', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra', 'Descuento', 'Total']
+        rows_prod = []
+        for d in detalles_qs:
+            c = d.compra
+            prov_nombre = c.proveedor_nombre or (c.proveedor.nombre if c.proveedor else 'N/A')
+            comp_num = c.numero_comprobante or f"#{c.id}"
+            rows_prod.append([
+                timezone.localtime(c.creado_en).strftime("%d/%m/%Y %H:%M:%S"),
+                c.tipo_comprobante or '',
+                comp_num,
+                prov_nombre,
+                d.producto.nombre,
+                d.producto.codigo,
+                float(d.cantidad),
+                float(d.precio_compra),
+                float(d.descuento),
+                float(d.subtotal)
+            ])
+
         period_label = get_period_label(periodo, anio)
-        return create_excel_response(
-            filename=f'diario_historial_proveedores.xlsx',
-            sheet_name='Historial Global',
-            headers=headers,
-            rows=rows,
-            title='Diario de Modificaciones de Proveedores',
-            period_label=period_label
+        
+        sheets_data = [
+            {
+                'sheet_name': 'Diario de Modificaciones',
+                'headers': headers_mod,
+                'rows': rows_mod,
+                'title': 'Diario de Modificaciones de Proveedores',
+                'period_label': period_label
+            },
+            {
+                'sheet_name': 'Detalle de Productos',
+                'headers': headers_prod,
+                'rows': rows_prod,
+                'title': 'Detalle de Compra de Productos (Global)',
+                'period_label': period_label
+            }
+        ]
+
+        return create_multi_sheet_excel_response(
+            filename=f'diario_historial_proveedores_{periodo}.xlsx',
+            sheets_data=sheets_data
         )

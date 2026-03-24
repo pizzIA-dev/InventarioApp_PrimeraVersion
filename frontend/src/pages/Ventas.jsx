@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ventasAPI, productosAPI, clientesAPI, serviciosAPI } from '../services/api';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import ProductFormModal from '../components/ProductFormModal';
@@ -18,8 +19,13 @@ function Ventas() {
   const [productos, setProductos] = useState([]);
   const [clientes, setClientes] = useState([]);
 
-  const [activeTab, setActiveTab] = useState('PRODUCTOS');
   const [ventasServicios, setVentasServicios] = useState([]);
+  const [activeTab, setActiveTab] = useState('PRODUCTOS');
+  
+  // Pagination
+  const VENTAS_PAGE_SIZE = 15;
+  const [ventasPage, setVentasPage] = useState(1);
+  const [ventasServiciosPage, setVentasServiciosPage] = useState(1);
   const [servicios, setServicios] = useState([]);
   const [ventaConfirmDialog, setVentaConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
   const [ventaErrors, setVentaErrors] = useState({});
@@ -322,7 +328,7 @@ function Ventas() {
           }))));
         } else if (key === 'cliente') {
             if (formData[key]) {
-                ventaSubmitData.append(key, parseInt(formData[key]));
+                submitData.append(key, parseInt(formData[key]));
             }
         } else if (key === 'comprobante_archivo') {
           if (formData[key] instanceof File) {
@@ -570,14 +576,40 @@ function Ventas() {
     }
   };
 
-
   const filteredVentas = ventas.filter(v => {
     const term = searchTerm.toLowerCase();
     const searchMatch = (v.cliente_nombre || 'Cliente General').toLowerCase().includes(term) || 
                         (v.numero_comprobante || `#${v.id}`).toLowerCase().includes(term);
-    const estadoMatch = filterEstado === 'ALL' ? true : v.estado === filterEstado;
-    return searchMatch && estadoMatch;
+    if (filterEstado !== 'ALL' && v.estado !== filterEstado) return false;
+    return searchMatch;
   });
+
+  // Pagination logic for ventas de productos
+  const ventasTotalPages = Math.max(1, Math.ceil(filteredVentas.length / VENTAS_PAGE_SIZE));
+  const safeVentasPage = Math.min(ventasPage, ventasTotalPages);
+  const paginatedVentas = filteredVentas.slice(
+    (safeVentasPage - 1) * VENTAS_PAGE_SIZE,
+    safeVentasPage * VENTAS_PAGE_SIZE
+  );
+
+  const filteredVentasServicios = ventasServicios.filter(v => {
+    const term = searchTerm.toLowerCase();
+    const searchMatch = (v.cliente_nombre || 'Cliente').toLowerCase().includes(term) || 
+                                      (v.servicio_nombre || v.servicio).toString().toLowerCase().includes(term);
+    if (filterEstado !== 'ALL' && v.estado !== filterEstado) return false;
+    return searchMatch;
+  });
+
+  // Pagination logic for ventas de servicios
+  const ventasServiciosTotalPages = Math.max(1, Math.ceil(filteredVentasServicios.length / VENTAS_PAGE_SIZE));
+  const safeVentasServiciosPage = Math.min(ventasServiciosPage, ventasServiciosTotalPages);
+  const paginatedVentasServicios = filteredVentasServicios.slice(
+    (safeVentasServiciosPage - 1) * VENTAS_PAGE_SIZE,
+    safeVentasServiciosPage * VENTAS_PAGE_SIZE
+  );
+
+  const handleSearchChange = (val) => { setSearchTerm(val); setVentasPage(1); setVentasServiciosPage(1); };
+  const handleFilterEstadoChange = (val) => { setFilterEstado(val); setVentasPage(1); setVentasServiciosPage(1); };
 
   return (
     <div>
@@ -650,14 +682,14 @@ function Ventas() {
               className="form-input" 
               placeholder="Buscar por cliente o comprobante..." 
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>
           <div style={{ width: '200px' }}>
             <select 
               className="form-input" 
               value={filterEstado}
-              onChange={(e) => setFilterEstado(e.target.value)}
+              onChange={(e) => handleFilterEstadoChange(e.target.value)}
             >
               <option value="ALL">Todos los estados</option>
               <option value="CONFIRMADA">Confirmada</option>
@@ -685,7 +717,7 @@ function Ventas() {
               </tr>
             </thead>
             <tbody>
-              {filteredVentas.map((venta) => (
+              {paginatedVentas.map((venta) => (
                 <tr key={venta.id}>
                                     <td>{venta.numero_comprobante || `#${venta.id}`}</td>
                   <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={venta.detalle?.map(d => productos.find(p => p.id === d.producto)?.nombre || 'Producto').join(', ')}>
@@ -723,11 +755,19 @@ function Ventas() {
                 </tr>
               ))}
               {filteredVentas.length === 0 && (
-                <tr><td colSpan="6" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay ventas registradas que coincidan con los filtros</td></tr>
+                <tr><td colSpan="7" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay ventas registradas que coincidan con los filtros</td></tr>
               )}
             </tbody>
           </table>
         </div>
+        <Pagination 
+          currentPage={safeVentasPage}
+          totalPages={ventasTotalPages}
+          onPageChange={setVentasPage}
+          pageSize={VENTAS_PAGE_SIZE}
+          totalItems={filteredVentas.length}
+          itemName="ventas de productos"
+        />
       </div>
       ) : (
         <div className="card">
@@ -744,12 +784,7 @@ function Ventas() {
                 </tr>
               </thead>
               <tbody>
-                {ventasServicios.filter(v => {
-                  const searchMatch = (v.cliente_nombre || 'Cliente').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                      (v.servicio_nombre || v.servicio).toString().toLowerCase().includes(searchTerm.toLowerCase());
-                  const estadoMatch = filterEstado === 'ALL' ? true : v.estado === filterEstado;
-                  return searchMatch && estadoMatch;
-                }).map((venta) => (
+                {paginatedVentasServicios.map((venta) => (
                   <tr key={venta.id}>
                     <td>{venta.servicio_nombre || venta.servicio}</td>
                     <td>{venta.cliente_nombre || 'Cliente General'}</td>
@@ -781,9 +816,20 @@ function Ventas() {
                     </td>
                   </tr>
                 ))}
+                {filteredVentasServicios.length === 0 && (
+                   <tr><td colSpan="6" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay servicios registrados que coincidan con los filtros</td></tr>
+                )}
               </tbody>
             </table>
           </div>
+          <Pagination 
+            currentPage={safeVentasServiciosPage}
+            totalPages={ventasServiciosTotalPages}
+            onPageChange={setVentasServiciosPage}
+            pageSize={VENTAS_PAGE_SIZE}
+            totalItems={filteredVentasServicios.length}
+            itemName="ventas de servicios"
+          />
         </div>
       )}
 

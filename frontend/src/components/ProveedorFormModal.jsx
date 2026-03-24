@@ -78,6 +78,7 @@ const ProveedorFormModal = ({ visible, mode = 'create', initialData = null, onCl
     }
 
     setIsSubmitting(true);
+    setErrors({});
     try {
       const submitData = {
         ...formData,
@@ -98,7 +99,16 @@ const ProveedorFormModal = ({ visible, mode = 'create', initialData = null, onCl
       onClose();
     } catch (error) {
       console.error('Error saving proveedor:', error);
-      alert(error.response?.data?.message || 'Error al guardar el proveedor');
+      if (error.response && error.response.data) {
+        const backendErrors = error.response.data;
+        if (backendErrors.non_field_errors) {
+          setErrors({ general: backendErrors.non_field_errors[0] });
+        } else {
+          setErrors(backendErrors);
+        }
+      } else {
+        alert('Error al guardar el proveedor');
+      }
       setIsSubmitting(false);
     }
   };
@@ -116,6 +126,19 @@ const ProveedorFormModal = ({ visible, mode = 'create', initialData = null, onCl
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
+            {errors.general && (
+              <div style={{ 
+                backgroundColor: '#fff1f0', 
+                border: '1px solid #ffa39e', 
+                padding: '10px', 
+                borderRadius: '4px', 
+                marginBottom: '16px',
+                color: '#cf1322',
+                fontSize: '13px'
+              }}>
+                {errors.general}
+              </div>
+            )}
             <div className="grid grid-2">
               <div className="form-group">
                 <label className="form-label">Nombre *</label>

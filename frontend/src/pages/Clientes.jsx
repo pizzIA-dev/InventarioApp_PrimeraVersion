@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { clientesAPI } from '../services/api';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 
@@ -26,6 +27,10 @@ function Clientes() {
     direccion: '',
     activo: true,
   });
+
+  // Pagination
+  const CLIENTES_PAGE_SIZE = 15;
+  const [clientesPage, setClientesPage] = useState(1);
 
   useEffect(() => {
     fetchClientes();
@@ -149,6 +154,18 @@ function Clientes() {
     return searchMatch && tipoMatch && estadoMatch;
   });
 
+  // Pagination logic
+  const totalPages = Math.max(1, Math.ceil(filteredClientes.length / CLIENTES_PAGE_SIZE));
+  const safePage = Math.min(clientesPage, totalPages);
+  const paginatedClientes = filteredClientes.slice(
+    (safePage - 1) * CLIENTES_PAGE_SIZE,
+    safePage * CLIENTES_PAGE_SIZE
+  );
+
+  const handleSearchChange = (val) => { setSearchTerm(val); setClientesPage(1); };
+  const handleFilterTipoChange = (val) => { setFilterTipo(val); setClientesPage(1); };
+  const handleFilterEstadoChange = (val) => { setFilterEstado(val); setClientesPage(1); };
+
   return (
     <div>
       <ConfirmDialog
@@ -181,14 +198,14 @@ function Clientes() {
               className="form-input" 
               placeholder="Buscar por nombre o documento..." 
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>
           <div style={{ width: '200px' }}>
             <select 
               className="form-input" 
               value={filterTipo}
-              onChange={(e) => setFilterTipo(e.target.value)}
+              onChange={(e) => handleFilterTipoChange(e.target.value)}
             >
               <option value="ALL">Todos los tipos</option>
               <option value="PERSONA">Persona Natural</option>
@@ -200,7 +217,7 @@ function Clientes() {
             <select 
               className="form-input" 
               value={filterEstado}
-              onChange={(e) => setFilterEstado(e.target.value)}
+              onChange={(e) => handleFilterEstadoChange(e.target.value)}
             >
               <option value="ALL">Todos los estados</option>
               <option value="ACTIVO">Activos</option>
@@ -228,7 +245,7 @@ function Clientes() {
               </tr>
             </thead>
             <tbody>
-              {filteredClientes.map((cliente) => (
+              {paginatedClientes.map((cliente) => (
                 <tr key={cliente.id}>
                   <td>{cliente.nombre}</td>
                   <td>
@@ -271,6 +288,14 @@ function Clientes() {
             </tbody>
           </table>
         </div>
+        <Pagination 
+          currentPage={safePage}
+          totalPages={totalPages}
+          onPageChange={setClientesPage}
+          pageSize={CLIENTES_PAGE_SIZE}
+          totalItems={filteredClientes.length}
+          itemName="clientes"
+        />
       </div>
 
       {modalVisible && (

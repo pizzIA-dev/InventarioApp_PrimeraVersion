@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from django.core.validators import MinValueValidator, EmailValidator
 from apps.inventario.models import Producto
 
@@ -15,7 +16,7 @@ class Proveedor(models.Model):
     
     empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='proveedores', null=True)
     nombre = models.CharField(max_length=200)
-    identificador = models.CharField(max_length=20)  # RUC/DNI/NIT
+    identificador = models.CharField(max_length=20, unique=True)  # RUC/DNI/NIT
     contacto = models.CharField(max_length=100, blank=True, null=True)
     email = models.EmailField(blank=True, null=True, validators=[EmailValidator()])
     telefono = models.CharField(max_length=20, blank=True, null=True)
@@ -47,14 +48,14 @@ class Proveedor(models.Model):
     
     @property
     def total_compras(self):
-        """Total comprado a este proveedor"""
-        return sum(compra.total for compra in self.compras.all())
+        """Total comprado a este proveedor (solo confirmadas)"""
+        return sum(compra.total for compra in self.compras.filter(estado='CONFIRMADA'))
     
     @property
     def productos_suministrados(self):
-        """Productos que ha suministrado"""
+        """Productos que ha suministrado (solo confirmadas)"""
         return Producto.objects.filter(
-            id__in=self.compras.values_list('detallecompra_set__producto_id', flat=True).distinct()
+            id__in=self.compras.filter(estado='CONFIRMADA').values_list('detallecompra_set__producto_id', flat=True).distinct()
         )
 
     def save(self, *args, **kwargs):
@@ -66,12 +67,13 @@ class Proveedor(models.Model):
             old_contrato = old_instance.tiene_contrato
 
         super().save(*args, **kwargs)
+        now_str = timezone.localtime().strftime("%d/%m/%Y a las %H:%M:%S")
 
         if is_new:
             MovimientoProveedor.objects.create(
                 proveedor=self,
                 tipo='CREACION',
-                descripcion='Registro inicial del proveedor',
+                descripcion=f'Registro inicial del proveedor el {now_str}',
                 activo_nuevo=self.activo,
                 contrato_nuevo=self.tiene_contrato
             )
@@ -80,7 +82,7 @@ class Proveedor(models.Model):
                 MovimientoProveedor.objects.create(
                     proveedor=self,
                     tipo='ESTADO_ACTIVO' if self.activo else 'ESTADO_INACTIVO',
-                    descripcion='Estado cambiado a Activo' if self.activo else 'Estado cambiado a Inactivo',
+                    descripcion=f'Estado cambiado a {"Activo" if self.activo else "Inactivo"} el {now_str}',
                     activo_nuevo=self.activo,
                     contrato_nuevo=self.tiene_contrato
                 )
@@ -88,7 +90,7 @@ class Proveedor(models.Model):
                 MovimientoProveedor.objects.create(
                     proveedor=self,
                     tipo='CONTRATO_SI' if self.tiene_contrato else 'CONTRATO_NO',
-                    descripcion='Contrato registrado' if self.tiene_contrato else 'Contrato retirado',
+                    descripcion=f'Contrato {"registrado" if self.tiene_contrato else "retirado"} el {now_str}',
                     activo_nuevo=self.activo,
                     contrato_nuevo=self.tiene_contrato
                 )

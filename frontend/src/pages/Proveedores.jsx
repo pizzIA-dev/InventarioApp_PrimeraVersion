@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { proveedoresAPI, comprasAPI } from '../services/api';
 import { PlusOutlined, EditOutlined, DeleteOutlined, HistoryOutlined } from '@ant-design/icons';
+import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import ProveedorFormModal from '../components/ProveedorFormModal';
@@ -37,21 +38,15 @@ function Proveedores() {
   const [historyFechaDesde, setHistoryFechaDesde] = useState('');
   const [historyFechaHasta, setHistoryFechaHasta] = useState('');
   
-  // Tab 2: Compras
-  const [comprasHistory, setComprasHistory] = useState([]);
-  const [loadingCompras, setLoadingCompras] = useState(false);
-  const [comprasPage, setComprasPage] = useState(1);
-  const [comprasTotalPages, setComprasTotalPages] = useState(1);
-  const [comprasTotal, setComprasTotal] = useState(0);
+  // Tab 2: Compra de Productos
+  const [productosHistory, setProductosHistory] = useState([]);
+  const [loadingProductos, setLoadingProductos] = useState(false);
+  const [productosPage, setProductosPage] = useState(1);
+  const [productosTotalPages, setProductosTotalPages] = useState(1);
+  const [productosTotal, setProductosTotal] = useState(0);
 
-  // Tab 3: Precios
-  const [preciosHistory, setPreciosHistory] = useState([]);
-  const [loadingPrecios, setLoadingPrecios] = useState(false);
-  const [preciosPage, setPreciosPage] = useState(1);
-  const [preciosTotalPages, setPreciosTotalPages] = useState(1);
-  const [preciosTotal, setPreciosTotal] = useState(0);
-
-  const fetchHistory = async (proveedorId, page = 1, fechaDesde = '', fechaHasta = '') => {
+  const fetchHistory = async (proveedorId, pageArg = 1, fechaDesde = '', fechaHasta = '') => {
+    const page = typeof pageArg === 'number' ? pageArg : 1;
     setLoadingHistory(true);
     try {
       const params = { page, page_size: historyPageSize };
@@ -71,35 +66,20 @@ function Proveedores() {
     }
   };
 
-  const fetchComprasHistory = async (proveedorId, page = 1) => {
-    setLoadingCompras(true);
+  const fetchProductosHistory = async (proveedorId, pageArg = 1) => {
+    const page = typeof pageArg === 'number' ? pageArg : 1;
+    setLoadingProductos(true);
     try {
-      const response = await comprasAPI.getAll({ proveedor: proveedorId, page, page_size: historyPageSize });
+      const response = await comprasAPI.getKardexGlobalProductos({ proveedor: proveedorId, page, page_size: historyPageSize });
       const data = response.data;
-      setComprasHistory(data.results || []);
-      setComprasTotal(data.count || 0);
-      setComprasTotalPages(data.total_pages || 1);
-      setComprasPage(data.page || 1);
+      setProductosHistory(data.results || []);
+      setProductosTotal(data.count || 0);
+      setProductosTotalPages(data.total_pages || 1);
+      setProductosPage(data.page || 1);
     } catch (error) {
-      console.error('Error fetching compras history:', error);
+      console.error('Error fetching productos history:', error);
     } finally {
-      setLoadingCompras(false);
-    }
-  };
-
-  const fetchPreciosHistory = async (proveedorId, page = 1) => {
-    setLoadingPrecios(true);
-    try {
-      const response = await proveedoresAPI.getHistoricoPrecios(proveedorId, { page, page_size: historyPageSize });
-      const data = response.data;
-      setPreciosHistory(data.results || []);
-      setPreciosTotal(data.count || 0);
-      setPreciosTotalPages(data.total_pages || 1);
-      setPreciosPage(data.page || 1);
-    } catch (error) {
-      console.error('Error fetching precios history:', error);
-    } finally {
-      setLoadingPrecios(false);
+      setLoadingProductos(false);
     }
   };
   
@@ -199,10 +179,8 @@ function Proveedores() {
 
   const handleTabChange = async (tab, proveedorId = selectedHistoryProveedor.id) => {
     setActiveTab(tab);
-    if (tab === 'compras') {
-      fetchComprasHistory(proveedorId, 1);
-    } else if (tab === 'precios') {
-      fetchPreciosHistory(proveedorId, 1);
+    if (tab === 'productos') {
+      fetchProductosHistory(proveedorId, 1);
     }
   };
 
@@ -219,10 +197,9 @@ function Proveedores() {
     setHistoryModalVisible(false);
     setSelectedHistoryProveedor(null);
     setProveedorHistory([]);
-    setComprasHistory([]);
-    setPreciosHistory([]);
-    setHistoryPage(1);
-    setHistoryTotalPages(1);
+    setProductosHistory([]);
+    setProductosPage(1);
+    setProductosTotalPages(1);
     setHistoryFechaDesde('');
     setHistoryFechaHasta('');
     setActiveTab('modificaciones');
@@ -236,12 +213,8 @@ function Proveedores() {
     fetchHistory(selectedHistoryProveedor.id, newPage, historyFechaDesde, historyFechaHasta);
   };
 
-  const handleComprasPageChange = (newPage) => {
-    fetchComprasHistory(selectedHistoryProveedor.id, newPage);
-  };
-
-  const handlePreciosPageChange = (newPage) => {
-    fetchPreciosHistory(selectedHistoryProveedor.id, newPage);
+  const handleProductosPageChange = (newPage) => {
+    fetchProductosHistory(selectedHistoryProveedor.id, newPage);
   };
 
   const filteredProveedores = proveedores.filter(p => {
@@ -291,7 +264,7 @@ function Proveedores() {
           <p className="page-subtitle">Gestión de proveedores y histórico de modificaciones</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <ExportDropdown onExport={handleExportDiario} label="Diario de Modificaciones" />
+          <ExportDropdown onExport={handleExportDiario} label="Historial Global (Kardex)" />
           <ExportDropdown onExport={handleExportar} label="Exportar Proveedores" />
           <button className="btn btn-primary" onClick={() => openModal('create')}>
             <PlusOutlined style={{ marginRight: '8px' }} /> Nuevo Proveedor
@@ -358,6 +331,7 @@ function Proveedores() {
                 <th>Categoría</th>
                 <th>Contrato</th>
                 <th>Contacto</th>
+                <th>Email</th>
                 <th>Teléfono</th>
                 <th>Crédito</th>
                 <th>Estado</th>
@@ -378,6 +352,7 @@ function Proveedores() {
                     </span>
                   </td>
                   <td>{p.contacto || '-'}</td>
+                  <td>{p.email || '-'}</td>
                   <td>{p.telefono || '-'}</td>
                   <td>
                     {p.limite_credito > 0 
@@ -404,54 +379,20 @@ function Proveedores() {
                 </tr>
               ))}
               {paginatedProveedores.length === 0 && (
-                <tr><td colSpan="9" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay proveedores que coincidan con los filtros</td></tr>
+                <tr><td colSpan="10" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay proveedores que coincidan con los filtros</td></tr>
               )}
             </tbody>
           </table>
         </div>
         
-        {/* Pagination Controls */}
-        <div style={{ 
-          padding: '16px', 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          borderTop: '1px solid var(--border-color, #e2e8f0)'
-        }}>
-          <div style={{ color: 'var(--text-muted, #64748b)', fontSize: '14px' }}>
-            Mostrando {paginatedProveedores.length} de {filteredProveedores.length} proveedores
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button 
-              className="btn btn-secondary" 
-              disabled={safeProveedoresPage === 1}
-              onClick={() => setProveedoresPage(prev => prev - 1)}
-              style={{ padding: '4px 12px' }}
-            >
-              Anterior
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              {[...Array(proveedoresTotalPages)].map((_, i) => (
-                <button
-                  key={i + 1}
-                  className={`btn ${safeProveedoresPage === i + 1 ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setProveedoresPage(i + 1)}
-                  style={{ padding: '4px 10px', minWidth: '32px' }}
-                >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
-            <button 
-              className="btn btn-secondary" 
-              disabled={safeProveedoresPage === proveedoresTotalPages}
-              onClick={() => setProveedoresPage(prev => prev + 1)}
-              style={{ padding: '4px 12px' }}
-            >
-              Siguiente
-            </button>
-          </div>
-        </div>
+        <Pagination 
+          currentPage={safeProveedoresPage}
+          totalPages={proveedoresTotalPages}
+          onPageChange={setProveedoresPage}
+          pageSize={PROVEEDORES_PAGE_SIZE}
+          totalItems={filteredProveedores.length}
+          itemName="proveedores"
+        />
       </div>
 
       <ProveedorFormModal 
@@ -469,9 +410,12 @@ function Proveedores() {
         <div className="modal-overlay" onClick={closeHistoryModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '960px', width: '95vw' }}>
             <div className="modal-header">
-              <h3 className="modal-title">
-                Historial: {selectedHistoryProveedor?.nombre} ({selectedHistoryProveedor?.identificador})
-              </h3>
+              <div style={{ flex: 1 }}>
+                <h3 className="modal-title">Historial de Proveedor</h3>
+                <p className="modal-subtitle">
+                  {selectedHistoryProveedor?.nombre} ({selectedHistoryProveedor?.identificador})
+                </p>
+              </div>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button className="btn btn-secondary" onClick={handleExportHistorialIndividual} style={{ padding: '4px 12px', fontSize: '12px' }}>
                   Exportar Excel
@@ -489,16 +433,10 @@ function Proveedores() {
                 Modificaciones de Estado
               </button>
               <button 
-                className={`tab-btn ${activeTab === 'compras' ? 'active' : ''}`}
-                onClick={() => handleTabChange('compras')}
+                className={`tab-btn ${activeTab === 'productos' ? 'active' : ''}`}
+                onClick={() => handleTabChange('productos')}
               >
-                Historial de Compras
-              </button>
-              <button 
-                className={`tab-btn ${activeTab === 'precios' ? 'active' : ''}`}
-                onClick={() => handleTabChange('precios')}
-              >
-                Historial de Precios
+                Historial de Compra de Productos
               </button>
             </div>
 
@@ -531,29 +469,24 @@ function Proveedores() {
                     <button className="btn btn-primary" onClick={handleHistoryFilter} disabled={loadingHistory} style={{ padding: '5px 14px', fontSize: '13px' }}>
                       Filtrar
                     </button>
-                    {(historyFechaDesde || historyFechaHasta) && (
-                      <button className="btn btn-secondary" onClick={() => {
-                        setHistoryFechaDesde('');
-                        setHistoryFechaHasta('');
-                        fetchHistory(selectedHistoryProveedor.id, 1, '', '');
-                      }} style={{ padding: '5px 14px', fontSize: '13px' }}>
-                        Limpiar
-                      </button>
-                    )}
+                    <button className="btn btn-secondary" onClick={() => {
+                      setHistoryFechaDesde('');
+                      setHistoryFechaHasta('');
+                      fetchHistory(selectedHistoryProveedor.id, 1, '', '');
+                    }} style={{ padding: '5px 14px', fontSize: '13px' }}>
+                      Limpiar
+                    </button>
                     <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--text-secondary)', alignSelf: 'center' }}>
                       {historyTotal} registro{historyTotal !== 1 ? 's' : ''}
                     </span>
                   </div>
 
-                  <div className="table-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                    {loadingHistory ? (
-                      <div style={{ textAlign: 'center', padding: '40px' }}>Cargando modificaciones...</div>
-                    ) : (
-                      <table className="table" style={{ width: '100%' }}>
+                  <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '400px', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
+                    <table className="table" style={{ width: '100%', minWidth: '1000px' }}>
                         <thead style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--bg-card, #fff)' }}>
                           <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                            <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Fecha</th>
-                            <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Acción</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>Fecha</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>Acción</th>
                             <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Detalle</th>
                             <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Estado</th>
                             <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Contrato</th>
@@ -565,13 +498,25 @@ function Proveedores() {
                               const dateObj = new Date(mov.fecha);
                               return (
                                 <tr key={mov.id}>
-                                  <td>
-                                    {dateObj.toLocaleDateString()} <br />
-                                    <small style={{ color: 'var(--text-muted, #888)' }}>{dateObj.toLocaleTimeString()}</small>
+                                  <td style={{ whiteSpace: 'nowrap' }}>
+                                    {(() => {
+                                      const d = new Date(mov.fecha);
+                                      return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                    })()}
                                   </td>
                                   <td>
                                     <span style={{ fontWeight: '500', color: 'var(--text-primary, #333)' }}>
-                                      {mov.tipo}
+                                      {(() => {
+                                        const typeMap = {
+                                          'CREACION': 'Registro Inicial',
+                                          'ESTADO_ACTIVO': 'Activación',
+                                          'ESTADO_INACTIVO': 'Desactivación',
+                                          'CONTRATO_SI': 'Contrato Registrado',
+                                          'CONTRATO_NO': 'Contrato Retirado',
+                                          'OTRO': 'Modificación'
+                                        };
+                                        return typeMap[mov.tipo] || mov.tipo;
+                                      })()}
                                     </span>
                                   </td>
                                   <td>{mov.descripcion}</td>
@@ -597,7 +542,6 @@ function Proveedores() {
                           )}
                         </tbody>
                       </table>
-                    )}
                   </div>
                   
                   {!loadingHistory && historyTotalPages > 1 && (
@@ -626,144 +570,74 @@ function Proveedores() {
                 </>
               )}
 
-              {/* TAB 2: COMPRAS */}
-              {activeTab === 'compras' && (
+              {/* TAB 2: COMPRA DE PRODUCTOS */}
+              {activeTab === 'productos' && (
                 <>
-                  <div className="table-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                    <table className="table" style={{ width: '100%' }}>
-                      <thead style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--bg-card, #fff)' }}>
-                        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Comprobante</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Fecha</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Estado</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px' }}>Subtotal</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px' }}>Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {comprasHistory.length > 0 ? (
-                          comprasHistory.map((compra) => {
-                            const dateObj = new Date(compra.creado_en);
-                            return (
-                              <tr key={compra.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                <td style={{ padding: '7px 10px', fontSize: '11px', fontWeight: '500' }}>{compra.numero_comprobante || `Orden #${compra.id}`}</td>
-                                <td style={{ padding: '7px 10px', fontSize: '11px' }}>
-                                  {dateObj.toLocaleDateString()} <br />
-                                  <small style={{ color: 'var(--text-muted, #888)' }}>{dateObj.toLocaleTimeString()}</small>
-                                </td>
-                                <td style={{ padding: '7px 10px' }}>
-                                  <span style={{ 
-                                    color: compra.estado === 'CONFIRMADA' ? '#52c41a' : 
-                                           compra.estado === 'CANCELADA' ? '#ff4d4f' : '#faad14',
-                                    fontWeight: 'bold',
-                                    fontSize: '11px'
-                                  }}>
-                                    {compra.estado}
-                                  </span>
-                                </td>
-                                <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px' }}>S/. {Number(compra.subtotal).toFixed(2)}</td>
-                                <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 'bold', fontSize: '11px' }}>S/. {Number(compra.total).toFixed(2)}</td>
-                              </tr>
-                            );
-                          })
-                        ) : (
-                          <tr>
-                            <td colSpan="5" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted, #888)' }}>
-                              No hay registro de compras para este proveedor.
-                            </td>
+                  <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '400px', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
+                    <table className="table" style={{ fontSize: '11px', width: '100%', minWidth: '1200px' }}>
+                        <thead style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--bg-card, #fff)' }}>
+                          <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                            <th style={{ whiteSpace: 'nowrap' }}>Fecha</th>
+                            <th style={{ whiteSpace: 'nowrap' }}>Tipo de comprobante</th>
+                            <th>Comprobante</th>
+                            <th>Proveedor</th>
+                            <th>Producto</th>
+                            <th>Código de Producto</th>
+                            <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Cantidad</th>
+                            <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Precio de compra</th>
+                            <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Descuento</th>
+                            <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Total</th>
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {productosHistory.length > 0 ? (
+                            productosHistory.map((p) => (
+                              <tr key={p.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                <td style={{ whiteSpace: 'nowrap' }}>
+                                  {(() => {
+                                    const d = new Date(p.fecha);
+                                    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                  })()}
+                                </td>
+                                <td>{p.tipo_comprobante}</td>
+                                <td>{p.numero_comprobante}</td>
+                                <td>{p.proveedor_nombre}</td>
+                                <td style={{ fontWeight: 600 }}>{p.producto_nombre}</td>
+                                <td style={{ color: 'var(--text-secondary)' }}>{p.producto_codigo}</td>
+                                <td style={{ textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{p.cantidad}</td>
+                                <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>S/. {Number(p.precio_compra).toFixed(2)}</td>
+                                <td style={{ textAlign: 'right', color: '#ff4d4f', whiteSpace: 'nowrap' }}>-S/. {Number(p.descuento || 0).toFixed(2)}</td>
+                                <td style={{ textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>S/. {Number(p.total).toFixed(2)}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan="10" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted, #888)' }}>
+                                No hay registro de compra de productos para este proveedor.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
                   </div>
                   
-                  {!loadingCompras && comprasTotalPages > 1 && (
+                  {!loadingProductos && productosTotalPages > 1 && (
                     <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', borderTop: '1px solid var(--border-color)' }}>
                       <button 
                         className="btn btn-secondary" 
-                        disabled={comprasPage === 1 || loadingCompras}
-                        onClick={() => handleComprasPageChange(comprasPage - 1)}
+                        disabled={productosPage === 1 || loadingProductos}
+                        onClick={() => handleProductosPageChange(productosPage - 1)}
                         style={{ padding: '4px 12px', fontSize: '12px' }}
                       >
                         Anterior
                       </button>
                       <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                        Página {comprasPage} de {comprasTotalPages}
+                        Página {productosPage} de {productosTotalPages}
                       </span>
                       <button 
                         className="btn btn-secondary" 
-                        disabled={comprasPage === comprasTotalPages || loadingCompras}
-                        onClick={() => handleComprasPageChange(comprasPage + 1)}
-                        style={{ padding: '4px 12px', fontSize: '12px' }}
-                      >
-                        Siguiente
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* TAB 3: PRECIOS */}
-              {activeTab === 'precios' && (
-                <>
-                  <div className="table-container" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                    <table className="table" style={{ width: '100%' }}>
-                      <thead style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--bg-card, #fff)' }}>
-                        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Fecha</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Producto</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Código</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px' }}>Cantidad Suministrada</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px' }}>Precio Unit. Acordado</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {preciosHistory.length > 0 ? (
-                          preciosHistory.map((hp) => {
-                            const dateObj = new Date(hp.fecha);
-                            return (
-                              <tr key={hp.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                <td style={{ padding: '7px 10px', fontSize: '11px' }}>
-                                  {dateObj.toLocaleDateString()} <br />
-                                  <small style={{ color: 'var(--text-muted, #888)' }}>{dateObj.toLocaleTimeString()}</small>
-                                </td>
-                                <td style={{ padding: '7px 10px', fontSize: '11px' }}>{hp.producto_nombre}</td>
-                                <td style={{ padding: '7px 10px', fontSize: '11px' }}>{hp.producto_codigo}</td>
-                                <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px' }}>
-                                  <span style={{ fontSize: '10px', padding: '2px 6px' }} className="badge badge-info">{Number(hp.cantidad).toFixed(2)}</span>
-                                </td>
-                                <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: '500', fontSize: '11px' }}>S/. {Number(hp.precio_compra).toFixed(2)}</td>
-                              </tr>
-                            );
-                          })
-                        ) : (
-                          <tr>
-                            <td colSpan="5" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted, #888)' }}>
-                              No hay registro de productos suministrados recientes.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  
-                  {!loadingPrecios && preciosTotalPages > 1 && (
-                    <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', borderTop: '1px solid var(--border-color)' }}>
-                      <button 
-                        className="btn btn-secondary" 
-                        disabled={preciosPage === 1 || loadingPrecios}
-                        onClick={() => handlePreciosPageChange(preciosPage - 1)}
-                        style={{ padding: '4px 12px', fontSize: '12px' }}
-                      >
-                        Anterior
-                      </button>
-                      <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                        Página {preciosPage} de {preciosTotalPages}
-                      </span>
-                      <button 
-                        className="btn btn-secondary" 
-                        disabled={preciosPage === preciosTotalPages || loadingPrecios}
-                        onClick={() => handlePreciosPageChange(preciosPage + 1)}
+                        disabled={productosPage === productosTotalPages || loadingProductos}
+                        onClick={() => handleProductosPageChange(productosPage + 1)}
                         style={{ padding: '4px 12px', fontSize: '12px' }}
                       >
                         Siguiente

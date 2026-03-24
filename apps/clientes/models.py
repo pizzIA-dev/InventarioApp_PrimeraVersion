@@ -44,18 +44,18 @@ class Cliente(models.Model):
     
     @property
     def recurrencia(self):
-        """Número de compras realizadas"""
-        return self.ventas.count()
+        """Número de compras realizadas (solo confirmadas)"""
+        return self.ventas.filter(estado='CONFIRMADA').count()
     
     @property
     def total_comprado(self):
-        """Total comprado por el cliente"""
-        return sum(venta.total for venta in self.ventas.all())
+        """Total comprado por el cliente (solo confirmadas)"""
+        return sum(venta.total for venta in self.ventas.filter(estado='CONFIRMADA'))
     
     @property
     def ultima_compra(self):
-        """Fecha de la última compra"""
-        ultima_venta = self.ventas.order_by('-creado_en').first()
+        """Fecha de la última compra (solo confirmadas)"""
+        ultima_venta = self.ventas.filter(estado='CONFIRMADA').order_by('-creado_en').first()
         return ultima_venta.creado_en if ultima_venta else None
 
 

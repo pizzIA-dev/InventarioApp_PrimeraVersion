@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { comprasAPI, proveedoresAPI, productosAPI } from '../services/api';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
+import { 
+  PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined,
+  OrderedListOutlined, EyeOutlined, DownloadOutlined, HistoryOutlined
+} from '@ant-design/icons';
+import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import ProductFormModal from '../components/ProductFormModal';
@@ -11,13 +15,46 @@ function Compras() {
   const [loading, setLoading] = useState(true);
   const [compras, setCompras] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [productModalVisible, setProductModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedCompra, setSelectedCompra] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCompraForDetail, setSelectedCompraForDetail] = useState(null);
+  const [searchProveedor, setSearchProveedor] = useState('');
+  const [searchComprobante, setSearchComprobante] = useState('');
+  const [filterFecha, setFilterFecha] = useState('');
   const [filterEstado, setFilterEstado] = useState('ALL');
   const [proveedores, setProveedores] = useState([]);
   const [productos, setProductos] = useState([]);
+
+  // History Modal States
+  const [historyModalVisible, setHistoryModalVisible] = useState(false);
+  const [selectedHistoryCompra, setSelectedHistoryCompra] = useState(null);
+  const [activeHistoryTab, setActiveHistoryTab] = useState('estados'); // 'estados', 'productos'
+  const [historyEstados, setHistoryEstados] = useState([]);
+  const [historyProductos, setHistoryProductos] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+  const [historyFechaDesde, setHistoryFechaDesde] = useState('');
+  const [historyFechaHasta, setHistoryFechaHasta] = useState('');
+  
+  // Global Kardex States
+  const [globalKardexVisible, setGlobalKardexVisible] = useState(false);
+  const [globalKardexData, setGlobalKardexData] = useState([]);
+  const [loadingGlobalKardex, setLoadingGlobalKardex] = useState(false);
+  const [globalKardexPage, setGlobalKardexPage] = useState(1);
+  const [globalKardexTotal, setGlobalKardexTotal] = useState(0);
+  const [globalKardexTotalPages, setGlobalKardexTotalPages] = useState(1);
+  const [globalKardexFechaDesde, setGlobalKardexFechaDesde] = useState('');
+  const [globalKardexFechaHasta, setGlobalKardexFechaHasta] = useState('');
+  const [globalFilterProveedor, setGlobalFilterProveedor] = useState('');
+  const [globalFilterProducto, setGlobalFilterProducto] = useState('');
+  
+  // Pagination
+  const COMPRAS_PAGE_SIZE = 15;
+  const [comprasPage, setComprasPage] = useState(1);
   const [errors, setErrors] = useState({});
   const [confirmDialog, setConfirmDialog] = useState({ 
     visible: false, 
@@ -178,6 +215,119 @@ function Compras() {
     setModalVisible(false);
     setSelectedCompra(null);
     setErrors({});
+  };
+
+  const openDetailModal = (compra) => {
+    setSelectedCompraForDetail(compra);
+    setDetailModalVisible(true);
+  };
+
+  const closeDetailModal = () => {
+    setDetailModalVisible(false);
+    setSelectedCompraForDetail(null);
+  };
+
+  const fetchHistoryEstados = async (id, pageArg = 1, desde = '', hasta = '') => {
+    const page = typeof pageArg === 'number' ? pageArg : 1;
+    setLoadingHistory(true);
+    try {
+      const params = { page, fecha_desde: desde, fecha_hasta: hasta };
+      const res = await comprasAPI.getHistoryEstados(id, params);
+      setHistoryEstados(res.data.results || []);
+      setHistoryTotal(res.data.count || 0);
+      setHistoryTotalPages(res.data.total_pages || 1);
+      setHistoryPage(res.data.page || 1);
+    } catch (error) {
+      console.error('Error fetching history estados:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const fetchHistoryProductos = async (id, pageArg = 1, desde = '', hasta = '') => {
+    const page = typeof pageArg === 'number' ? pageArg : 1;
+    setLoadingHistory(true);
+    try {
+      const params = { page, fecha_desde: desde, fecha_hasta: hasta };
+      const res = await comprasAPI.getKardexProductos(id, params);
+      setHistoryProductos(res.data.results || []);
+      setHistoryTotal(res.data.count || 0);
+      setHistoryTotalPages(res.data.total_pages || 1);
+      setHistoryPage(res.data.page || 1);
+    } catch (error) {
+      console.error('Error fetching history productos:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const openHistoryModal = async (compra) => {
+    setSelectedHistoryCompra(compra);
+    setHistoryModalVisible(true);
+    setActiveHistoryTab('estados');
+    setHistoryPage(1);
+    setHistoryFechaDesde('');
+    setHistoryFechaHasta('');
+    fetchHistoryEstados(compra.id, 1, '', '');
+  };
+
+  const closeHistoryModal = () => {
+    setHistoryModalVisible(false);
+    setSelectedHistoryCompra(null);
+    setHistoryEstados([]);
+    setHistoryProductos([]);
+    setHistoryPage(1);
+    setHistoryFechaDesde('');
+    setHistoryFechaHasta('');
+  };
+
+  const handleHistoryPageChange = (newPage) => {
+    if (activeHistoryTab === 'estados') {
+      fetchHistoryEstados(selectedHistoryCompra.id, newPage, historyFechaDesde, historyFechaHasta);
+    } else {
+      fetchHistoryProductos(selectedHistoryCompra.id, newPage, historyFechaDesde, historyFechaHasta);
+    }
+  };
+
+  const handleHistoryFilter = () => {
+    if (activeHistoryTab === 'estados') {
+      fetchHistoryEstados(selectedHistoryCompra.id, 1, historyFechaDesde, historyFechaHasta);
+    } else {
+      fetchHistoryProductos(selectedHistoryCompra.id, 1, historyFechaDesde, historyFechaHasta);
+    }
+  };
+
+  const openGlobalKardex = async (pageArg = 1, desde = '', hasta = '', prov = '', prod = '') => {
+    const page = typeof pageArg === 'number' ? pageArg : 1;
+    setGlobalKardexVisible(true);
+    setLoadingGlobalKardex(true);
+    try {
+      const params = { 
+        page, 
+        fecha_desde: desde, 
+        fecha_hasta: hasta,
+        proveedor: prov,
+        producto: prod
+      };
+      const res = await comprasAPI.getKardexGlobalProductos(params);
+      setGlobalKardexData(res.data.results || []);
+      setGlobalKardexTotal(res.data.count || 0);
+      setGlobalKardexTotalPages(res.data.total_pages || 1);
+      setGlobalKardexPage(res.data.page || 1);
+    } catch (error) {
+      console.error('Error fetching global kardex:', error);
+      alert('Error al cargar el Historial Global.');
+    } finally {
+      setLoadingGlobalKardex(false);
+    }
+  };
+
+  const handleGlobalPageChange = (newPage) => {
+    openGlobalKardex(newPage, globalKardexFechaDesde, globalKardexFechaHasta, globalFilterProveedor, globalFilterProducto);
+  };
+
+  const handleGlobalFilter = () => {
+    openGlobalKardex(1, globalKardexFechaDesde, globalKardexFechaHasta, globalFilterProveedor, globalFilterProducto);
   };
 
   const addProducto = () => {
@@ -381,13 +531,69 @@ function Compras() {
     }
   };
 
-  const filteredCompras = compras.filter(c => {
-    const term = searchTerm.toLowerCase();
-    const searchMatch = (c.proveedor_nombre || 'Sin proveedor').toLowerCase().includes(term) || 
-                        (c.numero_comprobante || `#${c.id}`).toLowerCase().includes(term);
+  const handleExportHistorialIndividual = async () => {
+    if (!selectedHistoryCompra) return;
+    try {
+      const response = await comprasAPI.exportarHistorialIndividual(selectedHistoryCompra.id);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `historial_compra_${selectedHistoryCompra.numero_comprobante || selectedHistoryCompra.id}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error al exportar historial:', error);
+      alert('Error al exportar el historial de compras.');
+    }
+  };
+
+  const handleExportHistorialGlobal = async (periodo, anio) => {
+    try {
+      const params = { periodo };
+      if (anio) params.anio = anio;
+      const response = await comprasAPI.exportarHistorialGlobal(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `historial_global_compras_${periodo}${anio ? '_' + anio : ''}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error al exportar historial global:', error);
+      alert('Error al exportar el historial global.');
+    }
+  };
+
+  const filteredCompras = compras.filter((c) => {
+    const proveMatch = (c.proveedor_nombre || 'Sin proveedor').toLowerCase().includes(searchProveedor.toLowerCase());
+    const compMatch = (c.numero_comprobante || '').toLowerCase().includes(searchComprobante.toLowerCase());
     const estadoMatch = filterEstado === 'ALL' ? true : c.estado === filterEstado;
-    return searchMatch && estadoMatch;
+    
+    // Date match
+    let dateMatch = true;
+    if (filterFecha) {
+      const purchaseDate = new Date(c.creado_en).toISOString().split('T')[0];
+      dateMatch = purchaseDate === filterFecha;
+    }
+    
+    return proveMatch && compMatch && estadoMatch && dateMatch;
   });
+
+  // Pagination derived values
+  const comprasTotalPages = Math.max(1, Math.ceil(filteredCompras.length / COMPRAS_PAGE_SIZE));
+  const safeComprasPage = Math.min(comprasPage, comprasTotalPages);
+  const paginatedCompras = filteredCompras.slice(
+    (safeComprasPage - 1) * COMPRAS_PAGE_SIZE,
+    safeComprasPage * COMPRAS_PAGE_SIZE
+  );
+
+  // Reset page on filter change
+  const handleSearchProveedor = (val) => { setSearchProveedor(val); setComprasPage(1); };
+  const handleSearchComprobante = (val) => { setSearchComprobante(val); setComprasPage(1); };
+  const handleFilterFecha = (val) => { setFilterFecha(val); setComprasPage(1); };
+  const handleFilterEstado = (val) => { setFilterEstado(val); setComprasPage(1); };
 
   return (
     <div>
@@ -407,7 +613,8 @@ function Compras() {
           <p className="page-subtitle">Registro de compras a proveedores</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <ExportDropdown onExport={handleExportar} />
+          <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
+          <ExportDropdown onExport={handleExportar} label="Exportar Compras" />
           <button className="btn btn-primary" onClick={() => openModal('create')}>
             <PlusOutlined /> Nueva Compra
           </button>
@@ -415,28 +622,63 @@ function Compras() {
       </div>
 
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: '250px' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Proveedor</label>
             <input 
               type="text" 
               className="form-input" 
-              placeholder="Buscar por proveedor o comprobante..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar proveedor..." 
+              value={searchProveedor}
+              onChange={(e) => handleSearchProveedor(e.target.value)}
             />
           </div>
-          <div style={{ width: '200px' }}>
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Comprobante</label>
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Nro comprobante..." 
+              value={searchComprobante}
+              onChange={(e) => handleSearchComprobante(e.target.value)}
+            />
+          </div>
+          <div style={{ width: '180px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Fecha</label>
+            <input 
+              type="date" 
+              className="form-input" 
+              value={filterFecha}
+              onChange={(e) => handleFilterFecha(e.target.value)}
+            />
+          </div>
+          <div style={{ width: '180px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Estado</label>
             <select 
               className="form-input" 
               value={filterEstado}
-              onChange={(e) => setFilterEstado(e.target.value)}
+              onChange={(e) => handleFilterEstado(e.target.value)}
             >
-              <option value="ALL">Todos los estados</option>
-              <option value="CONFIRMADA">Confirmada</option>
-              <option value="BORRADOR">Borrador</option>
-              <option value="CANCELADA">Cancelada</option>
+              <option value="ALL">TODOS</option>
+              <option value="CONFIRMADA">CONFIRMADA</option>
+              <option value="BORRADOR">BORRADOR</option>
+              <option value="CANCELADA">CANCELADA</option>
             </select>
           </div>
+          <button 
+            className="btn btn-secondary" 
+            style={{ height: '38px' }}
+            onClick={() => {
+              setSearchProveedor('');
+              setSearchComprobante('');
+              setFilterFecha('');
+              setFilterEstado('ALL');
+              setComprasPage(1);
+            }}
+            title="Limpiar filtros"
+          >
+            Limpiar
+          </button>
         </div>
       </div>
 
@@ -445,20 +687,20 @@ function Compras() {
           <table>
             <thead>
               <tr>
-                <th style={{ width: '60px' }}>ID</th>
+                <th style={{ width: '100px' }}>Fecha</th>
                 <th>Comprobante</th>
                 <th>Proveedor</th>
                 <th>Productos</th>
-                <th>Fecha</th>
+                <th style={{ width: '100px', textAlign: 'center' }}>Archivo</th>
                 <th>Estado</th>
                 <th>Total</th>
                 <th style={{ width: '100px' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {filteredCompras.map((compra) => (
+              {paginatedCompras.map((compra) => (
                 <tr key={compra.id}>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>#{compra.id}</td>
+                  <td>{new Date(compra.creado_en).toLocaleDateString()}</td>
                   <td>
                     <div style={{ fontWeight: 600 }}>{compra.numero_comprobante || 'S/N'}</div>
                     <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
@@ -469,17 +711,46 @@ function Compras() {
                     <div>{compra.proveedor_nombre || 'Sin proveedor'}</div>
                     <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{compra.tipo_compra}</div>
                   </td>
-                  <td style={{ maxWidth: '250px' }}>
-                    <div style={{ 
-                      fontSize: '13px', 
-                      overflow: 'hidden', 
-                      textOverflow: 'ellipsis', 
-                      whiteSpace: 'nowrap'
-                    }} title={compra.productos_resumen}>
-                      {compra.productos_resumen || 'Sin productos'}
-                    </div>
+                  <td style={{ textAlign: 'center' }}>
+                    <button 
+                      className="btn btn-secondary" 
+                      style={{ padding: '6px 12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 auto' }}
+                      onClick={() => openDetailModal(compra)}
+                      title="Ver Detalle de Productos"
+                    >
+                      <OrderedListOutlined />
+                      <span>Ver Detalle</span>
+                    </button>
                   </td>
-                  <td>{new Date(compra.creado_en).toLocaleDateString()}</td>
+                  <td>
+                    {compra.comprobante_archivo ? (
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                        <a 
+                          href={compra.comprobante_archivo} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="btn btn-secondary" 
+                          style={{ padding: '4px 8px' }}
+                          title="Ver Comprobante"
+                        >
+                          <EyeOutlined />
+                        </a>
+                        <a 
+                          href={compra.comprobante_archivo} 
+                          download 
+                          className="btn btn-secondary" 
+                          style={{ padding: '4px 8px' }}
+                          title="Descargar Comprobante"
+                        >
+                          <DownloadOutlined />
+                        </a>
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '12px', fontStyle: 'italic' }}>
+                        Sin archivo
+                      </div>
+                    )}
+                  </td>
                   <td>
                     <span className={`badge ${
                       compra.estado === 'CONFIRMADA' ? 'badge-success' :
@@ -493,6 +764,9 @@ function Compras() {
                     <div style={{ display: 'flex', gap: '4px' }}>
                       <button className="btn btn-secondary" onClick={() => openModal('edit', compra)} title="Editar">
                         <EditOutlined />
+                      </button>
+                      <button className="btn btn-secondary" onClick={() => openHistoryModal(compra)} title="Historial/Kardex">
+                        <HistoryOutlined />
                       </button>
                       {compra.estado === 'BORRADOR' && (
                         <button className="btn btn-success" onClick={() => handleConfirmarClick(compra)} title="Confirmar">
@@ -517,6 +791,14 @@ function Compras() {
             </tbody>
           </table>
         </div>
+        <Pagination 
+          currentPage={safeComprasPage}
+          totalPages={comprasTotalPages}
+          onPageChange={setComprasPage}
+          pageSize={COMPRAS_PAGE_SIZE}
+          totalItems={filteredCompras.length}
+          itemName="compras"
+        />
       </div>
 
       {modalVisible && (
@@ -773,6 +1055,301 @@ function Compras() {
           setProductModalVisible(false);
         }}
       />
+      {/* Modal de Detalle de Productos */}
+      {detailModalVisible && selectedCompraForDetail && (
+        <div className="modal-overlay" onClick={closeDetailModal} style={{ zIndex: 1001 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Detalle de Compra #{selectedCompraForDetail.id}</h3>
+              <button className="modal-close" onClick={closeDetailModal}>×</button>
+            </div>
+            <div className="modal-body" style={{ padding: '24px' }}>
+              <div className="grid grid-2" style={{ marginBottom: '24px', background: 'var(--bg-body)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Proveedor</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{selectedCompraForDetail.proveedor_nombre}</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{selectedCompraForDetail.tipo_compra}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Comprobante</div>
+                  <div style={{ fontWeight: 'bold' }}>{selectedCompraForDetail.tipo_comprobante}: {selectedCompraForDetail.numero_comprobante}</div>
+                  <div style={{ fontSize: '13px' }}>Fecha: {new Date(selectedCompraForDetail.creado_en).toLocaleDateString()}</div>
+                </div>
+              </div>
+
+              <div className="table-container" style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--bg-table-header)' }}>
+                    <tr>
+                      <th style={{ padding: '12px', borderBottom: '2px solid var(--border-color)' }}>Producto</th>
+                      <th style={{ padding: '12px', borderBottom: '2px solid var(--border-color)', textAlign: 'center' }}>Cant.</th>
+                      <th style={{ padding: '12px', borderBottom: '2px solid var(--border-color)', textAlign: 'right' }}>P. Compra</th>
+                      <th style={{ padding: '12px', borderBottom: '2px solid var(--border-color)', textAlign: 'right' }}>Desc.</th>
+                      <th style={{ padding: '12px', borderBottom: '2px solid var(--border-color)', textAlign: 'right' }}>Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedCompraForDetail.detalle?.map((item, idx) => (
+                      <tr key={idx}>
+                        <td style={{ padding: '12px', borderBottom: '1px solid var(--border-color)' }}>
+                          <div style={{ fontWeight: 500 }}>{item.producto_nombre}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Code: {item.producto_codigo}</div>
+                        </td>
+                        <td style={{ padding: '12px', borderBottom: '1px solid var(--border-color)', textAlign: 'center' }}>{item.cantidad}</td>
+                        <td style={{ padding: '12px', borderBottom: '1px solid var(--border-color)', textAlign: 'right' }}>S/. {Number(item.precio_compra).toFixed(2)}</td>
+                        <td style={{ padding: '12px', borderBottom: '1px solid var(--border-color)', textAlign: 'right' }}>S/. {Number(item.descuento || 0).toFixed(2)}</td>
+                        <td style={{ padding: '12px', borderBottom: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 'bold' }}>S/. {Number(item.subtotal).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ width: '250px', background: 'var(--bg-card)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Subtotal:</span>
+                    <span style={{ fontWeight: 500 }}>S/. {Number(selectedCompraForDetail.subtotal).toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Impuesto:</span>
+                    <span style={{ fontWeight: 500 }}>S/. {Number(selectedCompraForDetail.impuesto).toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', paddingTop: '12px', borderTop: '2px solid var(--border-color)' }}>
+                    <span style={{ fontWeight: 'bold', fontSize: '16px' }}>Total:</span>
+                    <span style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--accent, #1677ff)' }}>S/. {Number(selectedCompraForDetail.total).toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+              
+              {selectedCompraForDetail.notas && (
+                <div style={{ marginTop: '16px', padding: '12px', background: 'var(--bg-body)', borderRadius: '4px', fontStyle: 'italic', fontSize: '13px' }}>
+                  <strong>Notas:</strong> {selectedCompraForDetail.notas}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={closeDetailModal}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {historyModalVisible && (
+        <div className="modal-overlay" onClick={closeHistoryModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '1200px', width: '95vw' }}>
+            <div className="modal-header">
+              <div style={{ flex: 1 }}>
+                <h3 className="modal-title">Historial de Compras</h3>
+                <p className="modal-subtitle">
+                  {selectedHistoryCompra?.numero_comprobante || `#${selectedHistoryCompra?.id}`} - {selectedHistoryCompra?.proveedor_nombre}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button className="btn btn-secondary" onClick={handleExportHistorialIndividual} style={{ padding: '4px 12px', fontSize: '12px' }}>
+                  Exportar Excel
+                </button>
+                <button className="modal-close" onClick={closeHistoryModal}>×</button>
+              </div>
+            </div>
+            
+            <div className="modal-body" style={{ paddingTop: '0' }}>
+              <div style={{ padding: '12px 0 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '16px' }}>
+                <div>
+                  <label className="form-label" style={{ display: 'block', fontSize: '11px', marginBottom: '4px', color: 'var(--text-secondary)' }}>Desde</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    style={{ padding: '5px 8px', fontSize: '13px', width: 'auto' }}
+                    value={historyFechaDesde}
+                    onChange={(e) => setHistoryFechaDesde(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="form-label" style={{ display: 'block', fontSize: '11px', marginBottom: '4px', color: 'var(--text-secondary)' }}>Hasta</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    style={{ padding: '5px 8px', fontSize: '13px', width: 'auto' }}
+                    value={historyFechaHasta}
+                    onChange={(e) => setHistoryFechaHasta(e.target.value)}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="btn btn-primary" onClick={handleHistoryFilter} style={{ padding: '5px 14px', fontSize: '13px' }}>Filtrar</button>
+                  <button className="btn btn-secondary" onClick={() => {
+                    setHistoryFechaDesde('');
+                    setHistoryFechaHasta('');
+                    if (activeHistoryTab === 'estados') fetchHistoryEstados(selectedHistoryCompra.id, 1, '', '');
+                    else fetchHistoryProductos(selectedHistoryCompra.id, 1, '', '');
+                  }} style={{ padding: '5px 14px', fontSize: '13px' }}>Limpiar</button>
+                </div>
+                <div style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--text-muted)', alignSelf: 'center' }}>
+                  {historyTotal} registro{historyTotal !== 1 ? 's' : ''} encontrados
+                </div>
+              </div>
+
+              <div className="tabs" style={{ marginBottom: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '24px' }}>
+                <button 
+                  className={`tab-item ${activeHistoryTab === 'estados' ? 'active' : ''}`}
+                  onClick={() => {
+                    setActiveHistoryTab('estados');
+                    setHistoryPage(1);
+                    fetchHistoryEstados(selectedHistoryCompra.id, 1, historyFechaDesde, historyFechaHasta);
+                  }}
+                  style={{ 
+                    padding: '12px 4px', 
+                    background: 'none', 
+                    border: 'none', 
+                    color: activeHistoryTab === 'estados' ? 'var(--primary-color)' : 'var(--text-secondary)',
+                    fontWeight: activeHistoryTab === 'estados' ? '600' : '400',
+                    borderBottom: activeHistoryTab === 'estados' ? '2px solid var(--primary-color)' : '2px solid transparent',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Historial de Estados
+                </button>
+                <button 
+                  className={`tab-item ${activeHistoryTab === 'productos' ? 'active' : ''}`}
+                  onClick={() => {
+                    setActiveHistoryTab('productos');
+                    setHistoryPage(1);
+                    fetchHistoryProductos(selectedHistoryCompra.id, 1, historyFechaDesde, historyFechaHasta);
+                  }}
+                  style={{ 
+                    padding: '12px 4px', 
+                    background: 'none', 
+                    border: 'none', 
+                    color: activeHistoryTab === 'productos' ? 'var(--primary-color)' : 'var(--text-secondary)',
+                    fontWeight: activeHistoryTab === 'productos' ? '600' : '400',
+                    borderBottom: activeHistoryTab === 'productos' ? '2px solid var(--primary-color)' : '2px solid transparent',
+                    cursor: 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Detalle de Compra de Productos
+                </button>
+              </div>
+
+              {loadingHistory ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  Cargando información...
+                </div>
+              ) : (
+                <>
+                  {activeHistoryTab === 'estados' ? (
+                    <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '45vh', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
+                      <table style={{ fontSize: '13px', minWidth: '800px', width: '100%' }}>
+                          <thead>
+                            <tr>
+                              <th style={{ whiteSpace: 'nowrap' }}>Fecha</th>
+                              <th style={{ whiteSpace: 'nowrap' }}>Estado Anterior</th>
+                              <th style={{ whiteSpace: 'nowrap' }}>Estado Nuevo</th>
+                              <th>Notas</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {historyEstados.map((h) => (
+                              <tr key={h.id}>
+                                <td style={{ whiteSpace: 'nowrap' }}>
+                                  {(() => {
+                                    const d = new Date(h.fecha);
+                                    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                  })()}
+                                </td>
+                                <td>
+                                  <span className={`badge ${
+                                    h.estado_anterior === 'CONFIRMADA' ? 'badge-success' :
+                                    h.estado_anterior === 'CANCELADA' ? 'badge-danger' : 
+                                    h.estado_anterior === 'BORRADOR' ? 'badge-warning' : ''
+                                  }`} style={{ fontSize: '10px' }}>
+                                    {h.estado_anterior}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span className={`badge ${
+                                    h.estado_nuevo === 'CONFIRMADA' ? 'badge-success' :
+                                    h.estado_nuevo === 'CANCELADA' ? 'badge-danger' : 'badge-warning'
+                                  }`} style={{ fontSize: '10px' }}>
+                                    {h.estado_nuevo}
+                                  </span>
+                                </td>
+                                <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{h.notes || h.notas}</td>
+                              </tr>
+                            ))}
+                            {historyEstados.length === 0 && (
+                              <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>No hay cambios de estado registrados.</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '45vh', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
+                        <table style={{ fontSize: '12px', minWidth: '1200px', width: '100%' }}>
+                          <thead>
+                            <tr>
+                              <th style={{ whiteSpace: 'nowrap' }}>Fecha</th>
+                              <th style={{ whiteSpace: 'nowrap' }}>Tipo de comprobante</th>
+                              <th>Comprobante</th>
+                              <th>Proveedor</th>
+                              <th>Producto</th>
+                              <th>Código de Producto</th>
+                              <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Cantidad</th>
+                              <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Precio de compra</th>
+                              <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Descuento</th>
+                              <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {historyProductos.map((p) => (
+                              <tr key={p.id}>
+                                <td style={{ whiteSpace: 'nowrap' }}>
+                                  {(() => {
+                                    const d = new Date(p.fecha);
+                                    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                  })()}
+                                </td>
+                                <td>{p.tipo_comprobante}</td>
+                                <td>{p.numero_comprobante}</td>
+                                <td>{p.proveedor_nombre}</td>
+                                <td style={{ fontWeight: 600 }}>{p.producto_nombre}</td>
+                                <td style={{ color: 'var(--text-secondary)' }}>{p.producto_codigo}</td>
+                                <td style={{ textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{p.cantidad}</td>
+                                <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>S/. {Number(p.precio_compra).toFixed(2)}</td>
+                                <td style={{ textAlign: 'right', color: 'var(--color-danger)', whiteSpace: 'nowrap' }}>-S/. {Number(p.descuento).toFixed(2)}</td>
+                                <td style={{ textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>S/. {Number(p.total).toFixed(2)}</td>
+                              </tr>
+                            ))}
+                            {historyProductos.length === 0 && (
+                              <tr><td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>No hay productos registrados en esta compra.</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                    </div>
+                  )}
+
+                  {!loadingHistory && historyTotalPages > 1 && (
+                    <div style={{ marginTop: '20px' }}>
+                      <Pagination 
+                        currentPage={historyPage}
+                        totalPages={historyTotalPages}
+                        onPageChange={handleHistoryPageChange}
+                        pageSize={15}
+                        totalItems={historyTotal}
+                        itemName="registros"
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <div className="modal-footer" style={{ marginTop: '0', paddingTop: '15px' }}>
+              <button className="btn btn-secondary" onClick={closeHistoryModal}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

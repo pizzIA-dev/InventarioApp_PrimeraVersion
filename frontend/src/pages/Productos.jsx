@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { productosAPI, categoriasAPI } from '../services/api';
 import { PlusOutlined, EditOutlined, DeleteOutlined, HistoryOutlined } from '@ant-design/icons';
+import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import ProductFormModal from '../components/ProductFormModal';
@@ -34,7 +35,8 @@ function Productos() {
   const [historyFechaDesde, setHistoryFechaDesde] = useState('');
   const [historyFechaHasta, setHistoryFechaHasta] = useState('');
 
-  const fetchHistory = async (productoId, page = 1, fechaDesde = '', fechaHasta = '') => {
+  const fetchHistory = async (productoId, pageArg = 1, fechaDesde = '', fechaHasta = '') => {
+    const page = typeof pageArg === 'number' ? pageArg : 1;
     setLoadingHistory(true);
     try {
       const params = { page, page_size: historyPageSize };
@@ -361,44 +363,14 @@ function Productos() {
             </tbody>
           </table>
       </div>
-      {/* Pagination bar */}
-      {filteredProductos.length > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 4px 4px' }}>
-          <span style={{ fontSize: '13px', color: '#888' }}>
-            Mostrando {(safeProductsPage - 1) * PRODUCTS_PAGE_SIZE + 1}–{Math.min(safeProductsPage * PRODUCTS_PAGE_SIZE, filteredProductos.length)} de {filteredProductos.length} producto{filteredProductos.length !== 1 ? 's' : ''}
-          </span>
-          {productsTotalPages > 1 && (
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <button
-                className="btn btn-secondary"
-                onClick={() => setProductsPage(p => Math.max(1, p - 1))}
-                disabled={safeProductsPage <= 1}
-                style={{ padding: '4px 12px', fontSize: '12px' }}
-              >
-                Anterior
-              </button>
-              {Array.from({ length: productsTotalPages }, (_, i) => i + 1).map(pg => (
-                <button
-                  key={pg}
-                  className={`btn ${pg === safeProductsPage ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => setProductsPage(pg)}
-                  style={{ padding: '4px 10px', fontSize: '12px', minWidth: '32px' }}
-                >
-                  {pg}
-                </button>
-              ))}
-              <button
-                className="btn btn-secondary"
-                onClick={() => setProductsPage(p => Math.min(productsTotalPages, p + 1))}
-                disabled={safeProductsPage >= productsTotalPages}
-                style={{ padding: '4px 12px', fontSize: '12px' }}
-              >
-                Siguiente
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      <Pagination 
+        currentPage={safeProductsPage}
+        totalPages={productsTotalPages}
+        onPageChange={setProductsPage}
+        pageSize={PRODUCTS_PAGE_SIZE}
+        totalItems={filteredProductos.length}
+        itemName="productos"
+      />
       </div>
 
       <ProductFormModal 
@@ -450,15 +422,13 @@ function Productos() {
               <button className="btn btn-primary" onClick={handleHistoryFilter} style={{ padding: '5px 14px', fontSize: '13px' }}>
                 Filtrar
               </button>
-              {(historyFechaDesde || historyFechaHasta) && (
-                <button className="btn btn-secondary" onClick={() => {
-                  setHistoryFechaDesde('');
-                  setHistoryFechaHasta('');
-                  fetchHistory(selectedHistoryProduct.id, 1, '', '');
-                }} style={{ padding: '5px 14px', fontSize: '13px' }}>
-                  Limpiar
-                </button>
-              )}
+              <button className="btn btn-secondary" onClick={() => {
+                setHistoryFechaDesde('');
+                setHistoryFechaHasta('');
+                fetchHistory(selectedHistoryProducto.id, 1, '', '');
+              }} style={{ padding: '5px 14px', fontSize: '13px' }}>
+                Limpiar
+              </button>
               <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#888', alignSelf: 'center' }}>
                 {historyTotal} registro{historyTotal !== 1 ? 's' : ''}
               </span>
@@ -504,25 +474,25 @@ function Productos() {
                               </span>
                             </td>
                             <td style={{ padding: '7px 10px', fontSize: '11px' }}>{mov.origen}</td>
-                            <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 'bold' }}>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
                               <span style={{ color: isEntrada ? '#52c41a' : '#ff4d4f', fontSize: '12px' }}>
                                 {isEntrada ? '+' : '-'}{Number(mov.cantidad)}
                               </span>
                             </td>
-                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', color: '#888', fontStyle: 'italic' }}>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', color: '#888', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
                               {mov.precio_compra_anterior ? `S/. ${Number(mov.precio_compra_anterior).toFixed(2)}` : '-'}
                             </td>
-                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', fontWeight: 'bold' }}>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
                               {mov.precio_compra_nuevo ? `S/. ${Number(mov.precio_compra_nuevo).toFixed(2)}` : '-'}
                             </td>
-                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', color: '#888', fontStyle: 'italic' }}>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', color: '#888', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
                               {mov.precio_venta_anterior ? `S/. ${Number(mov.precio_venta_anterior).toFixed(2)}` : '-'}
                             </td>
-                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', fontWeight: 'bold' }}>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
                               {mov.precio_venta_nuevo ? `S/. ${Number(mov.precio_venta_nuevo).toFixed(2)}` : '-'}
                             </td>
-                            <td style={{ padding: '7px 10px', textAlign: 'right', color: '#888', fontSize: '11px' }}>{Number(mov.stock_anterior)}</td>
-                            <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 'bold', fontSize: '12px' }}>{Number(mov.stock_nuevo)}</td>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', color: '#888', fontSize: '11px', whiteSpace: 'nowrap' }}>{Number(mov.stock_anterior)}</td>
+                            <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 'bold', fontSize: '12px', whiteSpace: 'nowrap' }}>{Number(mov.stock_nuevo)}</td>
                             <td style={{ padding: '7px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}>
                               {mov.activo_nuevo === true && (
                                 <span style={{ color: '#52c41a', fontWeight: 'bold' }}>Activo desde {displayDate}</span>

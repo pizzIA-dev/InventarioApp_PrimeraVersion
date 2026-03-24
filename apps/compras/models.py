@@ -73,12 +73,45 @@ class Compra(models.Model):
         # El total es el subtotal (ya con descuentos) más el impuesto
         self.total = self.subtotal + self.impuesto
         self.save()
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        old_estado = None
+        
+        if not is_new:
+            try:
+                old_instance = Compra.objects.get(pk=self.pk)
+                old_estado = old_instance.estado
+            except Compra.DoesNotExist:
+                pass
+
+        super().save(*args, **kwargs)
+
+        # Log status change
+        if is_new:
+            from django.utils import timezone
+            now_str = timezone.localtime().strftime("%d/%m/%Y a las %H:%M:%S")
+            MovimientoEstadoCompra.objects.create(
+                compra=self,
+                estado_anterior='N/A',
+                estado_nuevo=self.estado,
+                notas=f'Registro inicial de la compra ({self.estado.capitalize()}) el {now_str}'
+            )
+        elif old_estado and old_estado != self.estado:
+            from django.utils import timezone
+            now_str = timezone.localtime().strftime("%d/%m/%Y a las %H:%M:%S")
+            MovimientoEstadoCompra.objects.create(
+                compra=self,
+                estado_anterior=old_estado,
+                estado_nuevo=self.estado,
+                notas=f'Cambió de {old_estado.capitalize()} a {self.estado.capitalize()} el {now_str}'
+            )
     
     def registrar_stock(self):
         """Registra el ingreso de stock por esta compra"""
         if self.estado == 'CONFIRMADA':
             for detalle in self.detallecompra_set.all():
-                # Crear movimiento de stock
+                # Crear movimiento de stock con referencia única e inmutable
                 MovimientoStock.objects.create(
                     producto=detalle.producto,
                     tipo='ENTRADA',
@@ -90,8 +123,35 @@ class Compra(models.Model):
                     precio_compra_nuevo=detalle.producto.precio_compra,
                     precio_venta_anterior=detalle.producto.precio_venta,
                     precio_venta_nuevo=detalle.producto.precio_venta,
-                    referencia=f"Compra {self.numero_comprobante or self.id}"
+                    referencia=f"Compra #{self.id}"
                 )
+
+    def revertir_stock(self):
+        """Revierte los movimientos de stock asociados a esta compra"""
+        # Buscar todos los movimientos vinculados a esta compra
+        # Buscamos por el ID en el nuevo formato (#ID) o el ID solo (viejo formato fall-back)
+        # O por el número de comprobante si existía (viejo formato)
+        from django.db.models import Q
+        
+        referencia_nueva = f"Compra #{self.id}"
+        query = Q(referencia=referencia_nueva)
+        
+        # Fallback para compras antiguas que usaban numero_comprobante o solo ID
+        if self.numero_comprobante:
+            query |= Q(referencia=f"Compra {self.numero_comprobante}")
+        query |= Q(referencia=f"Compra {self.id}")
+
+        movimientos = MovimientoStock.objects.filter(query)
+        
+        for mov in movimientos:
+            producto = mov.producto
+            if mov.tipo == 'ENTRADA':
+                producto.stock_actual -= mov.cantidad
+            else:
+                producto.stock_actual += mov.cantidad
+            
+            producto.save()
+            mov.delete()
 
 
 class DetalleCompra(models.Model):
@@ -132,3 +192,23 @@ class DetalleCompra(models.Model):
         base = self.cantidad * self.precio_compra
         self.subtotal = max(0, base - self.descuento)
         super().save(*args, **kwargs)
+
+
+class MovimientoEstadoCompra(models.Model):
+    """Historial de cambios de estado de una compra"""
+    compra = models.ForeignKey(
+        Compra, 
+        on_delete=models.CASCADE, 
+        related_name='movimientos_estado'
+    )
+    estado_anterior = models.CharField(max_length=20)
+    estado_nuevo = models.CharField(max_length=20)
+    fecha = models.DateTimeField(auto_now_add=True)
+    notas = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['-fecha']
+        verbose_name_plural = "Movimientos de Estado de Compra"
+    
+    def __str__(self):
+        return f"Compra {self.compra.id}: {self.estado_anterior} -> {self.estado_nuevo}"

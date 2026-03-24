@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { capitalAPI } from '../services/api';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 function Capital() {
@@ -26,6 +27,10 @@ function Capital() {
     notas: '',
   });
 
+  // Pagination
+  const CAPITAL_PAGE_SIZE = 15;
+  const [capitalPage, setCapitalPage] = useState(1);
+
   useEffect(() => {
     fetchCapital();
     fetchResumen();
@@ -42,6 +47,14 @@ function Capital() {
       setLoading(false);
     }
   };
+
+  // Pagination logic
+  const totalPages = Math.max(1, Math.ceil(capitales.length / CAPITAL_PAGE_SIZE));
+  const safePage = Math.min(capitalPage, totalPages);
+  const paginatedCapitales = capitales.slice(
+    (safePage - 1) * CAPITAL_PAGE_SIZE,
+    safePage * CAPITAL_PAGE_SIZE
+  );
 
   const fetchResumen = async () => {
     try {
@@ -206,7 +219,7 @@ function Capital() {
               </tr>
             </thead>
             <tbody>
-              {capitales.map((capital) => (
+              {paginatedCapitales.map((capital) => (
                 <tr key={capital.id}>
                   <td>{capital.nombre}</td>
                   <td>{capital.tipo_nombre || '-'}</td>
@@ -238,6 +251,14 @@ function Capital() {
             </tbody>
           </table>
         </div>
+        <Pagination 
+          currentPage={safePage}
+          totalPages={totalPages}
+          onPageChange={setCapitalPage}
+          pageSize={CAPITAL_PAGE_SIZE}
+          totalItems={capitales.length}
+          itemName="registros de capital"
+        />
       </div>
 
       {modalVisible && (

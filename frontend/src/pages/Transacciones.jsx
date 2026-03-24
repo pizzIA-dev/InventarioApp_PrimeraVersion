@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { transaccionesAPI } from '../services/api';
 import { PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 
@@ -25,6 +26,10 @@ function Transacciones() {
     fecha: new Date().toISOString().slice(0, 16),
     notas: '',
   });
+
+  // Pagination
+  const TRANSACCIONES_PAGE_SIZE = 15;
+  const [transaccionesPage, setTransaccionesPage] = useState(1);
 
   useEffect(() => {
     fetchTransacciones();
@@ -176,6 +181,17 @@ function Transacciones() {
     return searchMatch && tipoMatch;
   });
 
+  // Pagination logic
+  const totalPages = Math.max(1, Math.ceil(filteredTransacciones.length / TRANSACCIONES_PAGE_SIZE));
+  const safePage = Math.min(transaccionesPage, totalPages);
+  const paginatedTransacciones = filteredTransacciones.slice(
+    (safePage - 1) * TRANSACCIONES_PAGE_SIZE,
+    safePage * TRANSACCIONES_PAGE_SIZE
+  );
+
+  const handleSearchChange = (val) => { setSearchTerm(val); setTransaccionesPage(1); };
+  const handleFilterTipoChange = (val) => { setFilterTipo(val); setTransaccionesPage(1); };
+
   return (
     <div>
       <ConfirmDialog 
@@ -233,14 +249,14 @@ function Transacciones() {
               className="form-input" 
               placeholder="Buscar por descripción..." 
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>
           <div style={{ width: '200px' }}>
             <select 
               className="form-input" 
               value={filterTipo}
-              onChange={(e) => setFilterTipo(e.target.value)}
+              onChange={(e) => handleFilterTipoChange(e.target.value)}
             >
               <option value="ALL">Todos los tipos</option>
               <option value="INGRESO">Ingresos</option>
@@ -265,7 +281,7 @@ function Transacciones() {
               </tr>
             </thead>
             <tbody>
-              {filteredTransacciones.map((transaccion) => (
+              {paginatedTransacciones.map((transaccion) => (
                 <tr key={transaccion.id}>
                   <td>{new Date(transaccion.fecha).toLocaleDateString()}</td>
                   <td>
@@ -295,6 +311,14 @@ function Transacciones() {
             </tbody>
           </table>
         </div>
+        <Pagination 
+          currentPage={safePage}
+          totalPages={totalPages}
+          onPageChange={setTransaccionesPage}
+          pageSize={TRANSACCIONES_PAGE_SIZE}
+          totalItems={filteredTransacciones.length}
+          itemName="transacciones"
+        />
       </div>
 
       {modalVisible && (

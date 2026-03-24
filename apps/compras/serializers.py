@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Compra, DetalleCompra
+from .models import Compra, DetalleCompra, MovimientoEstadoCompra
 
 
 class DetalleCompraSerializer(serializers.ModelSerializer):
@@ -128,20 +128,53 @@ class CompraUpdateSerializer(serializers.ModelSerializer):
         estado_anterior = instance.estado
         detalle_data = validated_data.pop('detalle', None)
         
-        # Actualizar campos básicos
+        # 1. Si era una compra CONFIRMADA, revertimos el stock antes de cualquier cambio
+        if estado_anterior == 'CONFIRMADA':
+            instance.revertir_stock()
+        
+        # 2. Actualizar campos básicos (incluyendo el nuevo estado si cambió)
         instance = super().update(instance, validated_data)
         
-        # Actualizar detalles si se proporcionan (Solo permitimos en BORRADOR para seguridad del stock)
-        if detalle_data is not None and instance.estado == 'BORRADOR':
+        # 3. Actualizar detalles si se proporcionan
+        # Ahora lo permitimos siempre, pero el efecto en stock dependerá del nuevo estado
+        if detalle_data is not None:
             instance.detallecompra_set.all().delete()
             for item in detalle_data:
                 DetalleCompra.objects.create(compra=instance, **item)
         
-        # Recalcular totales
+        # 4. Recalcular totales tras actualizar detalles
         instance.calcular_totales()
         
-        # Registrar stock si cambió a confirmada
-        if estado_anterior != 'CONFIRMADA' and instance.estado == 'CONFIRMADA':
+        # 5. Si el nuevo estado es CONFIRMADA, registramos el stock (con los nuevos detalles)
+        if instance.estado == 'CONFIRMADA':
             instance.registrar_stock()
         
         return instance
+
+
+class MovimientoEstadoCompraSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MovimientoEstadoCompra
+        fields = ['id', 'estado_anterior', 'estado_nuevo', 'fecha', 'notas']
+
+
+class KardexProductoCompraSerializer(serializers.ModelSerializer):
+    """Serializer aplanado para el Kardex de productos comprados"""
+    fecha = serializers.DateTimeField(source='compra.creado_en', read_only=True)
+    tipo_comprobante = serializers.CharField(source='compra.tipo_comprobante', read_only=True)
+    numero_comprobante = serializers.CharField(source='compra.numero_comprobante', read_only=True)
+    proveedor_nombre = serializers.SerializerMethodField()
+    producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)
+    producto_codigo = serializers.CharField(source='producto.codigo', read_only=True)
+    total = serializers.DecimalField(source='subtotal', max_digits=12, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = DetalleCompra
+        fields = [
+            'id', 'fecha', 'tipo_comprobante', 'numero_comprobante',
+            'proveedor_nombre', 'producto_nombre', 'producto_codigo',
+            'cantidad', 'precio_compra', 'descuento', 'total'
+        ]
+
+    def get_proveedor_nombre(self, obj):
+        return obj.compra.proveedor_nombre or (obj.compra.proveedor.nombre if obj.compra.proveedor else 'N/A')

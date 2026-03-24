@@ -5,6 +5,7 @@ from .models import Proveedor, HistoricoPrecio, MovimientoProveedor
 class ProveedorSerializer(serializers.ModelSerializer):
     total_compras = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     productos_count = serializers.SerializerMethodField()
+    identificador = serializers.CharField() # Override to handle uniqueness in validate()
     
     class Meta:
         model = Proveedor
@@ -14,18 +15,62 @@ class ProveedorSerializer(serializers.ModelSerializer):
             'activo', 'creado_en', 'actualizado_en', 'total_compras', 'productos_count'
         ]
         read_only_fields = ['creado_en', 'actualizado_en', 'total_compras']
+        validators = [] # Handle custom validation in validate()
+        extra_kwargs = {
+            'identificador': {
+                'error_messages': {
+                    'unique': 'El Documento (RUC/DNI) ya está registrado para otro proveedor'
+                }
+            }
+        }
     
     def get_productos_count(self, obj):
         return obj.historico_precios.values('producto').distinct().count()
 
+    def validate(self, data):
+        identificador = data.get('identificador')
+        
+        # Check for duplicates (Document only)
+        qs = Proveedor.objects.filter(identificador=identificador)
+        
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+            
+        if qs.exists():
+            raise serializers.ValidationError({
+                "identificador": ["El Documento (RUC/DNI) ya está registrado para otro proveedor"]
+            })
+            
+        return data
+
 
 class ProveedorCreateSerializer(serializers.ModelSerializer):
+    identificador = serializers.CharField() # Override to handle uniqueness in validate()
     class Meta:
         model = Proveedor
         fields = [
             'id', 'nombre', 'identificador', 'contacto', 'email', 'telefono', 'direccion',
             'categoria', 'tiene_contrato', 'detalles_contrato', 'dias_credito', 'limite_credito', 'activo'
         ]
+        validators = [] # Handle custom validation in validate()
+        extra_kwargs = {
+            'identificador': {
+                'error_messages': {
+                    'unique': 'El Documento (RUC/DNI) ya está registrado para otro proveedor'
+                }
+            }
+        }
+
+    def validate(self, data):
+        identificador = data.get('identificador')
+        
+        # Check for duplicates (Document only)
+        if Proveedor.objects.filter(identificador=identificador).exists():
+            raise serializers.ValidationError({
+                "identificador": ["El Documento (RUC/DNI) ya está registrado para otro proveedor"]
+            })
+            
+        return data
 
 
 class HistoricoPrecioSerializer(serializers.ModelSerializer):
