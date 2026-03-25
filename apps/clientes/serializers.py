@@ -18,7 +18,18 @@ class ClienteSerializer(serializers.ModelSerializer):
         read_only_fields = ['creado_en', 'actualizado_en']
     
     def validate_numero_documento(self, value):
-        return value.upper()
+        # Primero limpiamos el valor (uppercase y quitar espacios)
+        val = value.strip().upper()
+        tipo = self.initial_data.get('tipo_documento')
+        
+        if tipo == 'DNI':
+            if not val.isdigit() or len(val) != 8:
+                raise serializers.ValidationError("El DNI debe tener exactamente 8 números.")
+        elif tipo == 'RUC':
+            if not val.isdigit() or len(val) != 11:
+                raise serializers.ValidationError("El RUC debe tener exactamente 11 números.")
+        
+        return val
 
 
 class ClienteCreateSerializer(serializers.ModelSerializer):

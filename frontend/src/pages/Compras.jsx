@@ -1073,7 +1073,7 @@ function Compras() {
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Comprobante</div>
                   <div style={{ fontWeight: 'bold' }}>{selectedCompraForDetail.tipo_comprobante}: {selectedCompraForDetail.numero_comprobante}</div>
-                  <div style={{ fontSize: '13px' }}>Fecha: {new Date(selectedCompraForDetail.creado_en).toLocaleDateString()}</div>
+                  <div style={{ fontSize: '13px' }}>Fecha: {new Date(selectedCompraForDetail.creado_en).toLocaleString()}</div>
                 </div>
               </div>
 

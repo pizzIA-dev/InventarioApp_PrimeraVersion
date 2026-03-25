@@ -4,29 +4,19 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
+import ClienteFormModal from '../components/ClienteFormModal';
 
 function Clientes() {
   const [loading, setLoading] = useState(true);
   const [clientes, setClientes] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchContacto, setSearchContacto] = useState('');
   const [filterTipo, setFilterTipo] = useState('ALL');
   const [filterEstado, setFilterEstado] = useState('ALL');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedCliente, setSelectedCliente] = useState(null);
-  const [errors, setErrors] = useState({});
   const [confirmDialog, setConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
-  const [formData, setFormData] = useState({
-    nombre: '',
-    tipo_cliente: 'PERSONA',
-    tipo_documento: 'DNI',
-    numero_documento: '',
-    contacto: '',
-    email: '',
-    telefono: '',
-    direccion: '',
-    activo: true,
-  });
 
   // Pagination
   const CLIENTES_PAGE_SIZE = 15;
@@ -49,52 +39,21 @@ function Clientes() {
 
   const openModal = (mode, cliente = null) => {
     setModalMode(mode);
-    if (cliente) {
-      setSelectedCliente(cliente);
-      setFormData({
-        nombre: cliente.nombre || '',
-        tipo_cliente: cliente.tipo_cliente || 'PERSONA',
-        tipo_documento: cliente.tipo_documento || 'DNI',
-        numero_documento: cliente.numero_documento || '',
-        contacto: cliente.contacto || '',
-        email: cliente.email || '',
-        telefono: cliente.telefono || '',
-        direccion: cliente.direccion || '',
-        activo: cliente.activo !== undefined ? cliente.activo : true,
-      });
-    } else {
-      setFormData({
-        nombre: '',
-        tipo_cliente: 'PERSONA',
-        tipo_documento: 'DNI',
-        numero_documento: '',
-        contacto: '',
-        email: '',
-        telefono: '',
-        direccion: '',
-        activo: true,
-      });
-    }
+    setSelectedCliente(cliente);
     setModalVisible(true);
   };
 
   const closeModal = () => {
     setModalVisible(false);
     setSelectedCliente(null);
-    setErrors({});
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const newErrors = {};
-    if (!formData.nombre.trim()) newErrors.nombre = 'El nombre es obligatorio';
-    if (!formData.numero_documento.trim()) newErrors.numero_documento = 'El número de documento es obligatorio';
-    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
+  const handleSubmit = async (clientData) => {
     try {
       if (modalMode === 'create') {
-        await clientesAPI.create(formData);
+        await clientesAPI.create(clientData);
       } else {
-        await clientesAPI.update(selectedCliente.id, formData);
+        await clientesAPI.update(selectedCliente.id, clientData);
       }
       closeModal();
       fetchClientes();
@@ -110,6 +69,7 @@ function Clientes() {
 
   const handleDelete = async () => {
     try {
+      if (!confirmDialog.id) return;
       await clientesAPI.delete(confirmDialog.id);
       setConfirmDialog({ visible: false, id: null, nombre: '' });
       fetchClientes();
@@ -117,15 +77,6 @@ function Clientes() {
       console.error('Error deleting cliente:', error);
       alert('Error al eliminar el cliente.');
     }
-  };
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-    if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
   };
 
   const handleExportar = async (periodo, anio) => {
@@ -148,10 +99,14 @@ function Clientes() {
 
   const filteredClientes = clientes.filter(c => {
     const term = searchTerm.toLowerCase();
-    const searchMatch = c.nombre.toLowerCase().includes(term) || c.numero_documento.toLowerCase().includes(term);
+    const nombre = (c.nombre || '').toLowerCase();
+    const doc = (c.numero_documento || '').toLowerCase();
+    
+    const searchMatch = nombre.includes(term) || doc.includes(term);
+    const contactoMatch = (c.contacto || '').toLowerCase().includes(searchContacto.toLowerCase()) || !searchContacto;
     const tipoMatch = filterTipo === 'ALL' ? true : c.tipo_cliente === filterTipo;
     const estadoMatch = filterEstado === 'ALL' ? true : (filterEstado === 'ACTIVO' ? c.activo : !c.activo);
-    return searchMatch && tipoMatch && estadoMatch;
+    return searchMatch && contactoMatch && tipoMatch && estadoMatch;
   });
 
   // Pagination logic
@@ -164,6 +119,7 @@ function Clientes() {
 
   const handleSearchChange = (val) => { setSearchTerm(val); setClientesPage(1); };
   const handleFilterTipoChange = (val) => { setFilterTipo(val); setClientesPage(1); };
+  const handleSearchContactoChange = (val) => { setSearchContacto(val); setClientesPage(1); };
   const handleFilterEstadoChange = (val) => { setFilterEstado(val); setClientesPage(1); };
 
   return (
@@ -201,6 +157,15 @@ function Clientes() {
               onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>
+          <div style={{ flex: 1, minWidth: '200px' }}>
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Nombre del contacto..." 
+              value={searchContacto}
+              onChange={(e) => handleSearchContactoChange(e.target.value)}
+            />
+          </div>
           <div style={{ width: '200px' }}>
             <select 
               className="form-input" 
@@ -208,8 +173,7 @@ function Clientes() {
               onChange={(e) => handleFilterTipoChange(e.target.value)}
             >
               <option value="ALL">Todos los tipos</option>
-              <option value="PERSONA">Persona Natural</option>
-              <option value="NEGOCIO">Negocio</option>
+              <option value="PERSONA_NATURAL">Persona Natural</option>
               <option value="EMPRESA">Empresa</option>
             </select>
           </div>
@@ -236,8 +200,8 @@ function Clientes() {
                 <th>Tipo</th>
                 <th>Documento</th>
                 <th>Contacto</th>
-                <th>Teléfono</th>
                 <th>Email</th>
+                <th>Teléfono</th>
                 <th>Recurrencia</th>
                 <th>Total Comprado</th>
                 <th>Estado</th>
@@ -252,11 +216,18 @@ function Clientes() {
                     <span className="badge badge-info">{cliente.tipo_cliente}</span>
                   </td>
                   <td>
-                    {cliente.tipo_documento}: {cliente.numero_documento}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '14px' }}>
+                        {cliente.numero_documento}
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '500' }}>
+                        {cliente.tipo_documento}
+                      </span>
+                    </div>
                   </td>
                   <td>{cliente.contacto || '-'}</td>
-                  <td>{cliente.telefono || '-'}</td>
                   <td>{cliente.email || '-'}</td>
+                  <td>{cliente.telefono || '-'}</td>
                   <td>
                     <span className="badge badge-success">
                       {cliente.recurrencia || 0} compras
@@ -298,132 +269,13 @@ function Clientes() {
         />
       </div>
 
-      {modalVisible && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">
-                {modalMode === 'create' ? 'Nuevo Cliente' : 'Editar Cliente'}
-              </h3>
-              <button className="modal-close" onClick={closeModal}>×</button>
-            </div>
-            <form onSubmit={handleSubmit}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">Nombre *</label>
-                  <input type="text" name="nombre" className={`form-input${errors.nombre ? ' input-error' : ''}`} value={formData.nombre} onChange={handleChange} onFocus={(e) => e.target.select()} />
-                  {errors.nombre && <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{errors.nombre}</div>}
-                </div>
-
-                <div className="grid grid-2">
-                  <div className="form-group">
-                    <label className="form-label">Tipo de Cliente *</label>
-                    <select
-                      name="tipo_cliente"
-                      className="form-input"
-                      value={formData.tipo_cliente}
-                      onChange={handleChange}
-                    >
-                      <option value="PERSONA">Persona Natural</option>
-                      <option value="NEGOCIO">Negocio</option>
-                      <option value="EMPRESA">Empresa</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Tipo de Documento *</label>
-                    <select
-                      name="tipo_documento"
-                      className="form-input"
-                      value={formData.tipo_documento}
-                      onChange={handleChange}
-                    >
-                      <option value="DNI">DNI</option>
-                      <option value="RUC">RUC</option>
-                      <option value="NIT">NIT</option>
-                      <option value="CE">Carnet de Extranjería</option>
-                      <option value="PASAPORTE">Pasaporte</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Número de Documento *</label>
-                  <input type="text" name="numero_documento" className={`form-input${errors.numero_documento ? ' input-error' : ''}`} value={formData.numero_documento} onChange={handleChange} onFocus={(e) => e.target.select()} />
-                  {errors.numero_documento && <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{errors.numero_documento}</div>}
-                </div>
-
-                <div className="grid grid-2">
-                  <div className="form-group">
-                    <label className="form-label">Contacto</label>
-                    <input
-                      type="text"
-                      name="contacto"
-                      className="form-input"
-                      value={formData.contacto}
-                      onChange={handleChange}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Teléfono</label>
-                    <input
-                      type="text"
-                      name="telefono"
-                      className="form-input"
-                      value={formData.telefono}
-                      onChange={handleChange}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Email</label>
-                  <input
-                    type="email"
-                    name="email"
-                    className="form-input"
-                    value={formData.email}
-                    onChange={handleChange}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Dirección</label>
-                  <textarea
-                    name="direccion"
-                    className="form-input"
-                    value={formData.direccion}
-                    onChange={handleChange}
-                    rows={2}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <input
-                      type="checkbox"
-                      name="activo"
-                      checked={formData.activo}
-                      onChange={handleChange}
-                      style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                    />
-                    <span style={{ userSelect: 'none', color: 'inherit', fontSize: '14px', fontWeight: '500' }}>
-                      Cliente Activo
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={closeModal}>
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  {modalMode === 'create' ? 'Crear' : 'Guardar'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ClienteFormModal 
+        visible={modalVisible}
+        mode={modalMode}
+        initialData={selectedCliente}
+        onClose={closeModal}
+        onSave={handleSubmit}
+      />
     </div>
   );
 }

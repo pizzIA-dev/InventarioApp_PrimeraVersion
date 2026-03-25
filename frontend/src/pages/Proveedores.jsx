@@ -15,6 +15,7 @@ function Proveedores() {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchContacto, setSearchContacto] = useState('');
   const [filterEstado, setFilterEstado] = useState('ALL');
+  const [filterTipo, setFilterTipo] = useState('ALL');
   const [filterContrato, setFilterContrato] = useState('ALL');
   const [errors, setErrors] = useState({});
   const [confirmDialog, setConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
@@ -229,8 +230,8 @@ function Proveedores() {
                          (filterContrato === 'SI' ? p.tiene_contrato : !p.tiene_contrato);
 
     const contactoMatch = (p.contacto || '').toLowerCase().includes(searchContacto.toLowerCase());
-
-    return searchMatch && estadoMatch && contratoMatch && contactoMatch;
+    const tipoMatch = filterTipo === 'ALL' ? true : p.tipo_proveedor === filterTipo;
+    return searchMatch && estadoMatch && contratoMatch && contactoMatch && tipoMatch;
   });
 
   // Pagination Logic
@@ -245,6 +246,7 @@ function Proveedores() {
   const handleSearchChange = (val) => { setSearchTerm(val); setProveedoresPage(1); };
   const handleSearchContactoChange = (val) => { setSearchContacto(val); setProveedoresPage(1); };
   const handleFilterEstadoChange = (val) => { setFilterEstado(val); setProveedoresPage(1); };
+  const handleFilterTipoChange = (val) => { setFilterTipo(val); setProveedoresPage(1); };
   const handleFilterContratoChange = (val) => { setFilterContrato(val); setProveedoresPage(1); };
 
   return (
@@ -318,6 +320,18 @@ function Proveedores() {
               <option value="NO">Sin Contrato</option>
             </select>
           </div>
+          <div style={{ width: '150px' }}>
+            <label className="form-label" style={{ fontSize: '13px' }}>Tipo</label>
+            <select 
+              className="form-input" 
+              value={filterTipo}
+              onChange={(e) => handleFilterTipoChange(e.target.value)}
+            >
+              <option value="ALL">Todos</option>
+              <option value="PERSONA_NATURAL">Persona Natural</option>
+              <option value="EMPRESA">Empresa</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -327,7 +341,7 @@ function Proveedores() {
             <thead>
               <tr>
                 <th>Nombre</th>
-                <th>Documento (RUC/DNI)</th>
+                <th>Documento</th>
                 <th>Categoría</th>
                 <th>Contrato</th>
                 <th>Contacto</th>
@@ -342,7 +356,16 @@ function Proveedores() {
               {paginatedProveedores.map((p) => (
                 <tr key={p.id}>
                   <td>{p.nombre}</td>
-                  <td>{p.identificador}</td>
+                  <td>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '14px' }}>
+                        {p.identificador}
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: '500' }}>
+                        {p.tipo_documento}
+                      </span>
+                    </div>
+                  </td>
                   <td>
                     <span className="badge badge-info">{p.categoria}</span>
                   </td>

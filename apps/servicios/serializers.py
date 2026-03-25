@@ -45,7 +45,8 @@ class VentaServicioSerializer(serializers.ModelSerializer):
         model = VentaServicio
         fields = [
             'id', 'servicio', 'servicio_nombre', 'cliente', 'cliente_nombre',
-            'precio', 'descuento', 'total',
+            'numero_comprobante', 'tipo_comprobante',
+            'precio', 'descuento', 'impuesto', 'total',
             'fecha_programada', 'fecha_completado', 'estado', 'notas',
             'creado_en', 'actualizado_en'
         ]
@@ -57,5 +58,6 @@ class VentaServicioCreateSerializer(serializers.ModelSerializer):
         model = VentaServicio
         fields = [
             'id', 'servicio', 'servicio_nombre', 'cliente', 'cliente_nombre',
-            'precio', 'descuento', 'fecha_programada', 'estado', 'notas'
+            'numero_comprobante', 'tipo_comprobante',
+            'precio', 'descuento', 'impuesto', 'fecha_programada', 'estado', 'notas'
         ]

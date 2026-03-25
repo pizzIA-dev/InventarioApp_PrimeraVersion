@@ -10,22 +10,35 @@ class ProveedorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Proveedor
         fields = [
-            'id', 'nombre', 'identificador', 'contacto', 'email', 'telefono', 'direccion',
+            'id', 'nombre', 'tipo_proveedor', 'tipo_documento', 'identificador', 'contacto', 'email', 'telefono', 'direccion',
             'categoria', 'tiene_contrato', 'detalles_contrato', 'dias_credito', 'limite_credito',
             'activo', 'creado_en', 'actualizado_en', 'total_compras', 'productos_count'
         ]
         read_only_fields = ['creado_en', 'actualizado_en', 'total_compras']
-        validators = [] # Handle custom validation in validate()
+        validators = []
         extra_kwargs = {
             'identificador': {
                 'error_messages': {
-                    'unique': 'El Documento (RUC/DNI) ya está registrado para otro proveedor'
+                    'unique': 'El Documento ya está registrado para otro proveedor'
                 }
             }
         }
     
     def get_productos_count(self, obj):
         return obj.historico_precios.values('producto').distinct().count()
+
+    def validate_identificador(self, value):
+        val = value.strip().upper()
+        tipo = self.initial_data.get('tipo_documento')
+        
+        if tipo == 'DNI':
+            if not val.isdigit() or len(val) != 8:
+                raise serializers.ValidationError("El DNI debe tener exactamente 8 números.")
+        elif tipo == 'RUC':
+            if not val.isdigit() or len(val) != 11:
+                raise serializers.ValidationError("El RUC debe tener exactamente 11 números.")
+        
+        return val
 
     def validate(self, data):
         identificador = data.get('identificador')
@@ -49,14 +62,14 @@ class ProveedorCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Proveedor
         fields = [
-            'id', 'nombre', 'identificador', 'contacto', 'email', 'telefono', 'direccion',
+            'id', 'nombre', 'tipo_proveedor', 'tipo_documento', 'identificador', 'contacto', 'email', 'telefono', 'direccion',
             'categoria', 'tiene_contrato', 'detalles_contrato', 'dias_credito', 'limite_credito', 'activo'
         ]
-        validators = [] # Handle custom validation in validate()
+        validators = []
         extra_kwargs = {
             'identificador': {
                 'error_messages': {
-                    'unique': 'El Documento (RUC/DNI) ya está registrado para otro proveedor'
+                    'unique': 'El Documento ya está registrado para otro proveedor'
                 }
             }
         }

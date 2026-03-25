@@ -5,24 +5,22 @@ from django.core.validators import MinValueValidator
 class Cliente(models.Model):
     """Cliente (persona, negocio o empresa)"""
     TIPO_CLIENTE_CHOICES = [
-        ('PERSONA', 'Persona Natural'),
-        ('NEGOCIO', 'Negocio'),
+        ('PERSONA_NATURAL', 'Persona Natural'),
         ('EMPRESA', 'Empresa'),
     ]
     
     TIPO_DOCUMENTO_CHOICES = [
         ('DNI', 'DNI'),
         ('RUC', 'RUC'),
-        ('NIT', 'NIT'),
         ('CE', 'Carnet de Extranjería'),
         ('PASAPORTE', 'Pasaporte'),
     ]
     
     empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='clientes', null=True)
     nombre = models.CharField(max_length=200)
-    tipo_cliente = models.CharField(max_length=10, choices=TIPO_CLIENTE_CHOICES, default='PERSONA')
+    tipo_cliente = models.CharField(max_length=20, choices=TIPO_CLIENTE_CHOICES, default='PERSONA_NATURAL')
     tipo_documento = models.CharField(max_length=20, choices=TIPO_DOCUMENTO_CHOICES, default='DNI')
-    numero_documento = models.CharField(max_length=20, unique=True)
+    numero_documento = models.CharField(max_length=20)
     
     # Contacto
     contacto = models.CharField(max_length=100, blank=True, null=True)
@@ -38,6 +36,9 @@ class Cliente(models.Model):
     class Meta:
         ordering = ['nombre']
         verbose_name_plural = "Clientes"
+        constraints = [
+            models.UniqueConstraint(fields=['empresa', 'numero_documento'], name='unique_cliente_per_empresa')
+        ]
     
     def __str__(self):
         return f"{self.nombre} ({self.numero_documento})"

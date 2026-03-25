@@ -93,6 +93,10 @@ class VentaServicio(models.Model):
     )
     cliente_nombre = models.CharField(max_length=200, blank=True, null=True)
     
+    # Documento
+    numero_comprobante = models.CharField(max_length=50, blank=True, null=True)
+    tipo_comprobante = models.CharField(max_length=50, blank=True, null=True)
+    
     # Precio
     precio = models.DecimalField(
         max_digits=10, 
@@ -100,6 +104,12 @@ class VentaServicio(models.Model):
         validators=[MinValueValidator(0)]
     )
     descuento = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        default=0,
+        validators=[MinValueValidator(0)]
+    )
+    impuesto = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 
         default=0,
@@ -129,7 +139,7 @@ class VentaServicio(models.Model):
     
     def save(self, *args, **kwargs):
         # Calcular total automáticamente
-        self.total = self.precio - self.descuento
+        self.total = self.precio - self.descuento + self.impuesto
         super().save(*args, **kwargs)
     
     def terminar(self):

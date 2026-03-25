@@ -102,7 +102,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
-        headers = ['ID', 'Nombre', 'Tipo Cliente', 'Documento', 'Contacto', 'Email', 'Teléfono', 'Total Comprado (S/.)', 'Activo']
+        headers = ['ID', 'Nombre', 'Tipo Cliente', 'Documento', 'Contacto', 'Teléfono', 'Email', 'Total Comprado (S/.)', 'Activo']
         rows = []
         for obj in queryset:
             rows.append([
@@ -111,8 +111,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 obj.tipo_cliente,
                 f"{obj.tipo_documento}: {obj.numero_documento}",
                 obj.contacto or '',
-                obj.email or '',
                 obj.telefono or '',
+                obj.email or '',
                 float(obj.total_comprado) if obj.total_comprado else 0.0,
                 'Sí' if obj.activo else 'No'
             ])

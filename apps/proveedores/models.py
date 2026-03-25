@@ -13,10 +13,24 @@ class Proveedor(models.Model):
         ('IMPORTADOR', 'Importador'),
         ('DISTRIBUIDOR', 'Distribuidor'),
     ]
+
+    TIPO_PROVEEDOR_CHOICES = [
+        ('PERSONA_NATURAL', 'Persona Natural'),
+        ('EMPRESA', 'Empresa'),
+    ]
+    
+    TIPO_DOCUMENTO_CHOICES = [
+        ('DNI', 'DNI'),
+        ('RUC', 'RUC'),
+        ('CE', 'Carnet de Extranjería'),
+        ('PASAPORTE', 'Pasaporte'),
+    ]
     
     empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='proveedores', null=True)
     nombre = models.CharField(max_length=200)
-    identificador = models.CharField(max_length=20, unique=True)  # RUC/DNI/NIT
+    tipo_proveedor = models.CharField(max_length=20, choices=TIPO_PROVEEDOR_CHOICES, default='PERSONA_NATURAL')
+    tipo_documento = models.CharField(max_length=20, choices=TIPO_DOCUMENTO_CHOICES, default='RUC')
+    identificador = models.CharField(max_length=20)  # RUC/DNI/CE/PASAPORTE
     contacto = models.CharField(max_length=100, blank=True, null=True)
     email = models.EmailField(blank=True, null=True, validators=[EmailValidator()])
     telefono = models.CharField(max_length=20, blank=True, null=True)
@@ -42,6 +56,9 @@ class Proveedor(models.Model):
     class Meta:
         ordering = ['nombre']
         verbose_name_plural = "Proveedores"
+        constraints = [
+            models.UniqueConstraint(fields=['empresa', 'identificador'], name='unique_proveedor_per_empresa')
+        ]
     
     def __str__(self):
         return f"{self.nombre} ({self.identificador})"

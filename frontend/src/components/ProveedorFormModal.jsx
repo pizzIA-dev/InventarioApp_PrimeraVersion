@@ -4,6 +4,8 @@ import { proveedoresAPI } from '../services/api';
 const ProveedorFormModal = ({ visible, mode = 'create', initialData = null, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     nombre: '',
+    tipo_proveedor: 'PERSONA_NATURAL',
+    tipo_documento: 'DNI',
     identificador: '',
     contacto: '',
     email: '',
@@ -24,6 +26,8 @@ const ProveedorFormModal = ({ visible, mode = 'create', initialData = null, onCl
       if (mode === 'edit' && initialData) {
         setFormData({
           nombre: initialData.nombre || '',
+          tipo_proveedor: initialData.tipo_proveedor || 'PERSONA_NATURAL',
+          tipo_documento: initialData.tipo_documento || 'DNI',
           identificador: initialData.identificador || '',
           contacto: initialData.contacto || '',
           email: initialData.email || '',
@@ -39,6 +43,8 @@ const ProveedorFormModal = ({ visible, mode = 'create', initialData = null, onCl
       } else {
         setFormData({
           nombre: '',
+          tipo_proveedor: 'PERSONA_NATURAL',
+          tipo_documento: 'DNI',
           identificador: '',
           contacto: '',
           email: '',
@@ -59,9 +65,33 @@ const ProveedorFormModal = ({ visible, mode = 'create', initialData = null, onCl
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    let newValue = type === 'checkbox' ? checked : value;
+
+    // Lógica dinámica para Tipo de Proveedor y Tipo de Documento
+    if (name === 'tipo_proveedor') {
+      const nextTipoDoc = newValue === 'EMPRESA' ? 'RUC' : 'DNI';
+      setFormData(prev => ({
+        ...prev,
+        [name]: newValue,
+        tipo_documento: nextTipoDoc
+      }));
+      if (errors.tipo_proveedor) setErrors(prev => ({ ...prev, tipo_proveedor: null }));
+      if (errors.tipo_documento) setErrors(prev => ({ ...prev, tipo_documento: null }));
+      return;
+    }
+
+    // Validación en tiempo real para longitud de documentos
+    if (name === 'identificador') {
+      const onlyNums = newValue.replace(/\D/g, '');
+      const tipo = formData.tipo_documento;
+      if (tipo === 'DNI' && onlyNums.length > 8) return;
+      if (tipo === 'RUC' && onlyNums.length > 11) return;
+      newValue = onlyNums;
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: newValue,
     }));
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
   };
@@ -141,7 +171,44 @@ const ProveedorFormModal = ({ visible, mode = 'create', initialData = null, onCl
             )}
             <div className="grid grid-2">
               <div className="form-group">
-                <label className="form-label">Nombre *</label>
+                <label className="form-label">Tipo de Proveedor *</label>
+                <select
+                  name="tipo_proveedor"
+                  className="form-input"
+                  value={formData.tipo_proveedor}
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                >
+                  <option value="PERSONA_NATURAL">Persona Natural</option>
+                  <option value="EMPRESA">Empresa</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Tipo de Documento *</label>
+                <select
+                  name="tipo_documento"
+                  className="form-input"
+                  value={formData.tipo_documento}
+                  onChange={handleChange}
+                  disabled={isSubmitting}
+                >
+                  {formData.tipo_proveedor === 'EMPRESA' ? (
+                    <option value="RUC">RUC</option>
+                  ) : (
+                    <>
+                      <option value="DNI">DNI</option>
+                      <option value="RUC">RUC</option>
+                      <option value="CE">Carnet de Extranjería</option>
+                      <option value="PASAPORTE">Pasaporte</option>
+                    </>
+                  )}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-2">
+              <div className="form-group">
+                <label className="form-label">Nombre / Razón Social *</label>
                 <input 
                   type="text" 
                   name="nombre" 
@@ -154,7 +221,7 @@ const ProveedorFormModal = ({ visible, mode = 'create', initialData = null, onCl
                 {errors.nombre && <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{errors.nombre}</div>}
               </div>
               <div className="form-group">
-                <label className="form-label">Documento (RUC/DNI) *</label>
+                <label className="form-label">Número de Documento *</label>
                 <input 
                   type="text" 
                   name="identificador" 
@@ -167,6 +234,7 @@ const ProveedorFormModal = ({ visible, mode = 'create', initialData = null, onCl
                 {errors.identificador && <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{errors.identificador}</div>}
               </div>
             </div>
+ bitumen
 
             <div className="grid grid-2">
               <div className="form-group">
