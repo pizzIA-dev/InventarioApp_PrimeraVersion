@@ -51,3 +51,9 @@ class SegmentoClienteSerializer(serializers.ModelSerializer):
     
     def get_clientes_count(self, obj):
         return Cliente.objects.filter(activo=True).count()
+
+
+class MovimientoEstadoClienteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Cliente.movimientos_estado.rel.related_model # MovimientoEstadoCliente
+        fields = ['id', 'estado_anterior', 'estado_nuevo', 'fecha', 'notas']

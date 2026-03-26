@@ -51,7 +51,12 @@ export const clientesAPI = {
   delete: (id) => api.delete(`/clientes/${id}/`),
   getEstadisticas: (id) => api.get(`/clientes/${id}/estadisticas/`),
   getTopClientes: () => api.get('/clientes/top_clientes/'),
+  getHistoryEstados: (id, params) => api.get(`/clientes/${id}/historial_estados/`, { params }),
+  getKardexProductos: (id, params) => api.get(`/clientes/${id}/kardex_productos/`, { params }),
   exportar: (params) => api.get('/clientes/exportar/', { params, responseType: 'blob' }),
+  exportarHistorial: (id, params) => api.get(`/clientes/${id}/exportar_historial/`, { params, responseType: 'blob' }),
+  // Clientes export already includes global history in a second sheet
+  exportarHistorialGlobal: (params) => api.get('/clientes/exportar/', { params, responseType: 'blob' }),
 };
 
 // Ventas
@@ -65,7 +70,12 @@ export const ventasAPI = {
   cancelar: (id) => api.post(`/ventas/${id}/cancelar/`),
   getResumen: () => api.get('/ventas/resumen/'),
   getProductosMasVendidos: () => api.get('/ventas/productos_mas_vendidos/'),
+  getHistoryEstados: (id, params) => api.get(`/ventas/${id}/history_estados/`, { params }),
+  getKardexProductos: (id, params) => api.get(`/ventas/${id}/kardex_productos/`, { params }),
+  getKardexGlobalProductos: (params) => api.get('/ventas/kardex_global_productos/', { params }),
   exportar: (params) => api.get('/ventas/exportar/', { params, responseType: 'blob' }),
+  exportarHistorial: (id) => api.get(`/ventas/${id}/exportar_historial/`, { responseType: 'blob' }),
+  exportarHistorialGlobal: (params) => api.get('/ventas/exportar_historial_global/', { params, responseType: 'blob' }),
 };
 
 // Compras
@@ -109,9 +119,11 @@ export const serviciosAPI = {
   createVenta: (data) => api.post('/servicios/ventas/', data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {}),
   updateVenta: (id, data) => api.patch(`/servicios/ventas/${id}/`, data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : {}),
   deleteVenta: (id) => api.delete(`/servicios/ventas/${id}/`),
+  getVentaDetail: (id) => api.get(`/servicios/ventas/${id}/`),
   completarVenta: (id) => api.post(`/servicios/ventas/${id}/completar/`),
   iniciarVenta: (id) => api.post(`/servicios/ventas/${id}/iniciar/`),
   cancelarVenta: (id) => api.post(`/servicios/ventas/${id}/cancelar/`),
+  getHistoryEstadosVenta: (id, params) => api.get(`/servicios/ventas/${id}/history_estados/`, { params }),
   getCategorias: () => api.get('/servicios/categorias/'),
   exportarVentas: (params) => api.get('/servicios/ventas/exportar/', { params, responseType: 'blob' }),
 };

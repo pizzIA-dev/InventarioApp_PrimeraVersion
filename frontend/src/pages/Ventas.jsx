@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { ventasAPI, productosAPI, clientesAPI, serviciosAPI } from '../services/api';
 import { 
   PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, 
-  PlayCircleOutlined, OrderedListOutlined, EyeOutlined, DownloadOutlined 
+  PlayCircleOutlined, OrderedListOutlined, EyeOutlined, DownloadOutlined,
+  FileTextOutlined, HistoryOutlined, CalendarOutlined, SearchOutlined, EllipsisOutlined, CheckCircleOutlined, CloseCircleOutlined, PrinterOutlined
 } from '@ant-design/icons';
 
 import Pagination from '../components/Pagination';
@@ -11,6 +12,8 @@ import ExportDropdown from '../components/ExportDropdown';
 import ProductFormModal from '../components/ProductFormModal';
 import SearchableSelect from '../components/SearchableSelect';
 import ClienteFormModal from '../components/ClienteFormModal';
+import VentaHistoryModal from '../components/VentaHistoryModal';
+import VentaGlobalKardexModal from '../components/VentaGlobalKardexModal';
 
 function Ventas() {
   const [loading, setLoading] = useState(true);
@@ -36,17 +39,55 @@ function Ventas() {
   const [ventaConfirmDialog, setVentaConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedVentaForDetail, setSelectedVentaForDetail] = useState(null);
+  const [isFormalizing, setIsFormalizing] = useState(false);
+  const [formalizacionData, setFormalizacionData] = useState({ tipo: 'BOLETA', numero: '' });
+  const [printMode, setPrintMode] = useState(null);
 
   const [ventaErrors, setVentaErrors] = useState({});
 
-  const openDetailModal = (venta) => {
-    setSelectedVentaForDetail(venta);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyType, setHistoryType] = useState(''); // 'producto' or 'servicio'
+  const [showGlobalKardex, setShowGlobalKardex] = useState(false);
+
+  const openDetailModal = async (venta) => {
+    // Determine if it's a service sale or product sale
+    const isService = !!venta.servicio;
+    
+    // Set basic data first to show modal immediately with loading state (or at least partial data)
+    setSelectedVentaForDetail({ ...venta, isService });
     setDetailModalVisible(true);
+    
+    try {
+      console.log('Opening detail modal for:', venta.id, 'isService:', isService);
+      // Fetch full detail from correct API
+      const res = isService 
+        ? await serviciosAPI.getVentaDetail(venta.id)
+        : await ventasAPI.getById(venta.id);
+        
+      if (res.data) {
+        setSelectedVentaForDetail({ ...res.data, isService });
+      }
+    } catch (err) {
+      console.error('Error fetching venta detail:', err);
+      // Fallback: we already have basic data from 'venta' parameter
+    }
   };
 
   const closeDetailModal = () => {
     setDetailModalVisible(false);
     setSelectedVentaForDetail(null);
+    setIsFormalizing(false);
+  };
+
+  const openHistoryModal = (venta, type) => {
+    setSelectedVenta(venta);
+    setHistoryType(type);
+    setShowHistoryModal(true);
+  };
+
+  const closeHistoryModal = () => {
+    setShowHistoryModal(false);
+    setHistoryType('');
   };
 
   const [ventaData, setVentaData] = useState({
@@ -57,8 +98,9 @@ function Ventas() {
     precio: 0,
     descuento: 0,
     impuesto: 0,
+    numero_comprobante_simple: '', 
+    numero_comprobante: '', 
     tipo_comprobante: 'SIMPLE',
-    numero_comprobante: '', // Will be set in useEffect or openModal
     fecha_programada: '',
     estado: 'PENDIENTE',
     notas: '',
@@ -68,7 +110,8 @@ function Ventas() {
   const [formData, setFormData] = useState({
     cliente: '',
     cliente_nombre: '',
-    numero_comprobante: '', // Will be set in openModal
+    numero_comprobante_simple: '',
+    numero_comprobante: '',
     tipo_comprobante: 'SIMPLE',
     estado: 'CONFIRMADA',
     descuento: 0,
@@ -182,11 +225,18 @@ function Ventas() {
     
     // Combine both products and services ventas to find the global max for this prefix
     const allVentas = [...ventas, ...ventasServicios];
-    const filtered = allVentas.filter(v => v.numero_comprobante && v.numero_comprobante.startsWith(`${prefix}-`));
+    // Try finding in its own specific field first for 'SIMPLE'
+    let filtered = [];
+    if (type === 'SIMPLE') {
+      filtered = allVentas.filter(v => v.numero_comprobante_simple && v.numero_comprobante_simple.startsWith(`${prefix}-`));
+    } else {
+      filtered = allVentas.filter(v => v.numero_comprobante && v.numero_comprobante.startsWith(`${prefix}-`));
+    }
     
     let maxNum = 0;
     filtered.forEach(v => {
-      const parts = v.numero_comprobante.split('-');
+      const field = (type === 'SIMPLE') ? v.numero_comprobante_simple : v.numero_comprobante;
+      const parts = field.split('-');
       if (parts.length === 2) {
         const num = parseInt(parts[1]);
         if (!isNaN(num) && num > maxNum) maxNum = num;
@@ -279,15 +329,30 @@ function Ventas() {
   const openModal = async (mode, venta = null) => {
     setModalMode(mode);
     setErrors({});
-    if (venta) {
+    if (mode === 'create') {
+      const simpleNum = generateComprobanteNumber('SIMPLE');
+      setFormData({
+        cliente: '',
+        cliente_nombre: '',
+        numero_comprobante_simple: simpleNum,
+        numero_comprobante: simpleNum,
+        tipo_comprobante: 'SIMPLE',
+        estado: 'CONFIRMADA',
+        descuento: 0,
+        impuesto: 0,
+        notas: '',
+        detalle: [],
+      });
+    } else {
       setSelectedVenta(venta);
-      // Load full venta detail from API to get the detalle
+      // Fetch full detail if only basic info is present (optional, but good practice)
       try {
         const res = await ventasAPI.getById(venta.id);
         const full = res.data;
         setFormData({
           cliente: full.cliente || '',
           cliente_nombre: full.cliente_nombre || '',
+          numero_comprobante_simple: full.numero_comprobante_simple || '',
           numero_comprobante: full.numero_comprobante || '',
           tipo_comprobante: full.tipo_comprobante || '',
           estado: full.estado || 'CONFIRMADA',
@@ -295,38 +360,32 @@ function Ventas() {
           impuesto: Number(full.impuesto || 0),
           notas: full.notas || '',
           detalle: (full.detalle || []).map(d => ({
-            producto: d.producto,
+            producto: String(d.producto),
             cantidad: Number(d.cantidad || 1),
             precio_venta: Number(d.precio_venta || 0),
             descuento: Number(d.descuento || 0),
           })),
         });
-      } catch {
+      } catch (err) {
+        // Fallback to passed venta data
         setFormData({
           cliente: venta.cliente || '',
           cliente_nombre: venta.cliente_nombre || '',
+          numero_comprobante_simple: venta.numero_comprobante_simple || '',
           numero_comprobante: venta.numero_comprobante || '',
           tipo_comprobante: venta.tipo_comprobante || '',
           estado: venta.estado || 'CONFIRMADA',
           descuento: Number(venta.descuento || 0),
           impuesto: Number(venta.impuesto || 0),
           notas: venta.notas || '',
-          detalle: [],
+          detalle: (venta.detalle || []).map(d => ({
+            producto: String(d.producto),
+            cantidad: Number(d.cantidad || 1),
+            precio_venta: Number(d.precio_venta || 0),
+            descuento: Number(d.descuento || 0),
+          })),
         });
       }
-    } else {
-      setSelectedVenta(null);
-      setFormData({
-        cliente: '',
-        cliente_nombre: '',
-        numero_comprobante: generateComprobanteNumber('SIMPLE'),
-        tipo_comprobante: 'SIMPLE',
-        estado: 'BORRADOR',
-        descuento: 0,
-        impuesto: 0,
-        notas: '',
-        detalle: [],
-      });
     }
     setModalVisible(true);
   };
@@ -513,6 +572,7 @@ function Ventas() {
 
   
   const openVentaModal = () => {
+    const simpleNum = generateComprobanteNumber('SIMPLE');
     setVentaErrors({});
     setVentaData({
       servicio: '',
@@ -522,8 +582,9 @@ function Ventas() {
       precio: 0,
       descuento: 0,
       impuesto: 0,
+      numero_comprobante_simple: simpleNum,
       tipo_comprobante: 'SIMPLE',
-      numero_comprobante: generateComprobanteNumber('SIMPLE'),
+      numero_comprobante: simpleNum,
       fecha_programada: '',
       estado: 'PENDIENTE',
       notas: '',
@@ -542,6 +603,7 @@ function Ventas() {
       precio: venta.precio || 0,
       descuento: venta.descuento || 0,
       impuesto: venta.impuesto || 0,
+      numero_comprobante_simple: venta.numero_comprobante_simple || '',
       tipo_comprobante: venta.tipo_comprobante || '',
       numero_comprobante: venta.numero_comprobante || '',
       fecha_programada: venta.fecha_programada ? venta.fecha_programada.substring(0, 16) : '',
@@ -684,10 +746,30 @@ function Ventas() {
     }
   };
 
+  const handleExportHistorialGlobal = async (periodo, anio) => {
+    try {
+      const params = { periodo };
+      if (anio) params.anio = anio;
+      const response = await ventasAPI.exportarHistorialGlobal(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `historial_global_ventas_${periodo}${anio ? '_' + anio : ''}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error al exportar historial global:', error);
+      alert('Error al exportar el historial global.');
+    }
+  };
+
   const filteredVentas = ventas.filter(v => {
     const term = searchTerm.toLowerCase();
     const searchMatch = (v.cliente_nombre || 'Cliente General').toLowerCase().includes(term) || 
-                        (v.numero_comprobante || `#${v.id}`).toLowerCase().includes(term);
+                        (v.numero_comprobante || '').toLowerCase().includes(term) ||
+                        (v.numero_comprobante_simple || '').toLowerCase().includes(term) ||
+                        `#${v.id}`.toLowerCase().includes(term);
     if (filterEstado !== 'ALL' && v.estado !== filterEstado) return false;
     return searchMatch;
   });
@@ -703,7 +785,9 @@ function Ventas() {
   const filteredVentasServicios = ventasServicios.filter(v => {
     const term = searchTerm.toLowerCase();
     const searchMatch = (v.cliente_nombre || 'Cliente').toLowerCase().includes(term) || 
-                                      (v.servicio_nombre || v.servicio).toString().toLowerCase().includes(term);
+                                      (v.servicio_nombre || v.servicio || '').toString().toLowerCase().includes(term) ||
+                                      (v.numero_comprobante || '').toLowerCase().includes(term) ||
+                                      (v.numero_comprobante_simple || '').toLowerCase().includes(term);
     if (filterEstado !== 'ALL' && v.estado !== filterEstado) return false;
     return searchMatch;
   });
@@ -740,6 +824,18 @@ function Ventas() {
         danger={true}
       />
 
+      <VentaHistoryModal
+        visible={showHistoryModal}
+        onClose={closeHistoryModal}
+        venta={selectedVenta}
+        isServicio={historyType === 'servicio'}
+      />
+
+      <VentaGlobalKardexModal
+        visible={showGlobalKardex}
+        onClose={() => setShowGlobalKardex(false)}
+      />
+
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">Ventas</h1>
@@ -748,6 +844,7 @@ function Ventas() {
                 <div style={{ display: 'flex', gap: '10px' }}>
           {activeTab === 'PRODUCTOS' ? (
             <>
+              <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Excel" />
               <ExportDropdown onExport={handleExportar} label="Exportar Ventas" />
               <button className="btn btn-primary" onClick={() => openModal('create')}>
                 <PlusOutlined /> Nueva Venta
@@ -828,7 +925,16 @@ function Ventas() {
               {paginatedVentas.map((venta) => (
                 <tr key={venta.id}>
                   <td>{new Date(venta.creado_en).toLocaleDateString()}</td>
-                  <td>{venta.numero_comprobante || 'S/N'}</td>
+                  <td>
+                    <div style={{ fontWeight: 'bold' }}>{venta.numero_comprobante_simple || 'S/N'}</div>
+                    <div style={{ fontSize: '10px', color: '#8c8c8c' }}>COMPROBANTE SIMPLE</div>
+                    {venta.tipo_comprobante && venta.tipo_comprobante !== 'SIMPLE' && (
+                      <div style={{ marginTop: '4px', borderTop: '1px dashed #ddd', paddingTop: '2px' }}>
+                        <div style={{ fontWeight: 'bold', color: '#1677ff' }}>{venta.numero_comprobante}</div>
+                        <div style={{ fontSize: '10px', color: '#1677ff' }}>{venta.tipo_comprobante}</div>
+                      </div>
+                    )}
+                  </td>
                   <td>{venta.cliente_nombre || 'Cliente General'}</td>
                   <td style={{ textAlign: "center" }}>
                     <button 
@@ -851,16 +957,15 @@ function Ventas() {
                   </td>
                   <td style={{ textAlign: "right", fontWeight: "bold" }}>S/. {Number(venta.total || 0).toFixed(2)}</td>
                   <td style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                    <button className="btn btn-secondary" onClick={() => openHistoryModal(venta, 'producto')} title="Ver Historial/Kardex">
+                      <HistoryOutlined />
+                    </button>
                     {venta.estado === "BORRADOR" && (
                       <button className="btn btn-success" onClick={() => handleConfirmar(venta.id)} title="Confirmar venta">
                         <CheckOutlined />
                       </button>
                     )}
-                    {venta.tipo_comprobante === 'SIMPLE' && (
-                      <button className="btn btn-primary" onClick={() => openModal("edit", venta)} title="Formalizar (Emitir Boleta/Factura)" style={{ background: '#2f54eb', borderColor: '#2f54eb' }}>
-                        <CheckOutlined />
-                      </button>
-                    )}
+                    {/* Formalizar moved to detail modal */}
                     <button className="btn btn-secondary" onClick={() => openModal("edit", venta)} title="Editar">
                       <EditOutlined />
                     </button>
@@ -891,20 +996,31 @@ function Ventas() {
             <table>
               <thead>
                 <tr>
+                  <th style={{ width: '110px' }}>Fecha</th>
+                  <th style={{ width: '120px' }}>Comprobante</th>
                   <th>Servicio</th>
                   <th>Cliente</th>
-                  <th>Fecha Programada</th>
                   <th>Estado</th>
-                  <th>Total</th>
-                  <th>Acciones</th>
+                  <th style={{ textAlign: 'right' }}>Total</th>
+                  <th style={{ width: '120px' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedVentasServicios.map((venta) => (
                   <tr key={venta.id}>
+                    <td>{venta.creado_en ? new Date(venta.creado_en).toLocaleDateString() : '-'}</td>
+                    <td>
+                      <div style={{ fontWeight: 'bold' }}>{venta.numero_comprobante_simple || 'S/N'}</div>
+                      <div style={{ fontSize: '10px', color: '#8c8c8c' }}>COMPROBANTE SIMPLE</div>
+                      {venta.tipo_comprobante && venta.tipo_comprobante !== 'SIMPLE' && (
+                        <div style={{ marginTop: '4px', borderTop: '1px dashed #ddd', paddingTop: '2px' }}>
+                          <div style={{ fontWeight: 'bold', color: '#1677ff' }}>{venta.numero_comprobante}</div>
+                          <div style={{ fontSize: '10px', color: '#1677ff' }}>{venta.tipo_comprobante}</div>
+                        </div>
+                      )}
+                    </td>
                     <td>{venta.servicio_nombre || venta.servicio}</td>
                     <td>{venta.cliente_nombre || 'Cliente General'}</td>
-                    <td>{venta.fecha_programada ? new Date(venta.fecha_programada).toLocaleDateString() : '-'}</td>
                     <td>
                       <span className={`badge ${
                         venta.estado === 'TERMINADO' ? 'badge-success' :
@@ -914,14 +1030,14 @@ function Ventas() {
                         {venta.estado}
                       </span>
                     </td>
-                    <td>S/. {Number(venta.total || 0).toFixed(2)}</td>
+                    <td style={{ textAlign: "right", fontWeight: "bold" }}>S/. {Number(venta.total || 0).toFixed(2)}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '4px' }}>
-                        {venta.tipo_comprobante === 'SIMPLE' && (
-                          <button className="btn btn-primary" onClick={() => openVentaEditModal(venta)} title="Formalizar (Emitir Boleta/Factura)" style={{ background: '#2f54eb', borderColor: '#2f54eb' }}>
-                            <CheckOutlined />
-                          </button>
-                        )}
+                        <button className="btn btn-secondary" onClick={() => openHistoryModal(venta, 'servicio')} title="Ver Historial/Kardex">
+                          <HistoryOutlined />
+                        </button>
+                        <button className="btn btn-secondary" onClick={() => openDetailModal(venta)} title="Ver Detalle"><EyeOutlined /></button>
+                        {/* Formalizar moved to detail modal */}
                         <button className="btn btn-secondary" onClick={() => openVentaEditModal(venta)} title="Editar"><EditOutlined /></button>
                         {venta.estado === 'PENDIENTE' && (
                           <button className="btn btn-primary" onClick={() => handleIniciarServicio(venta.id)} title="Iniciar"><PlayCircleOutlined /></button>
@@ -937,9 +1053,9 @@ function Ventas() {
                     </td>
                   </tr>
                 ))}
-                {filteredVentasServicios.length === 0 && (
-                   <tr><td colSpan="6" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay servicios registrados que coincidan con los filtros</td></tr>
-                )}
+                 {filteredVentasServicios.length === 0 && (
+                    <tr><td colSpan="7" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay servicios registrados que coincidan con los filtros</td></tr>
+                 )}
               </tbody>
             </table>
           </div>
@@ -1093,7 +1209,7 @@ function Ventas() {
                           setVentaData(prev => ({ 
                             ...prev, 
                             tipo_comprobante: val,
-                            numero_comprobante: generateComprobanteNumber(val)
+                            numero_comprobante: val === 'SIMPLE' ? prev.numero_comprobante_simple : generateComprobanteNumber(val)
                           }));
                         }}>
                           <option value="SIMPLE">Comprobante Simple</option>
@@ -1188,7 +1304,7 @@ function Ventas() {
                       setFormData(prev => ({ 
                         ...prev, 
                         tipo_comprobante: val,
-                        numero_comprobante: generateComprobanteNumber(val)
+                        numero_comprobante: val === 'SIMPLE' ? prev.numero_comprobante_simple : generateComprobanteNumber(val)
                       }));
                       if (errors.tipo_comprobante) setErrors(prev => ({ ...prev, tipo_comprobante: null }));
                     }}>
@@ -1414,8 +1530,60 @@ function Ventas() {
       {detailModalVisible && selectedVentaForDetail && (
         <div className="modal-overlay" onClick={closeDetailModal} style={{ zIndex: 1100 }}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "900px" }}>
+            <style>{`
+              @page { 
+                margin: 0 !important; 
+                size: auto; 
+              }
+              @media print {
+                /* Hide everything by default */
+                body * { visibility: hidden !important; }
+                /* Show only the modal and its content */
+                .modal-overlay, .modal-overlay * { visibility: visible !important; }
+                
+                html, body {
+                  margin: 0 !important;
+                  padding: 0 !important;
+                  height: auto !important;
+                  overflow: visible !important;
+                  background: white !important;
+                }
+                
+                /* Add content margin for printing since @page margin is 0 */
+                body {
+                  padding: 1.5cm !important;
+                }
+
+                .modal-overlay { 
+                  position: absolute !important; 
+                  left: 0 !important; 
+                  top: 0 !important; 
+                  background: white !important; 
+                  width: 100% !important; 
+                  margin: 0 !important; 
+                  padding: 0 !important;
+                  display: block !important;
+                  overflow: visible !important;
+                  height: auto !important;
+                }
+                .modal { 
+                  position: relative !important; 
+                  width: 100% !important; 
+                  max-width: 100% !important; 
+                  margin: 0 !important; 
+                  padding: 0 !important; 
+                  box-shadow: none !important; 
+                  border: none !important;
+                  background: white !important;
+                  height: auto !important;
+                  overflow: visible !important;
+                }
+                /* Hide UI elements */
+                .modal-close, .modal-footer, .btn, .ant-btn { display: none !important; }
+              }
+            `}</style>
             <div className="modal-header">
-              <h3 className="modal-title">Detalle de Venta #{selectedVentaForDetail.id}</h3>
+              <h3 className="modal-title">Detalle de {selectedVentaForDetail.isService ? 'Servicio' : 'Venta'} #{selectedVentaForDetail.id}</h3>
               <button className="modal-close" onClick={closeDetailModal}>×</button>
             </div>
             <div className="modal-body" style={{ padding: "24px" }}>
@@ -1425,42 +1593,80 @@ function Ventas() {
                   <div style={{ fontWeight: "bold", fontSize: "16px" }}>{selectedVentaForDetail.cliente_nombre || "Cliente General"}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "4px" }}>Comprobante</div>
-                  <div style={{ fontWeight: "bold" }}>{selectedVentaForDetail.tipo_comprobante || "VENTA"}: {selectedVentaForDetail.numero_comprobante || "S/N"}</div>
-                  <div style={{ fontSize: "13px" }}>Fecha: {new Date(selectedVentaForDetail.creado_en).toLocaleString()}</div>
+                  <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "4px" }}>Comprobante(s)</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {/* Only show SMP and "Comprobante de Pago" text if NOT printing LEGAL */}
+                    {printMode !== 'LEGAL' && (
+                       <div style={{ fontWeight: "bold" }}>
+                         COMPROBANTE DE PAGO: {selectedVentaForDetail.numero_comprobante_simple || "S/N"}
+                         {printMode === 'SIMPLE' && <div style={{ fontSize: '12px', fontWeight: 'normal' }}>COMPROBANTE NO VÁLIDO PARA SUNAT</div>}
+                       </div>
+                    )}
+                    
+                    {/* Only show LEGAL info if NOT printing SIMPLE and legal exists */}
+                    {printMode !== 'SIMPLE' && selectedVentaForDetail.tipo_comprobante && selectedVentaForDetail.tipo_comprobante !== 'SIMPLE' && (
+                      <div style={{ fontWeight: "bold", color: "var(--accent)" }}>
+                        {selectedVentaForDetail.tipo_comprobante}: {selectedVentaForDetail.numero_comprobante}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ fontSize: "13px", marginTop: '8px' }}>Fecha: {selectedVentaForDetail.creado_en ? new Date(selectedVentaForDetail.creado_en).toLocaleString() : 'S/F'}</div>
                 </div>
               </div>
 
-              <div className="table-container" style={{ maxHeight: "400px", overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "8px" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead style={{ position: "sticky", top: 0, zIndex: 1, background: "var(--bg-table-header)" }}>
-                    <tr>
-                      <th style={{ padding: "12px", borderBottom: "2px solid var(--border-color)" }}>Producto</th>
-                      <th style={{ padding: "12px", borderBottom: "2px solid var(--border-color)", textAlign: "center" }}>Cant.</th>
-                      <th style={{ padding: "12px", borderBottom: "2px solid var(--border-color)", textAlign: "right" }}>P. Unitario</th>
-                      <th style={{ padding: "12px", borderBottom: "2px solid var(--border-color)", textAlign: "right" }}>Desc.</th>
-                      <th style={{ padding: "12px", borderBottom: "2px solid var(--border-color)", textAlign: "right" }}>Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedVentaForDetail.detalle?.map((item, idx) => {
-                      const prod = productos.find(p => p.id === item.producto);
-                      return (
-                        <tr key={idx}>
-                          <td style={{ padding: "12px", borderBottom: "1px solid var(--border-color)" }}>
-                            <div style={{ fontWeight: 500 }}>{prod?.nombre || "Producto"}</div>
-                            <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Código: {prod?.codigo || "S/C"}</div>
-                          </td>
-                          <td style={{ padding: "12px", borderBottom: "1px solid var(--border-color)", textAlign: "center" }}>{item.cantidad}</td>
-                          <td style={{ padding: "12px", borderBottom: "1px solid var(--border-color)", textAlign: "right" }}><span>S/. </span>{Number(item.precio_venta).toFixed(2)}</td>
-                          <td style={{ padding: "12px", borderBottom: "1px solid var(--border-color)", textAlign: "right" }}><span>S/. </span>{Number(item.descuento || 0).toFixed(2)}</td>
-                          <td style={{ padding: "12px", borderBottom: "1px solid var(--border-color)", textAlign: "right" }}><span>S/. </span>{((Number(item.cantidad) * Number(item.precio_venta)) - Number(item.descuento || 0)).toFixed(2)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              {!selectedVentaForDetail.isService ? (
+                <div className="table-container" style={{ maxHeight: "400px", overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "8px" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead style={{ position: "sticky", top: 0, zIndex: 1, background: "var(--bg-table-header)" }}>
+                      <tr>
+                        <th style={{ padding: "12px", borderBottom: "2px solid var(--border-color)" }}>Producto</th>
+                        <th style={{ padding: "12px", borderBottom: "2px solid var(--border-color)", textAlign: "center" }}>Cant.</th>
+                        <th style={{ padding: "12px", borderBottom: "2px solid var(--border-color)", textAlign: "right" }}>P. Unitario</th>
+                        <th style={{ padding: "12px", borderBottom: "2px solid var(--border-color)", textAlign: "right" }}>Desc.</th>
+                        <th style={{ padding: "12px", borderBottom: "2px solid var(--border-color)", textAlign: "right" }}>Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(selectedVentaForDetail.detalle || []).map((item, idx) => {
+                        if (!item) return null;
+                        const prodId = item.producto_id || item.producto; // Handle both ID and full object if any
+                        const prod = productos.find(p => String(p.id) === String(prodId));
+                        return (
+                          <tr key={idx}>
+                            <td style={{ padding: "12px", borderBottom: "1px solid var(--border-color)" }}>
+                              <div style={{ fontWeight: 500 }}>{item.producto_nombre || prod?.nombre || "Producto"}</div>
+                              <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Código: {item.producto_codigo || prod?.codigo || "S/C"}</div>
+                            </td>
+                            <td style={{ padding: "12px", borderBottom: "1px solid var(--border-color)", textAlign: "center" }}>{item.cantidad || 0}</td>
+                            <td style={{ padding: "12px", borderBottom: "1px solid var(--border-color)", textAlign: "right" }}><span>S/. </span>{Number(item.precio_venta || 0).toFixed(2)}</td>
+                            <td style={{ padding: "12px", borderBottom: "1px solid var(--border-color)", textAlign: "right" }}><span>S/. </span>{Number(item.descuento || 0).toFixed(2)}</td>
+                            <td style={{ padding: "12px", borderBottom: "1px solid var(--border-color)", textAlign: "right" }}><span>S/. </span>{((Number(item.cantidad || 0) * Number(item.precio_venta || 0)) - Number(item.descuento || 0)).toFixed(2)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div style={{ background: "var(--bg-body)", padding: "20px", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
+                  <div className="grid grid-2">
+                    <div>
+                      <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "4px" }}>Servicio</div>
+                      <div style={{ fontWeight: "bold", fontSize: "16px" }}>{selectedVentaForDetail.servicio_nombre || selectedVentaForDetail.servicio}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "4px" }}>Precio Base</div>
+                      <div style={{ fontWeight: "bold" }}>S/. {Number(selectedVentaForDetail.precio || 0).toFixed(2)}</div>
+                    </div>
+                  </div>
+                  <div style={{ marginTop: "16px" }}>
+                    <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "4px" }}>Estado del Servicio</div>
+                    <div style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', background: selectedVentaForDetail.estado === 'COMPLETADO' ? '#e6f4ff' : '#fff7e6', color: selectedVentaForDetail.estado === 'COMPLETADO' ? '#0958d9' : '#d46b08' }}>
+                      {selectedVentaForDetail.estado}
+                    </div>
+                  </div>
+                </div>
+              )}
               <div style={{ marginTop: "20px", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "8px" }}>
                  <div style={{ display: "flex", gap: "40px", fontSize: "14px" }}>
                     <span style={{ color: "var(--text-secondary)" }}>Descuento Global:</span>
@@ -1472,16 +1678,138 @@ function Ventas() {
                  </div>
                  <div style={{ display: "flex", gap: "40px", fontSize: "18px", borderTop: "2px solid var(--border-color)", paddingTop: "8px", marginTop: "4px" }}>
                     <span style={{ fontWeight: "bold" }}>Total:</span>
-                    <span style={{ fontWeight: "bold", color: "var(--accent, #1677ff)" }}><span>S/. </span>{Number(selectedVentaForDetail.total).toFixed(2)}</span>
+                    <span style={{ fontWeight: "bold", color: "var(--accent, #1677ff)" }}><span>S/. </span>{Number(selectedVentaForDetail.total || 0).toFixed(2)}</span>
                  </div>
               </div>
             </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={closeDetailModal}>Cerrar</button>
-              <button className="btn btn-primary" onClick={() => window.print()}>
-                <DownloadOutlined /> Imprimir
-              </button>
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                {!isFormalizing && selectedVentaForDetail.tipo_comprobante === 'SIMPLE' && (
+                  <button 
+                    className="btn btn-primary" 
+                    style={{ background: '#2f54eb', borderColor: '#2f54eb' }}
+                    onClick={() => {
+                      setIsFormalizing(true);
+                      setFormalizacionData({ 
+                        tipo: 'BOLETA', 
+                        numero: generateComprobanteNumber('BOLETA') 
+                      });
+                    }}
+                  >
+                    <FileTextOutlined /> Emitir Boleta/Factura
+                  </button>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className="btn btn-secondary" onClick={closeDetailModal}>Cerrar</button>
+                {!isFormalizing && (
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      className="btn btn-secondary" 
+                      onClick={() => {
+                        setPrintMode('SIMPLE');
+                        setTimeout(() => {
+                          window.print();
+                          setPrintMode(null);
+                        }, 100);
+                      }} 
+                      title="Imprimir Comprobante Simple"
+                    >
+                      <DownloadOutlined /> Comprobante Simple
+                    </button>
+                    {selectedVentaForDetail.tipo_comprobante && selectedVentaForDetail.tipo_comprobante !== 'SIMPLE' && (
+                      <button 
+                        className="btn btn-primary" 
+                        onClick={() => {
+                          setPrintMode('LEGAL');
+                          setTimeout(() => {
+                            window.print();
+                            setPrintMode(null);
+                          }, 100);
+                        }} 
+                        title={`Imprimir ${selectedVentaForDetail.tipo_comprobante}`}
+                      >
+                        <DownloadOutlined /> {selectedVentaForDetail.tipo_comprobante === 'BOLETA' ? 'Boleta' : 'Factura'}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
+            
+            {isFormalizing && (
+              <div style={{ padding: '0 24px 24px 24px', borderTop: '1px solid var(--border-color)', marginTop: '0' }}>
+                <h4 style={{ margin: '16px 0 12px 0', color: 'var(--accent)' }}>Formalización de Comprobante</h4>
+                <div className="grid grid-2" style={{ alignItems: 'flex-end' }}>
+                  <div className="form-group">
+                    <label className="form-label">Tipo de Comprobante Legal</label>
+                    <select 
+                      className="form-input" 
+                      value={formalizacionData.tipo}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormalizacionData({ 
+                          tipo: val, 
+                          numero: generateComprobanteNumber(val) 
+                        });
+                      }}
+                    >
+                      <option value="BOLETA">Boleta</option>
+                      <option value="FACTURA">Factura</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Nro de Comprobante</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={formalizacionData.numero} 
+                      readOnly 
+                      style={{ background: 'var(--bg-input)', opacity: 0.8 }} 
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+                  <button className="btn btn-secondary" onClick={() => setIsFormalizing(false)}>Cancelar</button>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={async () => {
+                      try {
+                        const isService = !!selectedVentaForDetail.isService;
+                        const endpoint = isService 
+                          ? `${import.meta.env.VITE_API_URL}/servicios/ventas-servicio/${selectedVentaForDetail.id}/`
+                          : `${import.meta.env.VITE_API_URL}/inventario/ventas/${selectedVentaForDetail.id}/`;
+                        
+                        const response = await fetch(endpoint, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            tipo_comprobante: formalizacionData.tipo,
+                            numero_comprobante: formalizacionData.numero
+                          })
+                        });
+                        
+                        if (response.ok) {
+                          alert('Comprobante formalizado con éxito');
+                          setIsFormalizing(false);
+                          closeDetailModal();
+                          if (activeTab === 'PRODUCTOS') fetchVentas();
+                          else fetchVentasServicios();
+                        } else {
+                          const err = await response.json();
+                          alert('Error al formalizar: ' + JSON.stringify(err));
+                        }
+                      } catch (error) {
+                        console.error('Error formalizando:', error);
+                        alert('Error de conexión al formalizar');
+                      }
+                    }}
+                  >
+                    Confirmar Emisión
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
 from django.http import HttpResponse
 from apps.core.export_utils import (
-    get_period_range, get_period_label, create_excel_response
+    get_period_range, get_period_label, create_excel_response,
+    create_multi_sheet_excel_response
 )
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
@@ -13,7 +14,7 @@ from apps.inventario.models import MovimientoStock
 from .models import Venta, DetalleVenta
 from .serializers import (
     VentaSerializer, VentaCreateSerializer, VentaUpdateSerializer,
-    DetalleVentaSerializer
+    DetalleVentaSerializer, MovimientoEstadoVentaSerializer, VentaKardexSerializer
 )
 
 
@@ -157,9 +158,130 @@ class VentaViewSet(viewsets.ModelViewSet):
         
         return Response(list(productos_stats))
 
+    @action(detail=True, methods=['get'])
+    def history_estados(self, request, pk=None):
+        """Historial de cambios de estado de una venta específica"""
+        venta = self.get_object()
+        queryset = venta.movimientos_estado.all()
+        
+        # Filtros de fecha si se proporcionan
+        desde = request.query_params.get('fecha_desde')
+        hasta = request.query_params.get('fecha_hasta')
+        if desde:
+            queryset = queryset.filter(fecha__date__gte=desde)
+        if hasta:
+            queryset = queryset.filter(fecha__date__lte=hasta)
+            
+        page = request.query_params.get('page', 1)
+        try:
+            page = int(page)
+        except ValueError:
+            page = 1
+            
+        page_size = request.query_params.get('page_size', 15)
+        try:
+            page_size = int(page_size)
+        except ValueError:
+            page_size = 15
+            
+        total = queryset.count()
+        start = (page - 1) * page_size
+        end = start + page_size
+        movimientos = queryset[start:end]
+
+        serializer = MovimientoEstadoVentaSerializer(movimientos, many=True)
+        return Response({
+            'count': total,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total + page_size - 1) // page_size if page_size > 0 else 1,
+            'results': serializer.data
+        })
+
+    @action(detail=True, methods=['get'])
+    def kardex_productos(self, request, pk=None):
+        """Detalle de productos de una venta específica (formato Kardex)"""
+        venta = self.get_object()
+        queryset = venta.detalleventa_set.all().select_related('producto', 'venta')
+        
+        page = request.query_params.get('page', 1)
+        try:
+            page = int(page)
+        except ValueError:
+            page = 1
+            
+        page_size = request.query_params.get('page_size', 15)
+        try:
+            page_size = int(page_size)
+        except ValueError:
+            page_size = 15
+            
+        total = queryset.count()
+        start = (page - 1) * page_size
+        end = start + page_size
+        detalles = queryset[start:end]
+
+        serializer = VentaKardexSerializer(detalles, many=True)
+        return Response({
+            'count': total,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total + page_size - 1) // page_size if page_size > 0 else 1,
+            'results': serializer.data
+        })
+
+    @action(detail=False, methods=['get'])
+    def kardex_global_productos(self, request):
+        """Kardex global de todos los productos vendidos"""
+        queryset = DetalleVenta.objects.all().select_related('producto', 'venta', 'venta__cliente').order_by('-venta__creado_en')
+        
+        # Filtros
+        desde = request.query_params.get('fecha_desde')
+        hasta = request.query_params.get('fecha_hasta')
+        cliente = request.query_params.get('cliente')
+        producto = request.query_params.get('producto')
+        
+        if desde:
+            queryset = queryset.filter(venta__creado_en__date__gte=desde)
+        if hasta:
+            queryset = queryset.filter(venta__creado_en__date__lte=hasta)
+        if cliente:
+            queryset = queryset.filter(venta__cliente_id=cliente)
+        if producto:
+            queryset = queryset.filter(producto_id=producto)
+            
+        # Solo ventas confirmadas para el Kardex global
+        queryset = queryset.filter(venta__estado='CONFIRMADA')
+            
+        page = request.query_params.get('page', 1)
+        try:
+            page = int(page)
+        except ValueError:
+            page = 1
+            
+        page_size = request.query_params.get('page_size', 15)
+        try:
+            page_size = int(page_size)
+        except ValueError:
+            page_size = 15
+            
+        total = queryset.count()
+        start = (page - 1) * page_size
+        end = start + page_size
+        detalles = queryset[start:end]
+
+        serializer = VentaKardexSerializer(detalles, many=True)
+        return Response({
+            'count': total,
+            'page': page,
+            'page_size': page_size,
+            'total_pages': (total + page_size - 1) // page_size if page_size > 0 else 1,
+            'results': serializer.data
+        })
+
     @action(detail=False, methods=['get'])
     def exportar(self, request):
-        """Exportar ventas a Excel con filtro de período"""
+        """Exportar ventas a Excel con filtro de período (Multi-hoja)"""
         periodo = request.query_params.get('periodo', 'todo')
         anio = request.query_params.get('anio')
         anio = int(anio) if anio else None
@@ -171,29 +293,301 @@ class VentaViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
-        headers = ['ID', 'Comprobante', 'Cliente', 'Estado', 'Fecha', 'Subtotal (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)']
-        rows = []
+        # Hoja 1: Ventas
+        headers_ventas = [
+            'ID', 'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
+            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Estado',
+            'Subtotal', 'Descuento', 'Impuesto', 'Total'
+        ]
+        rows_ventas = []
         for obj in queryset:
-            rows.append([
+            tipo_comprobante = obj.tipo_comprobante
+            legal_tipo = tipo_comprobante if tipo_comprobante and tipo_comprobante != 'SIMPLE' else ""
+            legal_num = obj.numero_comprobante if legal_tipo else ""
+            
+            rows_ventas.append([
                 obj.id,
-                f"{obj.tipo_comprobante or ''} {obj.numero_comprobante or ''}".strip(),
+                timezone.localtime(obj.actualizado_en).strftime("%d/%m/%Y %H:%M:%S"),
+                "COMPROBANTE SIMPLE",
+                obj.numero_comprobante_simple or "",
+                legal_tipo,
+                legal_num,
                 obj.cliente_nombre or (obj.cliente.nombre if obj.cliente else 'Sin Cliente'),
                 obj.get_estado_display(),
-                obj.creado_en.strftime("%Y-%m-%d %H:%M"),
                 float(obj.subtotal),
                 float(obj.descuento),
                 float(obj.impuesto),
                 float(obj.total)
             ])
 
+        # Hoja 2: Historial de Estados
+        from .models import MovimientoEstadoVenta
+        venta_ids = queryset.values_list('id', flat=True)
+        estados_qs = MovimientoEstadoVenta.objects.filter(venta_id__in=venta_ids).select_related('venta', 'venta__cliente').order_by('-fecha')
+        
+        headers_estados = [
+            'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple', 
+            'Tipo Comprobante', 'Comprobante', 'Cliente', 
+            'Estado Anterior', 'Estado Nuevo', 'Notas'
+        ]
+        rows_estados = []
+        for e in estados_qs:
+            v = e.venta
+            tipo_c = v.tipo_comprobante
+            l_tipo = tipo_c if tipo_c and tipo_c != 'SIMPLE' else ""
+            l_num = v.numero_comprobante if l_tipo else ""
+            comp_cliente = v.cliente_nombre or (v.cliente.nombre if v.cliente else 'Sin Cliente')
+            
+            rows_estados.append([
+                timezone.localtime(e.fecha).strftime("%d/%m/%Y %H:%M:%S"),
+                "COMPROBANTE SIMPLE",
+                v.numero_comprobante_simple or "",
+                l_tipo,
+                l_num,
+                comp_cliente,
+                e.estado_anterior,
+                e.estado_nuevo,
+                e.notas
+            ])
+
         period_label = get_period_label(periodo, anio)
-        return create_excel_response(
-            filename='ventas.xlsx',
-            sheet_name='Ventas',
-            headers=headers,
-            rows=rows,
-            title='Historial de Ventas',
-            period_label=period_label
+        sheets_data = [
+            {
+                'sheet_name': 'Ventas',
+                'headers': headers_ventas,
+                'rows': rows_ventas,
+                'title': 'Historial de Ventas',
+                'period_label': period_label
+            },
+            {
+                'sheet_name': 'Historial de Estados',
+                'headers': headers_estados,
+                'rows': rows_estados,
+                'title': 'Historial de Estados de Ventas',
+                'period_label': period_label
+            }
+        ]
+
+        return create_multi_sheet_excel_response(
+            filename=f'ventas_{periodo}{"_" + str(anio) if anio else ""}.xlsx',
+            sheets_data=sheets_data
+        )
+
+    @action(detail=True, methods=['get'])
+    def exportar_historial(self, request, pk=None):
+        """Exporta el historial de una venta en formato Excel multi-hoja"""
+        venta = self.get_object()
+
+        # Sheet 1: Estados
+        estados = venta.movimientos_estado.all().order_by('-fecha')
+        headers_estados = [
+            'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
+            'Tipo Comprobante', 'Comprobante', 'Cliente',
+            'Estado Anterior', 'Estado Nuevo', 'Notas'
+        ]
+        
+        tipo_c = venta.tipo_comprobante
+        l_tipo = tipo_c if tipo_c and tipo_c != 'SIMPLE' else ""
+        l_num = venta.numero_comprobante if l_tipo else ""
+        comp_cliente = venta.cliente_nombre or (venta.cliente.nombre if venta.cliente else 'Sin Cliente')
+
+        rows_estados = [
+            [
+                timezone.localtime(e.fecha).strftime("%d/%m/%Y %H:%M:%S"),
+                "COMPROBANTE SIMPLE",
+                venta.numero_comprobante_simple or "",
+                l_tipo,
+                l_num,
+                comp_cliente,
+                e.estado_anterior,
+                e.estado_nuevo,
+                e.notas
+            ] for e in estados
+        ]
+
+        # Sheet 2: Productos
+        detalles = venta.detalleventa_set.all().select_related('producto').order_by('id')
+        headers_productos = [
+            'Fecha/Hora', 'Tipo Comprobante Simple', 'Comprobante Simple',
+            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Estado',
+            'Producto', 'Código de Producto', 'Cantidad', 'Precio Unitario', 
+            'Descuento Unit.', 'Total Línea', 'Subtotal Venta', 'Impuesto Venta', 'Total Venta'
+        ]
+        
+        comp_fecha = timezone.localtime(venta.creado_en).strftime("%d/%m/%Y %H:%M:%S")
+        comp_simple_tipo = "COMPROBANTE SIMPLE"
+        comp_simple_num = venta.numero_comprobante_simple or ""
+        
+        # Logic for legal voucher
+        tipo_comprobante = venta.tipo_comprobante
+        legal_tipo = tipo_comprobante if tipo_comprobante and tipo_comprobante != 'SIMPLE' else ""
+        legal_num = venta.numero_comprobante if legal_tipo else ""
+        
+        comp_cliente = venta.cliente_nombre or (venta.cliente.nombre if venta.cliente else 'Cliente General')
+
+        rows_productos = [
+            [
+                comp_fecha,
+                comp_simple_tipo,
+                comp_simple_num,
+                legal_tipo,
+                legal_num,
+                comp_cliente,
+                venta.get_estado_display(),
+                d.producto.nombre,
+                d.producto.codigo,
+                float(d.cantidad),
+                float(d.precio_venta),
+                float(d.descuento),
+                float(d.subtotal),
+                float(venta.subtotal),
+                float(venta.impuesto),
+                float(venta.total)
+            ] for d in detalles
+        ]
+
+        sheets_data = [
+            {
+                'sheet_name': 'Historial de Estados',
+                'headers': headers_estados,
+                'rows': rows_estados,
+                'title': f'Historial de Estados - Venta {venta.numero_comprobante_simple or venta.id}',
+                'period_label': 'Historial Completo'
+            },
+            {
+                'sheet_name': 'Detalle de Venta de Productos',
+                'headers': headers_productos,
+                'rows': rows_productos,
+                'title': f'Detalle de Venta de Productos - Venta {venta.numero_comprobante_simple or venta.id}',
+                'period_label': 'Historial Completo'
+            }
+        ]
+
+        return create_multi_sheet_excel_response(
+            filename=f'historial_venta_{venta.numero_comprobante_simple or venta.id}.xlsx',
+            sheets_data=sheets_data
+        )
+
+    @action(detail=False, methods=['get'])
+    def exportar_historial_global(self, request):
+        """Exporta el historial global de ventas de productos en formato Excel multi-hoja"""
+        cliente = request.query_params.get('cliente')
+        producto = request.query_params.get('producto')
+        fecha_desde = request.query_params.get('fecha_desde')
+        fecha_hasta = request.query_params.get('fecha_hasta')
+        periodo = request.query_params.get('periodo', 'todo')
+        anio = request.query_params.get('anio')
+        anio = int(anio) if anio else None
+
+        # Filter sales by confirmed status and period
+        ventas_qs = Venta.objects.filter(estado='CONFIRMADA')
+        period_range = get_period_range(periodo, anio)
+        if period_range:
+            date_from, date_to = period_range
+            ventas_qs = ventas_qs.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
+        
+        if fecha_desde:
+            ventas_qs = ventas_qs.filter(creado_en__date__gte=fecha_desde)
+        if fecha_hasta:
+            ventas_qs = ventas_qs.filter(creado_en__date__lte=fecha_hasta)
+        if cliente:
+            ventas_qs = ventas_qs.filter(cliente_id=cliente)
+
+        # Get relevant movimientos through filtered sales
+        venta_ids = ventas_qs.values_list('id', flat=True)
+        
+        # Sheet 1: Estados
+        from .models import MovimientoEstadoVenta
+        estados_qs = MovimientoEstadoVenta.objects.filter(venta_id__in=venta_ids).select_related('venta', 'venta__cliente').order_by('-fecha')
+        
+        headers_estados = [
+            'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
+            'Tipo Comprobante', 'Comprobante', 'Cliente',
+            'Estado Anterior', 'Estado Nuevo', 'Notas'
+        ]
+        rows_estados = []
+        for e in estados_qs:
+            v = e.venta
+            comp_cliente = v.cliente_nombre or (v.cliente.nombre if v.cliente else 'Cliente General')
+            tipo_c = v.tipo_comprobante
+            l_tipo = tipo_c if tipo_c and tipo_c != 'SIMPLE' else ""
+            l_num = v.numero_comprobante if l_tipo else ""
+            
+            rows_estados.append([
+                timezone.localtime(e.fecha).strftime("%d/%m/%Y %H:%M:%S"),
+                "COMPROBANTE SIMPLE",
+                v.numero_comprobante_simple or "",
+                l_tipo,
+                l_num,
+                comp_cliente,
+                e.estado_anterior,
+                e.estado_nuevo,
+                e.notas
+            ])
+
+        # Sheet 2: Productos
+        detalles_qs = DetalleVenta.objects.filter(venta_id__in=venta_ids).select_related('producto', 'venta', 'venta__cliente').order_by('-venta__creado_en')
+        if producto:
+            detalles_qs = detalles_qs.filter(producto_id=producto)
+
+        headers_productos = [
+            'Fecha/Hora', 'Tipo Comprobante Simple', 'Comprobante Simple',
+            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Estado',
+            'Producto', 'Código de Producto', 'Cantidad', 'Precio Unitario', 
+            'Descuento Unit.', 'Total Línea', 'Subtotal Venta', 'Impuesto Venta', 'Total Venta'
+        ]
+        rows_productos = []
+        for d in detalles_qs:
+            v = d.venta
+            comp_simple_num = v.numero_comprobante_simple or ""
+            tipo_comprobante = v.tipo_comprobante
+            legal_tipo = tipo_comprobante if tipo_comprobante and tipo_comprobante != 'SIMPLE' else ""
+            legal_num = v.numero_comprobante if legal_tipo else ""
+            comp_cliente = v.cliente_nombre or (v.cliente.nombre if v.cliente else 'Cliente General')
+
+            rows_productos.append([
+                timezone.localtime(v.creado_en).strftime("%d/%m/%Y %H:%M:%S"),
+                "COMPROBANTE SIMPLE",
+                comp_simple_num,
+                legal_tipo,
+                legal_num,
+                comp_cliente,
+                v.get_estado_display(),
+                d.producto.nombre,
+                d.producto.codigo,
+                float(d.cantidad),
+                float(d.precio_venta),
+                float(d.descuento),
+                float(d.subtotal),
+                float(v.subtotal),
+                float(v.impuesto),
+                float(v.total)
+            ])
+
+        period_label = get_period_label(periodo, anio)
+        if fecha_desde or fecha_hasta:
+            period_label = f"{fecha_desde or 'Inicio'} al {fecha_hasta or 'Hoy'}"
+
+        sheets_data = [
+            {
+                'sheet_name': 'Historial de Estados',
+                'headers': headers_estados,
+                'rows': rows_estados,
+                'title': 'Historial Global de Estados de Ventas',
+                'period_label': period_label
+            },
+            {
+                'sheet_name': 'Detalle de Venta de Productos',
+                'headers': headers_productos,
+                'rows': rows_productos,
+                'title': 'Detalle Global de Venta de Productos (Kardex)',
+                'period_label': period_label
+            }
+        ]
+
+        return create_multi_sheet_excel_response(
+            filename=f'historial_global_ventas_{periodo}{"_" + str(anio) if anio else ""}.xlsx',
+            sheets_data=sheets_data
         )
 
 

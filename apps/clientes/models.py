@@ -59,6 +59,44 @@ class Cliente(models.Model):
         ultima_venta = self.ventas.filter(estado='CONFIRMADA').order_by('-creado_en').first()
         return ultima_venta.creado_en if ultima_venta else None
 
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        if not is_new:
+            try:
+                old_instance = Cliente.objects.get(pk=self.pk)
+                if old_instance.activo != self.activo:
+                    from django.utils import timezone
+                    now_str = timezone.localtime().strftime("%d/%m/%Y a las %H:%M:%S")
+                    MovimientoEstadoCliente.objects.create(
+                        cliente=self,
+                        estado_anterior='Activo' if old_instance.activo else 'Inactivo',
+                        estado_nuevo='Activo' if self.activo else 'Inactivo',
+                        notas=f'Cambió de {"Activo" if old_instance.activo else "Inactivo"} a {"Activo" if self.activo else "Inactivo"} el {now_str}'
+                    )
+            except Cliente.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
+
+
+class MovimientoEstadoCliente(models.Model):
+    """Historial de cambios de estado de un cliente"""
+    cliente = models.ForeignKey(
+        Cliente, 
+        on_delete=models.CASCADE, 
+        related_name='movimientos_estado'
+    )
+    estado_anterior = models.CharField(max_length=20)
+    estado_nuevo = models.CharField(max_length=20)
+    fecha = models.DateTimeField(auto_now_add=True)
+    notas = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['-fecha']
+        verbose_name_plural = "Movimientos de Estado de Cliente"
+    
+    def __str__(self):
+        return f"Cliente {self.cliente.nombre}: {self.estado_anterior} -> {self.estado_nuevo}"
+
 
 class SegmentoCliente(models.Model):
     """Segmentación de clientes"""

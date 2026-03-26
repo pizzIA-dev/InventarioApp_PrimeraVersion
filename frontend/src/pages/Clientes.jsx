@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { clientesAPI } from '../services/api';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, HistoryOutlined } from '@ant-design/icons';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import ClienteFormModal from '../components/ClienteFormModal';
+import ClienteHistoryModal from '../components/ClienteHistoryModal';
 
 function Clientes() {
   const [loading, setLoading] = useState(true);
@@ -17,6 +18,8 @@ function Clientes() {
   const [modalMode, setModalMode] = useState('create');
   const [selectedCliente, setSelectedCliente] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
+  const [historyVisible, setHistoryVisible] = useState(false);
+  const [clienteForHistory, setClienteForHistory] = useState(null);
 
   // Pagination
   const CLIENTES_PAGE_SIZE = 15;
@@ -79,6 +82,11 @@ function Clientes() {
     }
   };
 
+  const openHistory = (cliente) => {
+    setClienteForHistory(cliente);
+    setHistoryVisible(true);
+  };
+
   const handleExportar = async (periodo, anio) => {
     try {
       const params = { periodo };
@@ -94,6 +102,24 @@ function Clientes() {
     } catch (error) {
       console.error('Error al exportar clientes:', error);
       alert('Error al exportar datos.');
+    }
+  };
+
+  const handleExportHistorialGlobal = async (periodo, anio) => {
+    try {
+      const params = { periodo };
+      if (anio) params.anio = anio;
+      const response = await clientesAPI.exportarHistorialGlobal(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `historial_global_clientes_${periodo}${anio ? '_' + anio : ''}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error al exportar historial global:', error);
+      alert('Error al exportar el historial global.');
     }
   };
 
@@ -139,7 +165,8 @@ function Clientes() {
           <p className="page-subtitle">Gestión de clientes y recurrencia de compras</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <ExportDropdown onExport={handleExportar} />
+          <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Excel" />
+          <ExportDropdown onExport={handleExportar} label="Exportar Clientes" />
           <button className="btn btn-primary" onClick={() => openModal('create')}>
             <PlusOutlined /> Nuevo Cliente
           </button>
@@ -240,10 +267,13 @@ function Clientes() {
                     </span>
                   </td>
                   <td>
-                    <button className="btn btn-secondary" onClick={() => openModal('edit', cliente)}>
+                    <button className="btn btn-secondary" onClick={() => openModal('edit', cliente)} title="Editar">
                       <EditOutlined />
                     </button>
-                    <button className="btn btn-danger" onClick={() => handleDeleteClick(cliente)}>
+                    <button className="btn btn-secondary" onClick={() => openHistory(cliente)} title="Historial / Kardex">
+                      <HistoryOutlined />
+                    </button>
+                    <button className="btn btn-danger" onClick={() => handleDeleteClick(cliente)} title="Eliminar">
                       <DeleteOutlined />
                     </button>
                   </td>
@@ -275,6 +305,12 @@ function Clientes() {
         initialData={selectedCliente}
         onClose={closeModal}
         onSave={handleSubmit}
+      />
+
+      <ClienteHistoryModal
+        visible={historyVisible}
+        cliente={clienteForHistory}
+        onClose={() => setHistoryVisible(false)}
       />
     </div>
   );

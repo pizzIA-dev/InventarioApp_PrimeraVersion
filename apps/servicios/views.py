@@ -12,7 +12,8 @@ from .models import CategoriaServicio, Servicio, VentaServicio
 from .serializers import (
     CategoriaServicioSerializer,
     ServicioSerializer, ServicioCreateSerializer,
-    VentaServicioSerializer, VentaServicioCreateSerializer
+    VentaServicioSerializer, VentaServicioCreateSerializer,
+    MovimientoEstadoVentaServicioSerializer
 )
 
 
@@ -102,6 +103,28 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
         venta_servicio.save()
         
         serializer = self.get_serializer(venta_servicio)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def history_estados(self, request, pk=None):
+        """Historial de cambios de estado de un servicio específico"""
+        venta_servicio = self.get_object()
+        queryset = venta_servicio.movimientos_estado.all()
+        
+        # Filtros de fecha si se proporcionan
+        desde = request.query_params.get('fecha_desde')
+        hasta = request.query_params.get('fecha_hasta')
+        if desde:
+            queryset = queryset.filter(fecha__date__gte=desde)
+        if hasta:
+            queryset = queryset.filter(fecha__date__lte=hasta)
+            
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = MovimientoEstadoVentaServicioSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = MovimientoEstadoVentaServicioSerializer(queryset, many=True)
         return Response(serializer.data)
     
     @action(detail=False, methods=['get'])

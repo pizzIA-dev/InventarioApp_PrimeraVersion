@@ -60,7 +60,8 @@ const Pagination = ({
         Mostrando <span style={{ fontWeight: 600 }}>{start}–{end}</span> de <span style={{ fontWeight: 600 }}>{totalItems}</span> {itemName}
       </div>
       
-      {totalPages > 1 && (
+      {/* Controls: Always show if we have items, to maintain aesthetic consistency across modules */}
+      {totalItems > 0 && (
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
             className="btn btn-secondary"

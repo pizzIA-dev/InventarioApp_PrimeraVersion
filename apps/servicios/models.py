@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.validators import MinValueValidator
 from apps.clientes.models import Cliente
+from django.utils import timezone
 
 
 class CategoriaServicio(models.Model):
@@ -94,6 +95,7 @@ class VentaServicio(models.Model):
     cliente_nombre = models.CharField(max_length=200, blank=True, null=True)
     
     # Documento
+    numero_comprobante_simple = models.CharField(max_length=50, blank=True, null=True)
     numero_comprobante = models.CharField(max_length=50, blank=True, null=True)
     tipo_comprobante = models.CharField(max_length=50, blank=True, null=True)
     
@@ -138,9 +140,37 @@ class VentaServicio(models.Model):
         return f"{self.servicio_nombre or self.servicio} - {self.cliente_nombre or 'Cliente'}"
     
     def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        old_estado = None
+        
+        if not is_new:
+            try:
+                old_instance = VentaServicio.objects.get(pk=self.pk)
+                old_estado = old_instance.estado
+            except VentaServicio.DoesNotExist:
+                pass
+
         # Calcular total automáticamente
         self.total = self.precio - self.descuento + self.impuesto
         super().save(*args, **kwargs)
+
+        # Log status change
+        if is_new:
+            now_str = timezone.localtime().strftime("%d/%m/%Y a las %H:%M:%S")
+            MovimientoEstadoVentaServicio.objects.create(
+                venta_servicio=self,
+                estado_anterior='N/A',
+                estado_nuevo=self.estado,
+                notas=f'Registro inicial del servicio ({self.estado.capitalize()}) el {now_str}'
+            )
+        elif old_estado and old_estado != self.estado:
+            now_str = timezone.localtime().strftime("%d/%m/%Y a las %H:%M:%S")
+            MovimientoEstadoVentaServicio.objects.create(
+                venta_servicio=self,
+                estado_anterior=old_estado,
+                estado_nuevo=self.estado,
+                notas=f'Cambió de {old_estado.capitalize()} a {self.estado.capitalize()} el {now_str}'
+            )
     
     def terminar(self):
         """Marca el servicio como terminado"""
@@ -158,3 +188,23 @@ class VentaServicio(models.Model):
     # but we'll use terminar for clarity.
     def completar(self):
         self.terminar()
+
+
+class MovimientoEstadoVentaServicio(models.Model):
+    """Historial de cambios de estado de una venta de servicios"""
+    venta_servicio = models.ForeignKey(
+        VentaServicio, 
+        on_delete=models.CASCADE, 
+        related_name='movimientos_estado'
+    )
+    estado_anterior = models.CharField(max_length=20)
+    estado_nuevo = models.CharField(max_length=20)
+    fecha = models.DateTimeField(auto_now_add=True)
+    notas = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['-fecha']
+        verbose_name_plural = "Movimientos de Estado de Venta de Servicio"
+    
+    def __str__(self):
+        return f"Servicio {self.venta_servicio.id}: {self.estado_anterior} -> {self.estado_nuevo}"

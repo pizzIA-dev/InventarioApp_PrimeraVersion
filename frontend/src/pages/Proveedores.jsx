@@ -266,7 +266,7 @@ function Proveedores() {
           <p className="page-subtitle">Gestión de proveedores y histórico de modificaciones</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <ExportDropdown onExport={handleExportDiario} label="Historial Global (Kardex)" />
+          <ExportDropdown onExport={handleExportDiario} label="Exportar Historial Global" />
           <ExportDropdown onExport={handleExportar} label="Exportar Proveedores" />
           <button className="btn btn-primary" onClick={() => openModal('create')}>
             <PlusOutlined style={{ marginRight: '8px' }} /> Nuevo Proveedor

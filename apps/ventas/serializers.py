@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Venta, DetalleVenta
+from .models import Venta, DetalleVenta, MovimientoEstadoVenta
 
 
 class DetalleVentaSerializer(serializers.ModelSerializer):
@@ -47,7 +47,7 @@ class VentaSerializer(serializers.ModelSerializer):
         model = Venta
         fields = [
             'id', 'cliente', 'cliente_nombre', 'cliente_documento',
-            'numero_comprobante', 'tipo_comprobante', 'estado',
+            'numero_comprobante', 'numero_comprobante_simple', 'tipo_comprobante', 'estado',
             'subtotal', 'descuento', 'impuesto', 'total', 'notas',
             'creado_en', 'actualizado_en', 'detalle', 'comprobante_archivo'
         ]
@@ -61,7 +61,7 @@ class VentaCreateSerializer(serializers.ModelSerializer):
         model = Venta
         fields = [
             'cliente', 'cliente_nombre',
-            'numero_comprobante', 'tipo_comprobante', 'estado',
+            'numero_comprobante', 'numero_comprobante_simple', 'tipo_comprobante', 'estado',
             'descuento', 'impuesto', 'notas', 'detalle', 'comprobante_archivo'
         ]
     
@@ -104,7 +104,7 @@ class VentaUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Venta
         fields = [
-            'cliente', 'cliente_nombre', 'numero_comprobante', 'tipo_comprobante',
+            'cliente', 'cliente_nombre', 'numero_comprobante', 'numero_comprobante_simple', 'tipo_comprobante',
             'estado', 'descuento', 'impuesto', 'notas', 'detalle', 'comprobante_archivo'
         ]
     
@@ -150,3 +150,39 @@ class VentaUpdateSerializer(serializers.ModelSerializer):
             instance.registrar_salida_stock()
         
         return instance
+
+class MovimientoEstadoVentaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MovimientoEstadoVenta
+        fields = ['id', 'estado_anterior', 'estado_nuevo', 'fecha', 'notas']
+
+
+class VentaKardexSerializer(serializers.ModelSerializer):
+    fecha = serializers.DateTimeField(source='venta.creado_en', read_only=True)
+    tipo_comprobante_simple = serializers.SerializerMethodField()
+    numero_comprobante_simple = serializers.CharField(source='venta.numero_comprobante_simple', read_only=True)
+    tipo_comprobante = serializers.SerializerMethodField()
+    comprobante = serializers.CharField(source='venta.numero_comprobante', read_only=True)
+    cliente = serializers.SerializerMethodField()
+    producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)
+    producto_codigo = serializers.CharField(source='producto.codigo', read_only=True)
+    precio_unitario = serializers.DecimalField(source='precio_venta', max_digits=10, decimal_places=2, read_only=True)
+    total = serializers.DecimalField(source='subtotal', max_digits=12, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = DetalleVenta
+        fields = [
+            'fecha', 'tipo_comprobante_simple', 'numero_comprobante_simple', 
+            'tipo_comprobante', 'comprobante', 'cliente',
+            'producto_nombre', 'producto_codigo', 'cantidad', 'precio_unitario', 'descuento', 'total'
+        ]
+
+    def get_tipo_comprobante_simple(self, obj):
+        return "COMPROBANTE SIMPLE"
+
+    def get_tipo_comprobante(self, obj):
+        tipo = obj.venta.tipo_comprobante
+        return tipo if tipo and tipo != 'SIMPLE' else ""
+
+    def get_cliente(self, obj):
+        return obj.venta.cliente_nombre or (obj.venta.cliente.nombre if obj.venta.cliente else "Cliente General")
