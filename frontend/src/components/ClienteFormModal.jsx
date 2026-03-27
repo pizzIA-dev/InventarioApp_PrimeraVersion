@@ -69,17 +69,43 @@ const ClienteFormModal = ({ visible, mode, initialData, onClose, onSave }) => {
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrors({});
     const newErrors = {};
     if (!formData.nombre.trim()) newErrors.nombre = 'El nombre es obligatorio';
-    if (!formData.numero_documento.trim()) newErrors.numero_documento = 'El número de documento es obligatorio';
+    
+    const docNum = formData.numero_documento.trim();
+    if (!docNum) {
+      newErrors.numero_documento = 'El número de documento es obligatorio';
+    } else {
+      const tipo = formData.tipo_documento;
+      if (tipo === 'DNI') {
+        if (!/^\d{8}$/.test(docNum)) newErrors.numero_documento = 'El DNI debe tener exactamente 8 números.';
+      } else if (tipo === 'RUC') {
+        if (!/^\d{11}$/.test(docNum)) newErrors.numero_documento = 'El RUC debe tener exactamente 11 números.';
+      } else if (tipo === 'CE') {
+        if (docNum.length < 9 || docNum.length > 15) newErrors.numero_documento = 'El Carnet de Extranjería debe tener entre 9 y 15 caracteres.';
+      } else if (tipo === 'PASAPORTE') {
+        if (docNum.length !== 9) newErrors.numero_documento = 'El Pasaporte debe tener exactamente 9 caracteres.';
+      }
+    }
     
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
-    onSave(formData);
+    
+    try {
+      await onSave(formData);
+    } catch (err) {
+      const serverErrors = err.response?.data;
+      if (typeof serverErrors === 'object') {
+        setErrors(serverErrors);
+      } else {
+        setErrors({ general: 'Error al guardar el cliente.' });
+      }
+    }
   };
 
   if (!visible) return null;
@@ -106,6 +132,7 @@ const ClienteFormModal = ({ visible, mode, initialData, onClose, onSave }) => {
                 autoFocus
               />
               {errors.nombre && <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{errors.nombre}</div>}
+              {errors.general && <div style={{ color: '#ff4d4f', fontSize: '14px', marginTop: '8px', padding: '8px', background: '#fff2f0', border: '1px solid #ffccc7', borderRadius: '4px' }}>{errors.general}</div>}
             </div>
 
             <div className="grid grid-2">
@@ -153,6 +180,7 @@ const ClienteFormModal = ({ visible, mode, initialData, onClose, onSave }) => {
                 onChange={handleChange} 
               />
               {errors.numero_documento && <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{errors.numero_documento}</div>}
+              {errors.non_field_errors && <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{errors.non_field_errors}</div>}
             </div>
 
             <div className="grid grid-2">

@@ -458,6 +458,7 @@ function Productos() {
                         <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', color: '#888', whiteSpace: 'nowrap' }}>Stock Ant.</th>
                         <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>Stock Nvo.</th>
                         <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Estado</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Notas</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -502,6 +503,7 @@ function Productos() {
                               )}
                               {(mov.activo_nuevo === null || mov.activo_nuevo === undefined) && '-'}
                             </td>
+                            <td style={{ padding: '7px 10px', fontSize: '11px', color: 'var(--text-secondary)' }}>{mov.notas}</td>
                           </tr>
                         );
                       })}

@@ -5,6 +5,7 @@ import {
   PlayCircleOutlined, OrderedListOutlined, EyeOutlined, DownloadOutlined,
   FileTextOutlined, HistoryOutlined, CalendarOutlined, SearchOutlined, EllipsisOutlined, CheckCircleOutlined, CloseCircleOutlined, PrinterOutlined
 } from '@ant-design/icons';
+import { message } from 'antd';
 
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -425,6 +426,10 @@ function Ventas() {
 
   const validate = () => {
     const newErrors = {};
+    if (!formData.cliente) {
+      newErrors.cliente = 'Debe seleccionar un cliente para registrar la venta.';
+    }
+    
     if (formData.detalle.length === 0) {
       newErrors.detalle = 'Debes agregar al menos un producto a la venta.';
     } else {
@@ -661,17 +666,19 @@ function Ventas() {
     try {
       const params = { periodo };
       if (anio) params.anio = anio;
-      const response = await serviciosAPI.exportar(params);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const response = await serviciosAPI.exportarVentas(params);
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `ventas_servicios_${periodo}${anio ? '_' + anio : ''}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error al exportar ventas de servicios:', error);
-      alert('Error al exportar datos.');
+      message.error("Error al exportar ventas de servicios");
     }
   };
 
@@ -733,16 +740,18 @@ function Ventas() {
       const params = { periodo };
       if (anio) params.anio = anio;
       const response = await ventasAPI.exportar(params);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `ventas_${periodo}${anio ? '_' + anio : ''}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error al exportar ventas:', error);
-      alert('Error al exportar datos.');
+      message.error("Error al exportar ventas");
     }
   };
 
@@ -751,16 +760,39 @@ function Ventas() {
       const params = { periodo };
       if (anio) params.anio = anio;
       const response = await ventasAPI.exportarHistorialGlobal(params);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `historial_global_ventas_${periodo}${anio ? '_' + anio : ''}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error al exportar historial global:', error);
-      alert('Error al exportar el historial global.');
+    }
+  };
+
+  const handleExportHistorialGlobalServicios = async (periodo, anio) => {
+    try {
+      const params = { periodo };
+      if (anio) params.anio = anio;
+      const response = await serviciosAPI.exportarHistorialGlobalVentas(params);
+      
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `historial_global_servicios_${periodo}${anio ? '_' + anio : ''}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error al exportar historial global de servicios:', error);
+      message.error("No se pudo exportar el historial global de servicios");
     }
   };
 
@@ -844,15 +876,16 @@ function Ventas() {
                 <div style={{ display: 'flex', gap: '10px' }}>
           {activeTab === 'PRODUCTOS' ? (
             <>
-              <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Excel" />
-              <ExportDropdown onExport={handleExportar} label="Exportar Ventas" />
+              <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
+              <ExportDropdown onExport={handleExportar} label="Exportar Ventas de Productos" />
               <button className="btn btn-primary" onClick={() => openModal('create')}>
                 <PlusOutlined /> Nueva Venta
               </button>
             </>
           ) : (
             <>
-              <ExportDropdown onExport={handleExportarServicios} label="Exportar Servicios" />
+              <ExportDropdown onExport={handleExportHistorialGlobalServicios} label="Exportar Historial Global" />
+              <ExportDropdown onExport={handleExportarServicios} label="Exportar Ventas de Servicios" />
               <button className="btn btn-primary" onClick={openVentaModal}>
                 <PlusOutlined /> Nueva Venta de Servicio
               </button>
@@ -1006,7 +1039,9 @@ function Ventas() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedVentasServicios.map((venta) => (
+                {paginatedVentasServicios.map((venta) => {
+                  if (!venta) return null;
+                  return (
                   <tr key={venta.id}>
                     <td>{venta.creado_en ? new Date(venta.creado_en).toLocaleDateString() : '-'}</td>
                     <td>
@@ -1052,7 +1087,8 @@ function Ventas() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                  {filteredVentasServicios.length === 0 && (
                     <tr><td colSpan="7" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay servicios registrados que coincidan con los filtros</td></tr>
                  )}
@@ -1265,10 +1301,11 @@ function Ventas() {
                             setFormData(prev => ({ 
                               ...prev, 
                               cliente: String(pg.id), 
-                              cliente_nombre: pg.nombre,
-                              tipo_comprobante: 'SIMPLE',
-                              numero_comprobante: generateComprobanteNumber('SIMPLE')
+                              cliente_nombre: pg.nombre
                             }));
+                            // If it was a SIMPLE, it stays simple, if it was something else, keep it. 
+                            // But usually Cliente General is for SIMPLE.
+                            if (errors.cliente) setErrors(prev => ({ ...prev, cliente: null }));
                           } else {
                             alert('Cliente Cliente General no encontrado.');
                           }
@@ -1291,10 +1328,12 @@ function Ventas() {
                           cliente: val,
                           cliente_nombre: cliente ? cliente.nombre : ''
                         }));
+                        if (errors.cliente) setErrors(prev => ({ ...prev, cliente: null }));
                       }}
                       placeholder="Buscar cliente..."
                       onActionClick={() => setClienteModalVisible(true)}
                       actionLabel="➕ Crear Nuevo Cliente"
+                      error={errors.cliente}
                     />
                   </div>
                   <div className="form-group">
@@ -1490,7 +1529,7 @@ function Ventas() {
                 <>
                   <div className="form-group"><label className="form-label">Nombre del Servicio *</label><input required className="form-input" value={nestedFormData.nombre} onChange={(e) => setNestedFormData(p => ({...p, nombre: e.target.value}))} /></div>
                   <div className="grid grid-2">
-                     <div className="form-group"><label className="form-label">Precio Base</label><input type="number" step="0.01" required className="form-input" value={nestedFormData.precio_base} onChange={(e) => setNestedFormData(p => ({...p, precio_base: Number(e.target.value)}))} /></div>
+                     <div className="form-group"><label className="form-label">Precio de Servicio</label><input type="number" step="0.01" required className="form-input" value={nestedFormData.precio_base} onChange={(e) => setNestedFormData(p => ({...p, precio_base: Number(e.target.value)}))} /></div>
                      <div className="form-group"><label className="form-label">Duración (min)</label><input type="number" required className="form-input" value={nestedFormData.duracion_minutos} onChange={(e) => setNestedFormData(p => ({...p, duracion_minutos: Number(e.target.value)}))} /></div>
                   </div>
                 </>
@@ -1655,7 +1694,7 @@ function Ventas() {
                       <div style={{ fontWeight: "bold", fontSize: "16px" }}>{selectedVentaForDetail.servicio_nombre || selectedVentaForDetail.servicio}</div>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "4px" }}>Precio Base</div>
+                      <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "4px" }}>Precio de Servicio</div>
                       <div style={{ fontWeight: "bold" }}>S/. {Number(selectedVentaForDetail.precio || 0).toFixed(2)}</div>
                     </div>
                   </div>

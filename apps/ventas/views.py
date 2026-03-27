@@ -281,7 +281,7 @@ class VentaViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def exportar(self, request):
-        """Exportar ventas a Excel con filtro de período (Multi-hoja)"""
+        """Exportar ventas a Excel con filtro de período"""
         periodo = request.query_params.get('periodo', 'todo')
         anio = request.query_params.get('anio')
         anio = int(anio) if anio else None
@@ -293,21 +293,20 @@ class VentaViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
-        # Hoja 1: Ventas
-        headers_ventas = [
+        headers = [
             'ID', 'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
             'Tipo Comprobante', 'Comprobante', 'Cliente', 'Estado',
             'Subtotal', 'Descuento', 'Impuesto', 'Total'
         ]
-        rows_ventas = []
-        for obj in queryset:
+        rows = []
+        for obj in queryset.order_by('-creado_en'):
             tipo_comprobante = obj.tipo_comprobante
             legal_tipo = tipo_comprobante if tipo_comprobante and tipo_comprobante != 'SIMPLE' else ""
             legal_num = obj.numero_comprobante if legal_tipo else ""
             
-            rows_ventas.append([
+            rows_ventas_item = [
                 obj.id,
-                timezone.localtime(obj.actualizado_en).strftime("%d/%m/%Y %H:%M:%S"),
+                timezone.localtime(obj.creado_en).strftime("%d/%m/%Y %H:%M:%S"),
                 "COMPROBANTE SIMPLE",
                 obj.numero_comprobante_simple or "",
                 legal_tipo,
@@ -318,59 +317,17 @@ class VentaViewSet(viewsets.ModelViewSet):
                 float(obj.descuento),
                 float(obj.impuesto),
                 float(obj.total)
-            ])
-
-        # Hoja 2: Historial de Estados
-        from .models import MovimientoEstadoVenta
-        venta_ids = queryset.values_list('id', flat=True)
-        estados_qs = MovimientoEstadoVenta.objects.filter(venta_id__in=venta_ids).select_related('venta', 'venta__cliente').order_by('-fecha')
-        
-        headers_estados = [
-            'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple', 
-            'Tipo Comprobante', 'Comprobante', 'Cliente', 
-            'Estado Anterior', 'Estado Nuevo', 'Notas'
-        ]
-        rows_estados = []
-        for e in estados_qs:
-            v = e.venta
-            tipo_c = v.tipo_comprobante
-            l_tipo = tipo_c if tipo_c and tipo_c != 'SIMPLE' else ""
-            l_num = v.numero_comprobante if l_tipo else ""
-            comp_cliente = v.cliente_nombre or (v.cliente.nombre if v.cliente else 'Sin Cliente')
-            
-            rows_estados.append([
-                timezone.localtime(e.fecha).strftime("%d/%m/%Y %H:%M:%S"),
-                "COMPROBANTE SIMPLE",
-                v.numero_comprobante_simple or "",
-                l_tipo,
-                l_num,
-                comp_cliente,
-                e.estado_anterior,
-                e.estado_nuevo,
-                e.notas
-            ])
+            ]
+            rows.append(rows_ventas_item)
 
         period_label = get_period_label(periodo, anio)
-        sheets_data = [
-            {
-                'sheet_name': 'Ventas',
-                'headers': headers_ventas,
-                'rows': rows_ventas,
-                'title': 'Historial de Ventas',
-                'period_label': period_label
-            },
-            {
-                'sheet_name': 'Historial de Estados',
-                'headers': headers_estados,
-                'rows': rows_estados,
-                'title': 'Historial de Estados de Ventas',
-                'period_label': period_label
-            }
-        ]
-
-        return create_multi_sheet_excel_response(
+        return create_excel_response(
             filename=f'ventas_{periodo}{"_" + str(anio) if anio else ""}.xlsx',
-            sheets_data=sheets_data
+            sheet_name='Ventas',
+            headers=headers,
+            rows=rows,
+            title='Historial de Ventas',
+            period_label=period_label
         )
 
     @action(detail=True, methods=['get'])

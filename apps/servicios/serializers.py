@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CategoriaServicio, Servicio, VentaServicio, MovimientoEstadoVentaServicio
+from .models import CategoriaServicio, Servicio, VentaServicio, MovimientoEstadoVentaServicio, MovimientoServicio
 
 
 class CategoriaServicioSerializer(serializers.ModelSerializer):
@@ -65,5 +65,13 @@ class VentaServicioCreateSerializer(serializers.ModelSerializer):
 class MovimientoEstadoVentaServicioSerializer(serializers.ModelSerializer):
     class Meta:
         model = MovimientoEstadoVentaServicio
-        fields = ['id', 'estado_anterior', 'estado_nuevo', 'fecha', 'notes'] # Wait, notes or notas? It's notas in models.
         fields = ['id', 'estado_anterior', 'estado_nuevo', 'fecha', 'notas']
+
+
+class MovimientoServicioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MovimientoServicio
+        fields = [
+            'id', 'fecha', 'tipo', 'costo_anterior', 'costo_nuevo',
+            'precio_anterior', 'precio_nuevo', 'activo_anterior', 'activo_nuevo', 'notas'
+        ]

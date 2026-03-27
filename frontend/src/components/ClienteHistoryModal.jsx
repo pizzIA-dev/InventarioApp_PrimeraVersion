@@ -11,7 +11,7 @@ import Pagination from './Pagination';
 import { message } from 'antd';
 
 const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
-  const [activeTab, setActiveTab] = useState('estados'); // 'estados', 'productos'
+  const [activeTab, setActiveTab] = useState('estados'); // 'estados', 'productos', 'servicios'
   const [loading, setLoading] = useState(false);
   
   // States for History (Estados)
@@ -27,11 +27,17 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
   const [productosPage, setProductosPage] = useState(1);
   const [productosTotal, setProductosTotal] = useState(0);
   const [productosTotalPages, setProductosTotalPages] = useState(1);
+  // States for Kardex (Servicios)
+  const [serviciosKardex, setServiciosKardex] = useState([]);
+  const [serviciosPage, setServiciosPage] = useState(1);
+  const [serviciosTotal, setServiciosTotal] = useState(0);
+  const [serviciosTotalPages, setServiciosTotalPages] = useState(1);
 
   useEffect(() => {
     if (visible && cliente) {
       setHistoryPage(1);
       setProductosPage(1);
+      setServiciosPage(1);
       setFechaDesde('');
       setFechaHasta('');
       setActiveTab('estados');
@@ -80,21 +86,45 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
       setLoading(false);
     }
   };
+  const fetchServicios = async (clientId, p = 1, desde = '', hasta = '') => {
+    setLoading(true);
+    try {
+      const params = { page: p, page_size: 15 };
+      if (desde) params.fecha_desde = desde;
+      if (hasta) params.fecha_hasta = hasta;
+      
+      const response = await clientesAPI.getKardexServicios(clientId, params);
+      const data = response.data;
+      setServiciosKardex(data.results || []);
+      setServiciosTotal(data.count || 0);
+      setServiciosTotalPages(data.total_pages || 1);
+      setServiciosPage(data.page || 1);
+    } catch (error) {
+      console.error('Error fetching servicios kardex:', error);
+      message.error('No se pudo cargar el detalle de servicios');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     if (tab === 'estados') {
       fetchEstados(cliente.id, 1, fechaDesde, fechaHasta);
-    } else {
+    } else if (tab === 'productos') {
       fetchProductos(cliente.id, 1, fechaDesde, fechaHasta);
+    } else {
+      fetchServicios(cliente.id, 1, fechaDesde, fechaHasta);
     }
   };
 
   const handleFilter = () => {
     if (activeTab === 'estados') {
       fetchEstados(cliente.id, 1, fechaDesde, fechaHasta);
-    } else {
+    } else if (activeTab === 'productos') {
       fetchProductos(cliente.id, 1, fechaDesde, fechaHasta);
+    } else {
+      fetchServicios(cliente.id, 1, fechaDesde, fechaHasta);
     }
   };
 
@@ -103,8 +133,10 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
     setFechaHasta('');
     if (activeTab === 'estados') {
       fetchEstados(cliente.id, 1, '', '');
-    } else {
+    } else if (activeTab === 'productos') {
       fetchProductos(cliente.id, 1, '', '');
+    } else {
+      fetchServicios(cliente.id, 1, '', '');
     }
   };
 
@@ -122,10 +154,8 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      message.success('Exportación iniciada');
     } catch (error) {
       console.error('Error exporting history:', error);
-      message.error('Error al exportar el historial');
     }
   };
 
@@ -163,6 +193,12 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
           >
             Detalle de Venta de Productos
           </button>
+          <button 
+            className={`tab-btn ${activeTab === 'servicios' ? 'active' : ''}`}
+            onClick={() => handleTabChange('servicios')}
+          >
+            Detalle de Venta de Servicios
+          </button>
         </div>
 
         <div className="modal-body" style={{ minHeight: '400px', paddingTop: '0' }}>
@@ -198,7 +234,7 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
               </button>
             </div>
             <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--text-secondary)', alignSelf: 'center' }}>
-              {activeTab === 'estados' ? historyTotal : productosTotal} registro{(activeTab === 'estados' ? historyTotal : productosTotal) !== 1 ? 's' : ''} encontrado{(activeTab === 'estados' ? historyTotal : productosTotal) !== 1 ? 's' : ''}
+              {activeTab === 'estados' ? historyTotal : activeTab === 'productos' ? productosTotal : serviciosTotal} registro{(activeTab === 'estados' ? historyTotal : activeTab === 'productos' ? productosTotal : serviciosTotal) !== 1 ? 's' : ''} encontrado{(activeTab === 'estados' ? historyTotal : activeTab === 'productos' ? productosTotal : serviciosTotal) !== 1 ? 's' : ''}
             </span>
           </div>
 
@@ -247,7 +283,7 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
                     </tbody>
                   </table>
                 </div>
-              ) : (
+              ) : activeTab === 'productos' ? (
                 <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '400px', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
                   <table className="table" style={{ width: '100%', minWidth: '1500px', fontSize: '12px' }}>
                     <thead style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--bg-card)' }}>
@@ -302,25 +338,71 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
                     </tbody>
                   </table>
                 </div>
+              ) : (
+                <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '400px', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
+                  <table className="table" style={{ width: '100%', minWidth: '1200px', fontSize: '12px' }}>
+                    <thead style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--bg-card)' }}>
+                      <tr>
+                        <th style={{ padding: '10px 12px', textAlign: 'left' }}>Fecha</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>Tipo Comprobante Simple</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>Comprobante Simple</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left', whiteSpace: 'nowrap' }}>Tipo Comprobante</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left' }}>Comprobante</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left' }}>Cliente</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left' }}>Servicio</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'right' }}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {serviciosKardex.length > 0 ? (
+                        serviciosKardex.map((record, idx) => (
+                          <tr key={idx}>
+                            <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                              {new Date(record.fecha).toLocaleDateString() + ' ' + new Date(record.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </td>
+                            <td style={{ padding: '10px 12px', fontWeight: '600' }}>COMPROBANTE SIMPLE</td>
+                            <td style={{ padding: '10px 12px', fontWeight: 'bold' }}>{record.numero_comprobante_simple}</td>
+                            <td style={{ padding: '10px 12px', color: 'var(--accent)', fontWeight: '600' }}>{record.tipo_comprobante}</td>
+                            <td style={{ padding: '10px 12px', color: 'var(--accent)', fontWeight: 'bold' }}>{record.comprobante}</td>
+                            <td style={{ padding: '10px 12px' }}>{record.cliente}</td>
+                            <td style={{ padding: '10px 12px' }}>{record.servicio_nombre}</td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 'bold', color: 'var(--accent)' }}>
+                              S/. {Number(record.total).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                            No hay registro de servicios para este cliente.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               )}
 
               {/* Pagination */}
-              {(activeTab === 'estados' ? historyTotalPages : productosTotalPages) > 1 && (
+              {(activeTab === 'estados' ? historyTotalPages : activeTab === 'productos' ? productosTotalPages : serviciosTotalPages) > 1 && (
                 <div style={{ marginTop: '16px' }}>
                   <Pagination 
-                    currentPage={activeTab === 'estados' ? historyPage : productosPage}
-                    totalPages={activeTab === 'estados' ? historyTotalPages : productosTotalPages}
+                    currentPage={activeTab === 'estados' ? historyPage : activeTab === 'productos' ? productosPage : serviciosPage}
+                    totalPages={activeTab === 'estados' ? historyTotalPages : activeTab === 'productos' ? productosTotalPages : serviciosTotalPages}
                     onPageChange={(p) => {
                       if (activeTab === 'estados') {
                         setHistoryPage(p);
                         fetchEstados(cliente.id, p, fechaDesde, fechaHasta);
-                      } else {
+                      } else if (activeTab === 'productos') {
                         setProductosPage(p);
                         fetchProductos(cliente.id, p, fechaDesde, fechaHasta);
+                      } else {
+                        setServiciosPage(p);
+                        fetchServicios(cliente.id, p, fechaDesde, fechaHasta);
                       }
                     }}
                     pageSize={15}
-                    totalItems={activeTab === 'estados' ? historyTotal : productosTotal}
+                    totalItems={activeTab === 'estados' ? historyTotal : activeTab === 'productos' ? productosTotal : serviciosTotal}
                     itemName="registros"
                   />
                 </div>

@@ -64,7 +64,23 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
   const handleFilter = () => {
     setPage(1);
     if (activeTab === 'estados') fetchEstados(venta.id, 1, fechaDesde, fechaHasta);
+    else if (isServicio) fetchServicios(venta.id);
     else fetchProductos(venta.id, 1, fechaDesde, fechaHasta);
+  };
+
+  const fetchServicios = async (id) => {
+    setLoading(true);
+    try {
+      const response = await serviciosAPI.getHistoryDetalleVenta(id);
+      setHistoryProductos(response.data); // Reuse historyProductos state for simplicity
+      setTotal(response.data.length);
+      setTotalPages(1);
+    } catch (error) {
+      console.error("Error al cargar detalle de servicios:", error);
+      message.error("No se pudo cargar el detalle del servicio");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handlePageChange = (p) => {
@@ -73,19 +89,24 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
     else fetchProductos(venta.id, p, fechaDesde, fechaHasta);
   };
 
-  const handleExport = async () => {
+  const handleExport = async (exportId) => {
     try {
-      const response = await ventasAPI.exportarHistorial(venta.id);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const apiCall = isServicio ? serviciosAPI.exportarHistorialVenta : ventasAPI.exportarHistorial;
+      const response = await apiCall(exportId || (venta && venta.id));
+      
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `historial_venta_${venta.numero_comprobante_simple || venta.id}.xlsx`);
+      const prefix = isServicio ? 'historial_servicio' : 'historial_venta';
+      link.setAttribute('download', `${prefix}_${venta.numero_comprobante_simple || venta.id}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Error al exportar historial:", error);
-      message.error("No se pudo exportar el historial");
+      message.error("Error al generar el archivo Excel");
     }
   };
 
@@ -102,11 +123,9 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            {!isServicio && (
-              <button className="btn btn-secondary" onClick={handleExport} style={{ padding: '4px 12px', fontSize: '12px' }}>
-                Exportar Excel
-              </button>
-            )}
+            <button className="btn btn-secondary" onClick={() => handleExport(venta.id)} style={{ padding: '4px 12px', fontSize: '12px' }}>
+              Exportar Excel
+            </button>
             <button className="modal-close" onClick={onClose}>×</button>
           </div>
         </div>
@@ -130,36 +149,39 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
             </div>
           </div>
 
-          {!isServicio && (
-            <div className="tabs" style={{ marginBottom: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '24px' }}>
-              <button 
-                className={`tab-item ${activeTab === 'estados' ? 'active' : ''}`}
-                onClick={() => { setActiveTab('estados'); setPage(1); fetchEstados(venta.id, 1, fechaDesde, fechaHasta); }}
-                style={{ 
-                  padding: '12px 4px', background: 'none', border: 'none', 
-                  color: activeTab === 'estados' ? 'var(--accent)' : 'var(--text-secondary)',
-                  fontWeight: activeTab === 'estados' ? '600' : '400',
-                  borderBottom: activeTab === 'estados' ? '2px solid var(--accent)' : '2px solid transparent',
-                  cursor: 'pointer', fontSize: '14px'
-                }}
-              >
-                Historial de Estados
-              </button>
-              <button 
-                className={`tab-item ${activeTab === 'productos' ? 'active' : ''}`}
-                onClick={() => { setActiveTab('productos'); setPage(1); fetchProductos(venta.id, 1, fechaDesde, fechaHasta); }}
-                style={{ 
-                  padding: '12px 4px', background: 'none', border: 'none', 
-                  color: activeTab === 'productos' ? 'var(--accent)' : 'var(--text-secondary)',
-                  fontWeight: activeTab === 'productos' ? '600' : '400',
-                  borderBottom: activeTab === 'productos' ? '2px solid var(--accent)' : '2px solid transparent',
-                  cursor: 'pointer', fontSize: '14px'
-                }}
-              >
-                Detalle de Venta de Productos
-              </button>
-            </div>
-          )}
+          <div className="tabs" style={{ marginBottom: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '24px' }}>
+            <button 
+              className={`tab-item ${activeTab === 'estados' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('estados'); setPage(1); fetchEstados(venta.id, 1, fechaDesde, fechaHasta); }}
+              style={{ 
+                padding: '12px 4px', background: 'none', border: 'none', 
+                color: activeTab === 'estados' ? 'var(--accent)' : 'var(--text-secondary)',
+                fontWeight: activeTab === 'estados' ? '600' : '400',
+                borderBottom: activeTab === 'estados' ? '2px solid var(--accent)' : '2px solid transparent',
+                cursor: 'pointer', fontSize: '14px'
+              }}
+            >
+              Historial de Estados
+            </button>
+            <button 
+              className={`tab-item ${activeTab === 'productos' ? 'active' : ''}`}
+              onClick={() => { 
+                setActiveTab('productos'); 
+                setPage(1); 
+                if (isServicio) fetchServicios(venta.id);
+                else fetchProductos(venta.id, 1, fechaDesde, fechaHasta); 
+              }}
+              style={{ 
+                padding: '12px 4px', background: 'none', border: 'none', 
+                color: activeTab === 'productos' ? 'var(--accent)' : 'var(--text-secondary)',
+                fontWeight: activeTab === 'productos' ? '600' : '400',
+                borderBottom: activeTab === 'productos' ? '2px solid var(--accent)' : '2px solid transparent',
+                cursor: 'pointer', fontSize: '14px'
+              }}
+            >
+              {isServicio ? 'Detalle de Venta de Servicios' : 'Detalle de Venta de Productos'}
+            </button>
+          </div>
 
           {loading ? (
             <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>Cargando información...</div>
@@ -206,42 +228,72 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
                 </div>
               ) : (
                 <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '45vh', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
-                  <table style={{ fontSize: '11px', minWidth: '1500px', width: '100%' }}>
+                  <table style={{ fontSize: isServicio ? '12px' : '11px', minWidth: isServicio ? '1200px' : '1500px', width: '100%' }}>
                     <thead>
-                      <tr>
-                        <th style={{ whiteSpace: 'nowrap' }}>Fecha</th>
-                        <th style={{ whiteSpace: 'nowrap' }}>Tipo Comprobante Simple</th>
-                        <th style={{ whiteSpace: 'nowrap' }}>Comprobante Simple</th>
-                        <th style={{ whiteSpace: 'nowrap' }}>Tipo Comprobante</th>
-                        <th>Comprobante</th>
-                        <th>Cliente</th>
-                        <th>Producto</th>
-                        <th>Código</th>
-                        <th style={{ textAlign: 'right' }}>Cant.</th>
-                        <th style={{ textAlign: 'right' }}>P. Unit.</th>
-                        <th style={{ textAlign: 'right' }}>Desc.</th>
-                        <th style={{ textAlign: 'right' }}>Total</th>
-                      </tr>
+                      {isServicio ? (
+                        <tr>
+                          <th style={{ whiteSpace: 'nowrap' }}>Fecha</th>
+                          <th style={{ whiteSpace: 'nowrap' }}>Tipo Comprobante Simple</th>
+                          <th style={{ whiteSpace: 'nowrap' }}>Comprobante Simple</th>
+                          <th style={{ whiteSpace: 'nowrap' }}>Tipo Comprobante</th>
+                          <th>Comprobante</th>
+                          <th>Cliente</th>
+                          <th>Servicio</th>
+                          <th style={{ textAlign: 'right' }}>Total</th>
+                        </tr>
+                      ) : (
+                        <tr>
+                          <th style={{ whiteSpace: 'nowrap' }}>Fecha</th>
+                          <th style={{ whiteSpace: 'nowrap' }}>Tipo Comprobante Simple</th>
+                          <th style={{ whiteSpace: 'nowrap' }}>Comprobante Simple</th>
+                          <th style={{ whiteSpace: 'nowrap' }}>Tipo Comprobante</th>
+                          <th>Comprobante</th>
+                          <th>Cliente</th>
+                          <th>Producto</th>
+                          <th>Código</th>
+                          <th style={{ textAlign: 'right' }}>Cant.</th>
+                          <th style={{ textAlign: 'right' }}>P. Unit.</th>
+                          <th style={{ textAlign: 'right' }}>Desc.</th>
+                          <th style={{ textAlign: 'right' }}>Total</th>
+                        </tr>
+                      )}
                     </thead>
                     <tbody>
-                      {historyProductos.map((p, idx) => (
-                        <tr key={idx}>
-                          <td style={{ whiteSpace: 'nowrap' }}>
-                            {new Date(p.fecha).toLocaleDateString() + ' ' + new Date(p.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                          </td>
-                          <td style={{ fontWeight: 600 }}>{p.tipo_comprobante_simple}</td>
-                          <td style={{ fontWeight: 600 }}>{p.numero_comprobante_simple}</td>
-                          <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{p.tipo_comprobante}</td>
-                          <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{p.comprobante}</td>
-                          <td>{p.cliente}</td>
-                          <td style={{ fontWeight: 600 }}>{p.producto_nombre}</td>
-                          <td style={{ color: 'var(--text-secondary)' }}>{p.producto_codigo}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600 }}>{p.cantidad}</td>
-                          <td style={{ textAlign: 'right' }}>S/. {Number(p.precio_unitario).toFixed(2)}</td>
-                          <td style={{ textAlign: 'right', color: 'var(--color-danger)' }}>-S/. {Number(p.descuento || 0).toFixed(2)}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>S/. {Number(p.total).toFixed(2)}</td>
-                        </tr>
-                      ))}
+                      {isServicio ? (
+                        historyProductos.map((s, idx) => (
+                          <tr key={idx}>
+                            <td style={{ whiteSpace: 'nowrap' }}>
+                              {new Date(s.fecha).toLocaleDateString() + ' ' + new Date(s.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </td>
+                            <td style={{ fontWeight: 600 }}>{s.tipo_comprobante_simple}</td>
+                            <td style={{ fontWeight: 600 }}>{s.numero_comprobante_simple}</td>
+                            <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{s.tipo_comprobante}</td>
+                            <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{s.comprobante}</td>
+                            <td>{s.cliente}</td>
+                            <td style={{ fontWeight: 600 }}>{s.servicio}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>S/. {Number(s.total).toFixed(2)}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        historyProductos.map((p, idx) => (
+                          <tr key={idx}>
+                            <td style={{ whiteSpace: 'nowrap' }}>
+                              {new Date(p.fecha).toLocaleDateString() + ' ' + new Date(p.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </td>
+                            <td style={{ fontWeight: 600 }}>{p.tipo_comprobante_simple}</td>
+                            <td style={{ fontWeight: 600 }}>{p.numero_comprobante_simple}</td>
+                            <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{p.tipo_comprobante}</td>
+                            <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{p.comprobante}</td>
+                            <td>{p.cliente}</td>
+                            <td style={{ fontWeight: 600 }}>{p.producto_nombre}</td>
+                            <td style={{ color: 'var(--text-secondary)' }}>{p.producto_codigo}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{p.cantidad}</td>
+                            <td style={{ textAlign: 'right' }}>S/. {Number(p.precio_unitario).toFixed(2)}</td>
+                            <td style={{ textAlign: 'right', color: 'var(--color-danger)' }}>-S/. {Number(p.descuento || 0).toFixed(2)}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>S/. {Number(p.total).toFixed(2)}</td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>

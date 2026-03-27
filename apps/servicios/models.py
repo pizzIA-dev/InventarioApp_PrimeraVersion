@@ -64,6 +64,90 @@ class Servicio(models.Model):
             return ((self.precio_base - self.costo) / self.costo) * 100
         return 0
 
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        old_costo = None
+        old_precio = None
+        old_activo = None
+
+        if not is_new:
+            try:
+                old_instance = Servicio.objects.get(pk=self.pk)
+                old_costo = old_instance.costo
+                old_precio = old_instance.precio_base
+                old_activo = old_instance.activo
+            except Servicio.DoesNotExist:
+                pass
+
+        super().save(*args, **kwargs)
+
+        # Log movement
+        if is_new:
+            MovimientoServicio.objects.create(
+                empresa=self.empresa,
+                servicio=self,
+                tipo='CREACION',
+                costo_nuevo=self.costo,
+                precio_nuevo=self.precio_base,
+                activo_nuevo=self.activo,
+                notas='Registro inicial del servicio'
+            )
+        else:
+            changes = []
+            if old_costo != self.costo:
+                changes.append(f'Costo: {old_costo} -> {self.costo}')
+            if old_precio != self.precio_base:
+                changes.append(f'Precio: {old_precio} -> {self.precio_base}')
+            if old_activo != self.activo:
+                changes.append(f'Estado: {"Activo" if old_activo else "Inactivo"} -> {"Activo" if self.activo else "Inactivo"}')
+            
+            if changes:
+                tipo = 'CAMBIO_ESTADO' if old_activo != self.activo and len(changes) == 1 else 'AJUSTE'
+                MovimientoServicio.objects.create(
+                    empresa=self.empresa,
+                    servicio=self,
+                    tipo=tipo,
+                    costo_anterior=old_costo,
+                    costo_nuevo=self.costo,
+                    precio_anterior=old_precio,
+                    precio_nuevo=self.precio_base,
+                    activo_anterior=old_activo,
+                    activo_nuevo=self.activo,
+                    notas=', '.join(changes)
+                )
+
+
+class MovimientoServicio(models.Model):
+    """Registro de movimientos y cambios en los servicios"""
+    TIPO_MOVIMIENTO_CHOICES = [
+        ('CREACION', 'Creación'),
+        ('AJUSTE', 'Ajuste de Precios/Costos'),
+        ('CAMBIO_ESTADO', 'Cambio de Estado'),
+    ]
+
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='movimientos_servicio', null=True)
+    servicio = models.ForeignKey(Servicio, on_delete=models.CASCADE, related_name='movimientos')
+    fecha = models.DateTimeField(auto_now_add=True)
+    tipo = models.CharField(max_length=20, choices=TIPO_MOVIMIENTO_CHOICES)
+    
+    costo_anterior = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    costo_nuevo = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    precio_anterior = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    precio_nuevo = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    activo_anterior = models.BooleanField(null=True, blank=True)
+    activo_nuevo = models.BooleanField(default=True)
+    
+    notas = models.TextField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-fecha']
+        verbose_name_plural = "Movimientos de Servicio"
+
+    def __str__(self):
+        return f"{self.servicio.nombre} - {self.tipo} ({self.fecha})"
+
 
 class VentaServicio(models.Model):
     """Venta/Registro de un servicio realizado"""

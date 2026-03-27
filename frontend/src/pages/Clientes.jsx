@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { clientesAPI } from '../services/api';
 import { PlusOutlined, EditOutlined, DeleteOutlined, HistoryOutlined } from '@ant-design/icons';
+import { message } from 'antd';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
@@ -110,16 +111,18 @@ function Clientes() {
       const params = { periodo };
       if (anio) params.anio = anio;
       const response = await clientesAPI.exportarHistorialGlobal(params);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `historial_global_clientes_${periodo}${anio ? '_' + anio : ''}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error al exportar historial global:', error);
-      alert('Error al exportar el historial global.');
     }
   };
 
@@ -165,7 +168,7 @@ function Clientes() {
           <p className="page-subtitle">Gestión de clientes y recurrencia de compras</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Excel" />
+          <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
           <ExportDropdown onExport={handleExportar} label="Exportar Clientes" />
           <button className="btn btn-primary" onClick={() => openModal('create')}>
             <PlusOutlined /> Nuevo Cliente

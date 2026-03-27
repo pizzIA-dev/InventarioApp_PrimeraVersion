@@ -44,7 +44,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
         # Save the product
         instance = serializer.save()
         
-        # Create the initial movement, recording the initial activo state too
+        # Create the initial movement
         MovimientoStock.objects.create(
             producto=instance,
             tipo='ENTRADA',
@@ -57,7 +57,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
             precio_venta_anterior=0,
             precio_venta_nuevo=instance.precio_venta,
             activo_nuevo=instance.activo,
-            notas="Inventario inicial."
+            notas="Registro inicial del producto"
         )
 
     def perform_destroy(self, instance):
@@ -71,28 +71,31 @@ class ProductoViewSet(viewsets.ModelViewSet):
         old_precio_venta = producto.precio_venta
         old_activo = producto.activo
         
-        # The serializer validates and extracts the incoming data
-        data = serializer.validated_data
-        
         # Save the product first
         instance = serializer.save()
         
         new_stock = instance.stock_actual
         new_precio_compra = instance.precio_compra
         new_precio_venta = instance.precio_venta
+        new_activo = instance.activo
         
-        # Check if stock or prices changed
-        if old_stock != new_stock or old_precio_compra != new_precio_compra or old_precio_venta != new_precio_venta:
-            if old_stock != new_stock:
-                tipo = 'ENTRADA' if new_stock > old_stock else 'SALIDA'
-                cantidad = abs(new_stock - old_stock)
-                notas = "Ajuste manual de stock."
-            else:
-                tipo = 'ENTRADA'
-                cantidad = 0
-                notas = "Ajuste manual de precios."
+        changes = []
+        if old_stock != new_stock:
+            changes.append(f"Stock: {float(old_stock)} -> {float(new_stock)}")
+        if old_precio_compra != new_precio_compra:
+            changes.append(f"P. Compra: {float(old_precio_compra)} -> {float(new_precio_compra)}")
+        if old_precio_venta != new_precio_venta:
+            changes.append(f"P. Venta: {float(old_precio_venta)} -> {float(new_precio_venta)}")
+        if old_activo != new_activo:
+            changes.append(f"Estado: {'Activo' if old_activo else 'Inactivo'} -> {'Activo' if new_activo else 'Inactivo'}")
+
+        if changes:
+            # Determine movement type (ENTRADA/SALIDA) based on stock change or default to ENTRADA
+            tipo = 'SALIDA' if new_stock < old_stock else 'ENTRADA'
+            cantidad = abs(new_stock - old_stock)
             
-            # Create movement to keep Kardex history accurate
+            # Use 'CAMBIO_ESTADO' concept (even though MovimientoStock doesn't have that specific TIPO)
+            # We'll just use AJUSTE for everything from the ViewSet
             MovimientoStock.objects.create(
                 producto=instance,
                 tipo=tipo,
@@ -104,25 +107,8 @@ class ProductoViewSet(viewsets.ModelViewSet):
                 precio_compra_nuevo=new_precio_compra,
                 precio_venta_anterior=old_precio_venta,
                 precio_venta_nuevo=new_precio_venta,
-                notas=notas
-            )
-
-        # Check if activo state changed — record it as a separate Kardex event
-        if old_activo != instance.activo:
-            estado_label = "Activo" if instance.activo else "Inactivo"
-            MovimientoStock.objects.create(
-                producto=instance,
-                tipo='ENTRADA' if instance.activo else 'SALIDA',
-                origen='AJUSTE',
-                cantidad=0,
-                stock_anterior=instance.stock_actual,
-                stock_nuevo=instance.stock_actual,
-                precio_compra_anterior=instance.precio_compra,
-                precio_compra_nuevo=instance.precio_compra,
-                precio_venta_anterior=instance.precio_venta,
-                precio_venta_nuevo=instance.precio_venta,
-                activo_nuevo=instance.activo,
-                notas=f"Cambio de estado: {estado_label}."
+                activo_nuevo=new_activo if old_activo != new_activo else None,
+                notas=", ".join(changes)
             )
     
     @action(detail=True, methods=['get'])
@@ -171,7 +157,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
         producto = self.get_object()
         movimientos = producto.movimientos.all().order_by('-fecha')
         
-        headers = ['Fecha', 'Tipo', 'Origen', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Referencia']
+        headers = ['Fecha', 'Tipo', 'Origen', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Referencia', 'Notas']
         rows = []
         for mov in movimientos:
             fecha_str = mov.fecha.strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
@@ -197,7 +183,8 @@ class ProductoViewSet(viewsets.ModelViewSet):
                 float(mov.stock_anterior),
                 float(mov.stock_nuevo),
                 estado_str,
-                mov.referencia or ''
+                mov.referencia or '',
+                mov.notas or ''
             ])
 
         return create_excel_response(
@@ -309,7 +296,7 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(fecha__date__gte=date_from, fecha__date__lte=date_to)
 
-        headers = ['Fecha', 'Código', 'Producto', 'Tipo', 'Origen', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado']
+        headers = ['Fecha', 'Código', 'Producto', 'Tipo', 'Origen', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Notas']
         rows = []
         for mov in queryset:
             fecha_str = mov.fecha.strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
@@ -336,7 +323,8 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
                 float(mov.precio_venta_nuevo) if mov.precio_venta_nuevo else '',
                 float(mov.stock_anterior),
                 float(mov.stock_nuevo),
-                estado_str
+                estado_str,
+                mov.notas or ''
             ])
 
         period_label = get_period_label(periodo, anio)

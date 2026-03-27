@@ -53,10 +53,10 @@ export const clientesAPI = {
   getTopClientes: () => api.get('/clientes/top_clientes/'),
   getHistoryEstados: (id, params) => api.get(`/clientes/${id}/historial_estados/`, { params }),
   getKardexProductos: (id, params) => api.get(`/clientes/${id}/kardex_productos/`, { params }),
+  getKardexServicios: (id, params) => api.get(`/clientes/${id}/kardex_servicios/`, { params }),
   exportar: (params) => api.get('/clientes/exportar/', { params, responseType: 'blob' }),
   exportarHistorial: (id, params) => api.get(`/clientes/${id}/exportar_historial/`, { params, responseType: 'blob' }),
-  // Clientes export already includes global history in a second sheet
-  exportarHistorialGlobal: (params) => api.get('/clientes/exportar/', { params, responseType: 'blob' }),
+  exportarHistorialGlobal: (params) => api.get('/clientes/exportar_historial_global/', { params, responseType: 'blob' }),
 };
 
 // Ventas
@@ -125,7 +125,16 @@ export const serviciosAPI = {
   cancelarVenta: (id) => api.post(`/servicios/ventas/${id}/cancelar/`),
   getHistoryEstadosVenta: (id, params) => api.get(`/servicios/ventas/${id}/history_estados/`, { params }),
   getCategorias: () => api.get('/servicios/categorias/'),
+  createCategoria: (data) => api.post('/servicios/categorias/', data),
+  exportar: (params) => api.get('/servicios/exportar/', { params, responseType: 'blob' }),
   exportarVentas: (params) => api.get('/servicios/ventas/exportar/', { params, responseType: 'blob' }),
+  exportarHistorialVenta: (id) => api.get(`/servicios/ventas/${id}/exportar_historial/`, { responseType: 'blob' }),
+  getHistoryEstadosVenta: (id, params) => api.get(`/servicios/ventas/${id}/history_estados/`, { params }),
+  getHistoryDetalleVenta: (id) => api.get(`/servicios/ventas/${id}/history_detalle/`),
+  exportarHistorialGlobalVentas: (params) => api.get(`/servicios/ventas/exportar_historial_global/`, { params, responseType: 'blob' }),
+  getKardex: (id, params) => api.get(`/servicios/${id}/kardex/`, { params }),
+  exportarKardex: (id, params) => api.get(`/servicios/${id}/exportar_kardex/`, { params, responseType: 'blob' }),
+  exportarHistorialGlobal: (params) => api.get('/servicios/exportar_historial_global/', { params, responseType: 'blob' }),
 };
 
 // Transacciones

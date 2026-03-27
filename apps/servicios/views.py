@@ -1,6 +1,7 @@
 from django.http import HttpResponse
 from apps.core.export_utils import (
-    get_period_range, get_period_label, create_excel_response
+    get_period_range, get_period_label, create_excel_response,
+    create_multi_sheet_excel_response
 )
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
@@ -8,12 +9,13 @@ from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Sum, Count
 from django.utils import timezone
-from .models import CategoriaServicio, Servicio, VentaServicio
+from .models import CategoriaServicio, Servicio, VentaServicio, MovimientoServicio
 from .serializers import (
     CategoriaServicioSerializer,
     ServicioSerializer, ServicioCreateSerializer,
     VentaServicioSerializer, VentaServicioCreateSerializer,
-    MovimientoEstadoVentaServicioSerializer
+    MovimientoEstadoVentaServicioSerializer,
+    MovimientoServicioSerializer
 )
 
 
@@ -64,6 +66,176 @@ class ServicioViewSet(viewsets.ModelViewSet):
             'total_servicios': total_servicios,
             'servicios_mas_vendidos': list(servicios_stats)
         })
+
+    @action(detail=False, methods=['get'])
+    def exportar(self, request):
+        """Exportar catálogo de servicios a Excel"""
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        def translate_duration_python(total_minutes):
+            if total_minutes is None:
+                return 'No definida'
+            if total_minutes == 0:
+                return '0 min'
+            
+            parts = []
+            remainder = total_minutes
+            units = [
+                ('mes', 'meses', 43200),
+                ('sem', 'sem', 10080),
+                ('día', 'días', 1440),
+                ('h', 'h', 60),
+                ('min', 'min', 1),
+            ]
+            
+            for label, label_plural, multiplier in units:
+                value = remainder // multiplier
+                if value > 0:
+                    parts.append(f"{value} {label if value == 1 else label_plural}")
+                    remainder %= multiplier
+            
+            return ', '.join(parts) or '0 min'
+
+        headers = ['ID', 'Nombre', 'Categoría', 'Costo de Servicio', 'Precio de Servicio', 'Margen', 'Duración', 'Estado', 'Fecha Creación', 'Última Modificación']
+        rows = []
+        for obj in queryset:
+            rows.append([
+                obj.id,
+                obj.nombre,
+                obj.categoria.nombre if obj.categoria else 'Sin categoría',
+                float(obj.costo),
+                float(obj.precio_base),
+                float(obj.margen_ganancia),
+                translate_duration_python(obj.duracion_minutos),
+                'Activo' if obj.activo else 'Inactivo',
+                obj.creado_en.strftime("%d/%m/%Y %H:%M:%S"),
+                obj.actualizado_en.strftime("%d/%m/%Y %H:%M:%S")
+            ])
+
+        return create_excel_response(
+            filename='catalogo_servicios.xlsx',
+            sheet_name='Catálogo de Servicios',
+            headers=headers,
+            rows=rows,
+            title='Catálogo de Servicios de la Empresa',
+            period_label='Historial Completo'
+        )
+
+    @action(detail=True, methods=['get'])
+    def kardex(self, request, pk=None):
+        """Historial de movimientos de un servicio específico"""
+        servicio = self.get_object()
+        queryset = servicio.movimientos.all()
+        
+        # Filtros de fecha si se proporcionan
+        desde = request.query_params.get('fecha_desde')
+        hasta = request.query_params.get('fecha_hasta')
+        if desde:
+            queryset = queryset.filter(fecha__date__gte=desde)
+        if hasta:
+            queryset = queryset.filter(fecha__date__lte=hasta)
+            
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = MovimientoServicioSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = MovimientoServicioSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def exportar_kardex(self, request, pk=None):
+        """Exportar historial de movimientos de un servicio a Excel"""
+        servicio = self.get_object()
+        queryset = servicio.movimientos.all()
+        
+        # Filtros de fecha si se proporcionan
+        desde = request.query_params.get('fecha_desde')
+        hasta = request.query_params.get('fecha_hasta')
+        if desde:
+            queryset = queryset.filter(fecha__date__gte=desde)
+        if hasta:
+            queryset = queryset.filter(fecha__date__lte=hasta)
+
+        headers = ['Fecha', 'Tipo', 'Costo de Servicio Anterior', 'Costo de Servicio Nuevo', 'Precio de Servicio Anterior', 'Precio de Servicio Nuevo', 'Estado', 'Notas']
+        rows = []
+        for mv in queryset:
+            fecha_str = mv.fecha.strftime("%d/%m/%Y %H:%M:%S")
+            
+            if mv.activo_nuevo is True:
+                estado_str = f"Activo desde {fecha_str}"
+            elif mv.activo_nuevo is False:
+                estado_str = f"Inactivo desde {fecha_str}"
+            else:
+                estado_str = '-'
+                
+            rows.append([
+                fecha_str,
+                mv.get_tipo_display(),
+                float(mv.costo_anterior) if mv.costo_anterior is not None else '-',
+                float(mv.costo_nuevo),
+                float(mv.precio_anterior) if mv.precio_anterior is not None else '-',
+                float(mv.precio_nuevo),
+                estado_str,
+                mv.notas or ''
+            ])
+
+        return create_excel_response(
+            filename=f'kardex_{servicio.nombre.replace(" ", "_")}.xlsx',
+            sheet_name='Kardex de Servicio',
+            headers=headers,
+            rows=rows,
+            title=f'Historial de Movimientos: {servicio.nombre}',
+            period_label=f'Desde: {desde or "Inicio"} Hasta: {hasta or "Hoy"}'
+        )
+
+    @action(detail=False, methods=['get'])
+    def exportar_historial_global(self, request):
+        """Exportar el diario de movimientos global de todos los servicios con filtro de período"""
+        periodo = request.query_params.get('periodo', 'todo')
+        anio = request.query_params.get('anio')
+        anio = int(anio) if anio else None
+
+        queryset = MovimientoServicio.objects.all().select_related('servicio')
+        
+        period_range = get_period_range(periodo, anio)
+        if period_range:
+            date_from, date_to = period_range
+            queryset = queryset.filter(fecha__date__gte=date_from, fecha__date__lte=date_to)
+
+        headers = ['Fecha', 'Servicio', 'Tipo', 'Costo Anterior', 'Costo Nuevo', 'Precio Anterior', 'Precio Nuevo', 'Estado', 'Notas']
+        rows = []
+        for mv in queryset:
+            fecha_str = mv.fecha.strftime("%d/%m/%Y %H:%M:%S")
+            
+            if mv.activo_nuevo is True:
+                estado_str = f"Activo desde {fecha_str}"
+            elif mv.activo_nuevo is False:
+                estado_str = f"Inactivo desde {fecha_str}"
+            else:
+                estado_str = '-'
+
+            rows.append([
+                fecha_str,
+                mv.servicio.nombre,
+                mv.get_tipo_display(),
+                float(mv.costo_anterior) if mv.costo_anterior is not None else '-',
+                float(mv.costo_nuevo),
+                float(mv.precio_anterior) if mv.precio_anterior is not None else '-',
+                float(mv.precio_nuevo),
+                estado_str,
+                mv.notas or ''
+            ])
+
+        period_label = get_period_label(periodo, anio)
+        return create_excel_response(
+            filename='diario_movimientos_servicios.xlsx',
+            sheet_name='Diario de Movimientos',
+            headers=headers,
+            rows=rows,
+            title='Diario Global de Movimientos de Servicios',
+            period_label=period_label
+        )
 
 
 class VentaServicioViewSet(viewsets.ModelViewSet):
@@ -127,6 +299,29 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
         serializer = MovimientoEstadoVentaServicioSerializer(queryset, many=True)
         return Response(serializer.data)
     
+    @action(detail=True, methods=['get'])
+    def history_detalle(self, request, pk=None):
+        """Detalle técnico de una venta de servicio específica para la tabla de historial"""
+        venta = self.get_object()
+        
+        tipo_c = venta.tipo_comprobante
+        l_tipo = tipo_c if tipo_c and tipo_c != 'SIMPLE' else ""
+        l_num = venta.numero_comprobante if l_tipo else ""
+        comp_cliente = venta.cliente_nombre or (venta.cliente.nombre if venta.cliente else 'Sin Cliente')
+        
+        data = [{
+            'fecha': venta.creado_en,
+            'tipo_comprobante_simple': 'COMPROBANTE SIMPLE',
+            'numero_comprobante_simple': venta.numero_comprobante_simple or "",
+            'tipo_comprobante': l_tipo,
+            'comprobante': l_num,
+            'cliente': comp_cliente,
+            'servicio': venta.servicio_nombre or (venta.servicio.nombre if venta.servicio else 'Sin Servicio'),
+            'total': float(venta.total)
+        }]
+        
+        return Response(data)
+    
     @action(detail=False, methods=['get'])
     def resumen(self, request):
         """Obtiene resumen de ventas de servicios"""
@@ -158,29 +353,208 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
         period_range = get_period_range(periodo, anio)
         if period_range:
             date_from, date_to = period_range
-            queryset = queryset.filter(fecha_programada__date__gte=date_from, fecha_programada__date__lte=date_to)
+            queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
-        headers = ['ID', 'Servicio', 'Cliente', 'Estado', 'Fecha Programada', 'Fecha Completado', 'Precio (S/.)', 'Descuento (S/.)', 'Total (S/.)']
+        headers = [
+            'ID', 'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
+            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Estado',
+            'Servicio', 'Impuesto', 'Total'
+        ]
         rows = []
-        for obj in queryset:
+        for obj in queryset.order_by('-creado_en'):
+            tipo_c = obj.tipo_comprobante
+            l_tipo = tipo_c if tipo_c and tipo_c != 'SIMPLE' else ""
+            l_num = obj.numero_comprobante if l_tipo else ""
+            comp_cliente = obj.cliente_nombre or (obj.cliente.nombre if obj.cliente else 'Sin Cliente')
+            
             rows.append([
                 obj.id,
-                obj.servicio_nombre or (obj.servicio.nombre if obj.servicio else 'Sin Servicio'),
-                obj.cliente_nombre or (obj.cliente.nombre if obj.cliente else 'Sin Cliente'),
+                timezone.localtime(obj.creado_en).strftime("%d/%m/%Y %H:%M:%S"),
+                "COMPROBANTE SIMPLE",
+                obj.numero_comprobante_simple or "",
+                l_tipo,
+                l_num,
+                comp_cliente,
                 obj.get_estado_display(),
-                obj.fecha_programada.strftime("%Y-%m-%d %H:%M") if obj.fecha_programada else '',
-                obj.fecha_completado.strftime("%Y-%m-%d %H:%M") if obj.fecha_completado else '',
-                float(obj.precio),
-                float(obj.descuento),
+                obj.servicio_nombre or (obj.servicio.nombre if obj.servicio else 'Sin Servicio'),
+                float(obj.impuesto),
                 float(obj.total)
             ])
 
         period_label = get_period_label(periodo, anio)
         return create_excel_response(
-            filename='ventas_servicios.xlsx',
+            filename=f'ventas_servicios_{periodo}.xlsx',
             sheet_name='Ventas de Servicios',
             headers=headers,
             rows=rows,
             title='Historial de Ventas de Servicios',
             period_label=period_label
+        )
+
+    @action(detail=True, methods=['get'])
+    def exportar_historial(self, request, pk=None):
+        """Exporta el historial de una venta de servicio en formato Excel multi-hoja"""
+        venta = self.get_object()
+
+        # Sheet 1: Estados
+        estados = venta.movimientos_estado.all().order_by('-fecha')
+        headers_estados = [
+            'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
+            'Tipo Comprobante', 'Comprobante', 'Cliente',
+            'Estado Anterior', 'Estado Nuevo', 'Notas'
+        ]
+        
+        tipo_c = venta.tipo_comprobante
+        l_tipo = tipo_c if tipo_c and tipo_c != 'SIMPLE' else ""
+        l_num = venta.numero_comprobante if l_tipo else ""
+        comp_cliente = venta.cliente_nombre or (venta.cliente.nombre if venta.cliente else 'Sin Cliente')
+
+        rows_estados = [
+            [
+                timezone.localtime(e.fecha).strftime("%d/%m/%Y %H:%M:%S"),
+                "COMPROBANTE SIMPLE",
+                venta.numero_comprobante_simple or "",
+                l_tipo,
+                l_num,
+                comp_cliente,
+                e.estado_anterior,
+                e.estado_nuevo,
+                e.notas
+            ] for e in estados
+        ]
+
+        # Sheet 2: Detalle de Venta de Servicio
+        headers_detalle = [
+            'Fecha/Hora', 'Tipo Comprobante Simple', 'Comprobante Simple',
+            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Estado',
+            'Servicio', 'Precio de Servicio (S/.)', 'Descuento (S/.)', 
+            'Impuesto (S/.)', 'Total (S/.)'
+        ]
+        
+        comp_fecha = timezone.localtime(venta.creado_en).strftime("%d/%m/%Y %H:%M:%S")
+        
+        rows_detalle = [
+            [
+                comp_fecha,
+                "COMPROBANTE SIMPLE",
+                venta.numero_comprobante_simple or "",
+                l_tipo,
+                l_num,
+                comp_cliente,
+                venta.get_estado_display(),
+                venta.servicio_nombre or (venta.servicio.nombre if venta.servicio else 'Sin Servicio'),
+                float(venta.precio),
+                float(venta.descuento),
+                float(venta.impuesto),
+                float(venta.total)
+            ]
+        ]
+
+        sheets_data = [
+            {
+                'sheet_name': 'Historial de Estados',
+                'headers': headers_estados,
+                'rows': rows_estados,
+                'title': f'Historial de Estados - Venta de Servicio {venta.numero_comprobante_simple or venta.id}',
+                'period_label': 'Historial Completo'
+            },
+            {
+                'sheet_name': 'Detalle de Venta de Servicio',
+                'headers': headers_detalle,
+                'rows': rows_detalle,
+                'title': f'Detalle de Venta de Servicio - Venta {venta.numero_comprobante_simple or venta.id}',
+                'period_label': 'Historial Completo'
+            }
+        ]
+
+        return create_multi_sheet_excel_response(
+            filename=f'historial_servicio_{venta.numero_comprobante_simple or venta.id}.xlsx',
+            sheets_data=sheets_data
+        )
+
+    @action(detail=False, methods=['get'])
+    def exportar_historial_global(self, request):
+        """Exporta el historial global de ventas de servicios (Estados y Detalle)"""
+        periodo = request.query_params.get('periodo', 'todo')
+        anio = request.query_params.get('anio')
+        anio = int(anio) if anio else None
+
+        queryset = self.get_queryset()
+        period_range = get_period_range(periodo, anio)
+        if period_range:
+            date_from, date_to = period_range
+            queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
+
+        # Sheet 1: Historial de Estados Global
+        from apps.servicios.models import MovimientoEstadoVentaServicio
+        estados = MovimientoEstadoVentaServicio.objects.filter(venta_servicio__in=queryset).order_by('-fecha')
+        
+        headers_estados = [
+            'Fecha', 'Comprobante Simple', 'Comprobante', 'Cliente',
+            'Estado Anterior', 'Estado Nuevo', 'Notas'
+        ]
+        
+        rows_estados = []
+        for e in estados:
+            v = e.venta_servicio
+            tipo_c = v.tipo_comprobante
+            l_tipo = tipo_c if tipo_c and tipo_c != 'SIMPLE' else ""
+            l_num = v.numero_comprobante if l_tipo else ""
+            comp_cliente = v.cliente_nombre or (v.cliente.nombre if v.cliente else 'Sin Cliente')
+            
+            rows_estados.append([
+                timezone.localtime(e.fecha).strftime("%d/%m/%Y %H:%M:%S"),
+                v.numero_comprobante_simple or "",
+                f"{l_tipo} {l_num}".strip(),
+                comp_cliente,
+                e.estado_anterior,
+                e.estado_nuevo,
+                e.notas
+            ])
+
+        # Sheet 2: Detalle de Venta de Servicios Global
+        headers_detalle = [
+            'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
+            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Servicio', 'Total (S/.)'
+        ]
+        
+        rows_detalle = []
+        for v in queryset.order_by('-creado_en'):
+            tipo_c = v.tipo_comprobante
+            l_tipo = tipo_c if tipo_c and tipo_c != 'SIMPLE' else ""
+            l_num = v.numero_comprobante if l_tipo else ""
+            comp_cliente = v.cliente_nombre or (v.cliente.nombre if v.cliente else 'Sin Cliente')
+            
+            rows_detalle.append([
+                timezone.localtime(v.creado_en).strftime("%d/%m/%Y %H:%M:%S"),
+                'COMPROBANTE SIMPLE',
+                v.numero_comprobante_simple or "",
+                l_tipo,
+                l_num,
+                comp_cliente,
+                v.servicio_nombre or (v.servicio.nombre if v.servicio else 'Sin Servicio'),
+                float(v.total)
+            ])
+
+        period_label = get_period_label(periodo, anio)
+        sheets_data = [
+            {
+                'sheet_name': 'Historial de Estados',
+                'headers': headers_estados,
+                'rows': rows_estados,
+                'title': 'Historial Global de Estados - Ventas de Servicios',
+                'period_label': period_label
+            },
+            {
+                'sheet_name': 'Detalle de Ventas',
+                'headers': headers_detalle,
+                'rows': rows_detalle,
+                'title': 'Detalle Global de Ventas de Servicios',
+                'period_label': period_label
+            }
+        ]
+
+        return create_multi_sheet_excel_response(
+            filename=f'historial_global_servicios_{periodo}.xlsx',
+            sheets_data=sheets_data
         )
