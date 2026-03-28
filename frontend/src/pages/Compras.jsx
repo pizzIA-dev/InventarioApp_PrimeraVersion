@@ -90,6 +90,8 @@ function Compras() {
 
   const [proveedorModalVisible, setProveedorModalVisible] = useState(false);
   const [pendingSelection, setPendingSelection] = useState(null);
+  // Alias for Proveedor General (kept separate so it's combined on submit)
+  const [proveedorAlias, setProveedorAlias] = useState('');
 
   useEffect(() => {
     if (pendingSelection && pendingSelection.type === 'proveedor') {
@@ -165,9 +167,13 @@ function Compras() {
       try {
         const res = await comprasAPI.getById(compra.id);
         const full = res.data;
+        // Extract alias from proveedor_nombre if it's "Proveedor General - Alias"
+        const provNombre = full.proveedor_nombre || '';
+        const isGeneralWithAlias = provNombre.startsWith('Proveedor General - ');
+        setProveedorAlias(isGeneralWithAlias ? provNombre.slice('Proveedor General - '.length) : '');
         setFormData({
           proveedor: full.proveedor || '',
-          proveedor_nombre: full.proveedor_nombre || '',
+          proveedor_nombre: isGeneralWithAlias ? 'Proveedor General' : provNombre,
           tipo_compra: full.tipo_compra || 'PROVEEDOR',
           numero_comprobante: full.numero_comprobante || '',
           tipo_comprobante: full.tipo_comprobante || '',
@@ -182,13 +188,17 @@ function Compras() {
           })),
         });
       } catch {
+        // Extract alias from proveedor_nombre if it's "Proveedor General - Alias"
+        const provNombre = compra.proveedor_nombre || '';
+        const isGeneralWithAlias = provNombre.startsWith('Proveedor General - ');
+        setProveedorAlias(isGeneralWithAlias ? provNombre.slice('Proveedor General - '.length) : '');
         setFormData({
           proveedor: compra.proveedor || '',
-          proveedor_nombre: compra.proveedor_nombre || '',
+          proveedor_nombre: isGeneralWithAlias ? 'Proveedor General' : provNombre,
           tipo_compra: compra.tipo_compra || 'PROVEEDOR',
           numero_comprobante: compra.numero_comprobante || '',
           tipo_comprobante: compra.tipo_comprobante || '',
-          estado: compra.estado || 'BORRADOR',
+          estado: compra.estado || 'CONFIRMADA',
           impuesto: Number(compra.impuesto || 0),
           notas: compra.notas || '',
           detalle: [],
@@ -196,13 +206,14 @@ function Compras() {
       }
     } else {
       setSelectedCompra(null);
+      setProveedorAlias('');
       setFormData({
         proveedor: '',
         proveedor_nombre: '',
         tipo_compra: 'PROVEEDOR',
         numero_comprobante: '',
         tipo_comprobante: '',
-        estado: 'BORRADOR',
+        estado: 'CONFIRMADA',
         impuesto: 0,
         notas: '',
         detalle: [],
@@ -383,27 +394,32 @@ function Compras() {
     }
     try {
       const submitData = new FormData();
-      Object.keys(formData).forEach(key => {
+      // Combine alias into proveedor_nombre before submitting
+      const submitFormData = { ...formData };
+      if (submitFormData.proveedor_nombre === 'Proveedor General' && proveedorAlias.trim()) {
+        submitFormData.proveedor_nombre = `Proveedor General - ${proveedorAlias.trim()}`;
+      }
+      Object.keys(submitFormData).forEach(key => {
         if (key === 'detalle') {
-          submitData.append(key, JSON.stringify(formData.detalle.map(d => ({
+          submitData.append(key, JSON.stringify(submitFormData.detalle.map(d => ({
             producto: parseInt(d.producto),
             cantidad: Number(d.cantidad || 0),
             precio_compra: Number(d.precio_compra || 0),
             descuento: Number(d.descuento || 0),
           }))));
         } else if (key === 'proveedor') {
-            if (formData[key]) {
-                submitData.append(key, parseInt(formData[key]));
+            if (submitFormData[key]) {
+                submitData.append(key, parseInt(submitFormData[key]));
             }
         } else if (key === 'comprobante_archivo') {
-          if (formData[key] instanceof File) {
-            submitData.append(key, formData[key]);
+          if (submitFormData[key] instanceof File) {
+            submitData.append(key, submitFormData[key]);
           }
         } else if (key === 'impuesto') {
-            submitData.append(key, Number(formData.impuesto || 0));
+            submitData.append(key, Number(submitFormData.impuesto || 0));
         } else {
-            if (formData[key] !== null && formData[key] !== '') {
-                submitData.append(key, formData[key]);
+            if (submitFormData[key] !== null && submitFormData[key] !== '') {
+                submitData.append(key, submitFormData[key]);
             }
         }
       });
@@ -708,7 +724,7 @@ function Compras() {
                     </div>
                   </td>
                   <td>
-                    <div>{compra.proveedor_nombre || 'Sin proveedor'}</div>
+                    <div>{compra.proveedor_nombre || 'Proveedor General'}</div>
                     <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{compra.tipo_compra}</div>
                   </td>
                   <td style={{ textAlign: 'center' }}>
@@ -814,7 +830,29 @@ function Compras() {
               <div className="modal-body">
                 <div className="grid grid-2">
                   <div className="form-group">
-                    <label className="form-label">Proveedor</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <label className="form-label" style={{ marginBottom: 0 }}>Proveedor</label>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ padding: '2px 8px', fontSize: '11px', height: 'auto' }}
+                        onClick={() => {
+                          const pg = proveedores.find(p => p.identificador === '00000000');
+                          if (pg) {
+                            setFormData(prev => ({
+                              ...prev,
+                              proveedor: String(pg.id),
+                              proveedor_nombre: pg.nombre
+                            }));
+                            if (errors.proveedor) setErrors(prev => ({ ...prev, proveedor: null }));
+                          } else {
+                            alert('Proveedor General no encontrado. Asegúrate de haber ejecutado las migraciones.');
+                          }
+                        }}
+                      >
+                        🏪 Proveedor General
+                      </button>
+                    </div>
                     <div style={{ position: 'relative' }}>
                       <SearchableSelect
                         options={proveedores.map(p => ({
@@ -840,6 +878,22 @@ function Compras() {
                       {formData.proveedor && !proveedores.find(p => String(p.id) === String(formData.proveedor))?.activo && (
                         <div style={{ color: 'var(--color-danger)', fontSize: '12px', marginTop: '4px', fontWeight: 'bold' }}>
                           ⚠️ Este proveedor no está activo y no se puede usar para nuevas compras.
+                        </div>
+                      )}
+                      {/* Alias input for Proveedor General */}
+                      {formData.proveedor_nombre === 'Proveedor General' && (
+                        <div style={{ marginTop: '8px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                            Alias <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>(Nombre, Apellidos o Tienda — opcional)</span>
+                          </label>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Ej: Juan Pérez o Tienda Martínez"
+                            value={proveedorAlias}
+                            onChange={(e) => setProveedorAlias(e.target.value)}
+                            style={{ borderColor: 'var(--accent, #1677ff)', transition: 'border-color 0.2s' }}
+                          />
                         </div>
                       )}
                     </div>

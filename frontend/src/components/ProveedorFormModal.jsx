@@ -234,7 +234,7 @@ const ProveedorFormModal = ({ visible, mode = 'create', initialData = null, onCl
                 {errors.identificador && <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{errors.identificador}</div>}
               </div>
             </div>
- bitumen
+
 
             <div className="grid grid-2">
               <div className="form-group">

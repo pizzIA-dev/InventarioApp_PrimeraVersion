@@ -1,8 +1,17 @@
 import { useState, useEffect } from 'react';
 import { capitalAPI } from '../services/api';
-import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { 
+  PlusOutlined, 
+  EditOutlined, 
+  DeleteOutlined, 
+  HistoryOutlined, 
+  FileExcelOutlined,
+  SettingOutlined
+} from '@ant-design/icons';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ExportDropdown from '../components/ExportDropdown';
+import SearchableSelect from '../components/SearchableSelect';
 
 function Capital() {
   const [loading, setLoading] = useState(true);
@@ -25,6 +34,28 @@ function Capital() {
     banco: '',
     estado: 'ACTIVO',
     notas: '',
+  });
+
+  // Kardex (History) Modal
+  const [kardexVisible, setKardexVisible] = useState(false);
+  const [kardexCapital, setKardexCapital] = useState(null);
+  const [kardexData, setKardexData] = useState([]);
+  const [kardexLoading, setKardexLoading] = useState(false);
+  const [kardexPage, setKardexPage] = useState(1);
+  const [kardexTotalPages, setKardexTotalPages] = useState(1);
+  const [kardexTotal, setKardexTotal] = useState(0);
+  const [kardexFechaDesde, setKardexFechaDesde] = useState('');
+  const [kardexFechaHasta, setKardexFechaHasta] = useState('');
+
+  // New Type Modal
+  const [tipoModalVisible, setTipoModalVisible] = useState(false);
+  const [tipoPage, setTipoPage] = useState(1);
+  const [tipoModalMode, setTipoModalMode] = useState('create');
+  const [editingTipoId, setEditingTipoId] = useState(null);
+  const [tipoFormData, setTipoFormData] = useState({
+    nombre: '',
+    tipo: 'BIEN',
+    descripcion: ''
   });
 
   // Pagination
@@ -165,6 +196,169 @@ function Capital() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Pagination for Capital Types (Sub-modal)
+  const TIPO_PAGE_SIZE = 5;
+  const totalTipoPages = Math.ceil(tipos.length / TIPO_PAGE_SIZE);
+  const safeTipoPage = Math.min(tipoPage, totalTipoPages || 1);
+  const paginatedTipos = tipos.slice(
+    (safeTipoPage - 1) * TIPO_PAGE_SIZE,
+    safeTipoPage * TIPO_PAGE_SIZE
+  );
+
+  const handleTipoChange = (e) => {
+    const { name, value } = e.target;
+    setTipoFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const resetTipoForm = () => {
+    setTipoFormData({ nombre: '', tipo: 'BIEN', descripcion: '' });
+    setTipoModalMode('create');
+    setEditingTipoId(null);
+  };
+
+  const handleEditTipo = (tipo) => {
+    setTipoModalMode('edit');
+    setEditingTipoId(tipo.id);
+    setTipoFormData({
+      nombre: tipo.nombre,
+      tipo: tipo.tipo,
+      descripcion: tipo.descripcion || ''
+    });
+  };
+
+  const handleTipoSubmit = async (e) => {
+    e.preventDefault();
+    if (!tipoFormData.nombre) {
+      alert('El nombre del tipo es obligatorio');
+      return;
+    }
+    try {
+      let response;
+      if (tipoModalMode === 'create') {
+        response = await capitalAPI.createTipo(tipoFormData);
+      } else {
+        response = await capitalAPI.updateTipo(editingTipoId, tipoFormData);
+      }
+      
+      const typesResponse = await capitalAPI.getTipos();
+      const updatedTipos = typesResponse.data.results || typesResponse.data;
+      setTipos(updatedTipos);
+      
+      if (tipoModalMode === 'create') {
+        setFormData(prev => ({ ...prev, tipo: response.data.id }));
+        setTipoModalVisible(false);
+      }
+      
+      resetTipoForm();
+    } catch (error) {
+      console.error(`Error ${tipoModalMode === 'create' ? 'creating' : 'updating'} tipo:`, error);
+      alert(`Error al ${tipoModalMode === 'create' ? 'crear' : 'actualizar'} el tipo de capital`);
+    }
+  };
+
+  const handleDeleteTipo = async (id) => {
+    if (window.confirm('¿Estás seguro de que deseas eliminar este tipo de capital? Solo se marcará como inactivo si tiene registros asociados.')) {
+      try {
+        await capitalAPI.deleteTipo(id);
+        const typesResponse = await capitalAPI.getTipos();
+        setTipos(typesResponse.data.results || typesResponse.data);
+      } catch (error) {
+        console.error('Error deleting tipo:', error);
+        alert('Error al eliminar el tipo de capital');
+      }
+    }
+  };
+
+  // ─── Kardex functions ─────────────────────────────────────────────────────
+  const fetchKardex = async (capitalId, page = 1, fechaDesde = '', fechaHasta = '') => {
+    setKardexLoading(true);
+    try {
+      const params = { page, page_size: 15 };
+      if (fechaDesde) params.fecha_desde = fechaDesde;
+      if (fechaHasta) params.fecha_hasta = fechaHasta;
+      const response = await capitalAPI.getHistorial(capitalId, params);
+      const data = response.data;
+      setKardexData(data.results || []);
+      setKardexTotal(data.count || 0);
+      setKardexTotalPages(data.total_pages || 1);
+      setKardexPage(data.page || 1);
+    } catch (error) {
+      console.error('Error fetching kardex:', error);
+    } finally {
+      setKardexLoading(false);
+    }
+  };
+
+  const openKardex = (capital) => {
+    setKardexCapital(capital);
+    setKardexVisible(true);
+    setKardexFechaDesde('');
+    setKardexFechaHasta('');
+    fetchKardex(capital.id, 1, '', '');
+  };
+
+  const closeKardex = () => {
+    setKardexVisible(false);
+    setKardexCapital(null);
+    setKardexData([]);
+    setKardexPage(1);
+    setKardexTotalPages(1);
+    setKardexFechaDesde('');
+    setKardexFechaHasta('');
+  };
+
+  const handleKardexExport = async () => {
+    try {
+      const response = await capitalAPI.exportarHistorial(kardexCapital.id);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `historial_capital_${kardexCapital.nombre}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error exporting kardex:', error);
+      alert('Error al exportar el historial.');
+    }
+  };
+
+  const handleExportarCapital = async (periodo, anio) => {
+    try {
+      const params = { periodo };
+      if (anio) params.anio = anio;
+      const response = await capitalAPI.exportar(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `capital_${periodo}${anio ? '_' + anio : ''}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error exporting capital:', error);
+      alert('Error al exportar capital.');
+    }
+  };
+
+  const handleExportarHistorialGlobal = async (periodo, anio) => {
+    try {
+      const params = { periodo };
+      if (anio) params.anio = anio;
+      const response = await capitalAPI.exportarHistorialGlobal(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `historial_global_capital_${periodo}${anio ? '_' + anio : ''}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error exporting global historial:', error);
+      alert('Error al exportar historial global.');
+    }
+  };
+
   return (
     <div>
       <ConfirmDialog
@@ -181,9 +375,13 @@ function Capital() {
           <h1 className="page-title">Capital</h1>
           <p className="page-subtitle">Gestión de capital y activos del negocio</p>
         </div>
-        <button className="btn btn-primary" onClick={() => openModal('create')}>
-          <PlusOutlined /> Nuevo Capital
-        </button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <ExportDropdown onExport={handleExportarHistorialGlobal} label="Exportar Historial Global" />
+          <ExportDropdown onExport={handleExportarCapital} label="Exportar Capital" />
+          <button className="btn btn-primary" onClick={() => openModal('create')}>
+            <PlusOutlined /> Nuevo Capital
+          </button>
+        </div>
       </div>
 
       {/* Resumen */}
@@ -209,6 +407,7 @@ function Capital() {
           <table>
             <thead>
               <tr>
+                <th>Fecha de Registro</th>
                 <th>Nombre</th>
                 <th>Tipo</th>
                 <th>Categoría</th>
@@ -221,6 +420,11 @@ function Capital() {
             <tbody>
               {paginatedCapitales.map((capital) => (
                 <tr key={capital.id}>
+                  <td style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>
+                    {new Date(capital.creado_en).toLocaleDateString('es-PE', {
+                      year: 'numeric', month: '2-digit', day: '2-digit',
+                    })}
+                  </td>
                   <td>{capital.nombre}</td>
                   <td>{capital.tipo_nombre || '-'}</td>
                   <td>
@@ -239,7 +443,10 @@ function Capital() {
                     </span>
                   </td>
                   <td>
-                    <button className="btn btn-secondary" onClick={() => openModal('edit', capital)}>
+                    <button className="btn btn-secondary" title="Historial (Kardex)" onClick={() => openKardex(capital)} style={{ marginRight: '4px' }}>
+                      <HistoryOutlined />
+                    </button>
+                    <button className="btn btn-secondary" onClick={() => openModal('edit', capital)} style={{ marginRight: '4px' }}>
                       <EditOutlined />
                     </button>
                     <button className="btn btn-danger" onClick={() => handleDeleteClick(capital)}>
@@ -275,17 +482,29 @@ function Capital() {
                 <div className="grid grid-2">
                   <div className="form-group">
                     <label className="form-label">Tipo</label>
-                    <select
-                      name="tipo"
-                      className="form-input"
-                      value={formData.tipo}
-                      onChange={handleChange}
-                    >
-                      <option value="">Seleccionar tipo</option>
-                      {tipos.map(t => (
-                        <option key={t.id} value={t.id}>{t.nombre}</option>
-                      ))}
-                    </select>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        <SearchableSelect
+                          options={tipos.map(t => ({ id: t.id, nombre: t.nombre }))}
+                          value={formData.tipo}
+                          onChange={(val) => setFormData({ ...formData, tipo: val })}
+                          placeholder="Seleccionar tipo..."
+                          disabled={loading}
+                        />
+                      </div>
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary" 
+                        onClick={() => setTipoModalVisible(true)}
+                        title="Gestionar Tipos de Capital"
+                        style={{ height: '42px', padding: '0 12px', whiteSpace: 'nowrap' }}
+                      >
+                        <PlusOutlined />
+                      </button>
+                    </div>
+                    <p className="field-hint" style={{ fontSize: '11px', marginTop: '4px', opacity: 0.7 }}>
+                      Selecciona un tipo existente o gestiona la lista.
+                    </p>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Nombre *</label>
@@ -425,6 +644,264 @@ function Capital() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Modal para Nuevo Tipo de Capital */}
+      {tipoModalVisible && (
+        <div className="modal-overlay" style={{ zIndex: 1100 }} onClick={() => {
+          setTipoModalVisible(false);
+          resetTipoForm();
+        }}>
+          <div className="modal" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">{tipoModalMode === 'create' ? 'Nuevo Tipo de Capital' : 'Editar Tipo de Capital'}</h3>
+              <button className="modal-close" onClick={() => {
+                setTipoModalVisible(false);
+                resetTipoForm();
+              }}>×</button>
+            </div>
+            <form onSubmit={handleTipoSubmit}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Nombre *</label>
+                  <input
+                    type="text"
+                    name="nombre"
+                    className="form-input"
+                    value={tipoFormData.nombre}
+                    onChange={handleTipoChange}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Categoría *</label>
+                  <select
+                    name="tipo"
+                    className="form-input"
+                    value={tipoFormData.tipo}
+                    onChange={handleTipoChange}
+                    required
+                  >
+                    <option value="BIEN">Bien/Activo Fijo</option>
+                    <option value="DINERO">Dinero en Efectivo/Banco</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Descripción</label>
+                  <textarea
+                    name="descripcion"
+                    className="form-input"
+                    value={tipoFormData.descripcion}
+                    onChange={handleTipoChange}
+                    rows={2}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => {
+                  if (tipoModalMode === 'edit') {
+                    resetTipoForm();
+                  } else {
+                    setTipoModalVisible(false);
+                  }
+                }}>
+                  {tipoModalMode === 'edit' ? 'Cancelar Edición' : 'Cancelar'}
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  {tipoModalMode === 'create' ? 'Crear Tipo' : 'Guardar Cambios'}
+                </button>
+              </div>
+            </form>
+
+            {/* Listado de Tipos Existentes */}
+            <div className="modal-body" style={{ borderTop: '1px solid #eee', marginTop: '16px' }}>
+              <h4 style={{ marginBottom: '12px', fontSize: '14px' }}>Tipos de Capital Existentes</h4>
+              <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                <table style={{ width: '100%', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', color: '#666' }}>
+                      <th>Nombre</th>
+                      <th>Categoría</th>
+                      <th style={{ textAlign: 'right' }}>Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody style={{ minHeight: '150px' }}>
+                    {paginatedTipos.map(t => (
+                      <tr key={t.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                        <td style={{ padding: '8px 0' }}>{t.nombre}</td>
+                        <td style={{ padding: '8px 0' }}>
+                          <span className={`badge ${t.tipo === 'DINERO' ? 'badge-info' : 'badge-warning'}`} style={{ fontSize: '10px' }}>
+                            {t.tipo}
+                          </span>
+                        </td>
+                        <td style={{ padding: '8px 0', textAlign: 'right' }}>
+                          <button 
+                            className="btn btn-info" 
+                            style={{ padding: '2px 8px', fontSize: '12px', marginRight: '8px' }}
+                            onClick={() => handleEditTipo(t)}
+                            title="Editar"
+                          >
+                            <EditOutlined />
+                          </button>
+                          <button 
+                            className="btn btn-danger" 
+                            style={{ padding: '2px 8px', fontSize: '12px' }}
+                            onClick={() => handleDeleteTipo(t.id)}
+                            title="Eliminar"
+                          >
+                            <DeleteOutlined />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {paginatedTipos.length === 0 && (
+                      <tr>
+                        <td colSpan="3" style={{ textAlign: 'center', padding: '16px', color: '#999' }}>
+                          No hay tipos registrados
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Paginación de Tipos */}
+              {totalTipoPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '12px', fontSize: '12px' }}>
+                  <button 
+                    className="btn btn-secondary" 
+                    style={{ padding: '2px 8px' }}
+                    onClick={() => setTipoPage(p => Math.max(1, p - 1))}
+                    disabled={safeTipoPage === 1}
+                  >
+                    Anterior
+                  </button>
+                  <span>Página {safeTipoPage} de {totalTipoPages}</span>
+                  <button 
+                    className="btn btn-secondary" 
+                    style={{ padding: '2px 8px' }}
+                    onClick={() => setTipoPage(p => Math.min(totalTipoPages, p + 1))}
+                    disabled={safeTipoPage === totalTipoPages}
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ─── Kardex Modal ─────────────────────────────────────────────────────── */}
+      {kardexVisible && kardexCapital && (
+        <div className="modal-overlay" onClick={closeKardex}>
+          <div className="modal" style={{ maxWidth: '900px', width: '95vw' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <HistoryOutlined /> Historial - {kardexCapital.nombre}
+              </h3>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button className="btn btn-secondary" onClick={handleKardexExport} style={{ padding: '4px 12px', fontSize: '12px' }}>
+                  Exportar Excel
+                </button>
+                <button className="modal-close" onClick={closeKardex}>x</button>
+              </div>
+            </div>
+
+            {/* Date filter bar */}
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color, #334155)', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', marginBottom: '4px', color: 'var(--text-muted)' }}>Desde</label>
+                <input type="date" value={kardexFechaDesde} onChange={(e) => setKardexFechaDesde(e.target.value)}
+                  className="form-input" style={{ padding: '5px 8px', fontSize: '13px', width: 'auto' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', marginBottom: '4px', color: 'var(--text-muted)' }}>Hasta</label>
+                <input type="date" value={kardexFechaHasta} onChange={(e) => setKardexFechaHasta(e.target.value)}
+                  className="form-input" style={{ padding: '5px 8px', fontSize: '13px', width: 'auto' }} />
+              </div>
+              <button className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '13px' }}
+                onClick={() => fetchKardex(kardexCapital.id, 1, kardexFechaDesde, kardexFechaHasta)}>Filtrar</button>
+              <button className="btn btn-secondary" style={{ padding: '5px 14px', fontSize: '13px' }}
+                onClick={() => { setKardexFechaDesde(''); setKardexFechaHasta(''); fetchKardex(kardexCapital.id, 1, '', ''); }}>Limpiar</button>
+              <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--text-muted)', alignSelf: 'center' }}>
+                {kardexTotal} registro{kardexTotal !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {/* Kardex Table */}
+            <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '48vh', padding: 0 }}>
+              {kardexLoading ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Cargando historial...</div>
+              ) : kardexData.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No hay movimientos registrados para este período.</div>
+              ) : (
+                <table style={{ minWidth: '1100px', width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>Fecha y Hora</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px' }}>Campo Modificado</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '11px', color: '#888' }}>V. Inicial Ant.</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '11px' }}>V. Inicial Nvo.</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '11px', color: '#888' }}>V. Actual Ant.</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '11px' }}>V. Actual Nvo.</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px' }}>Notas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {kardexData.map((mov) => {
+                      const dt = new Date(mov.fecha).toLocaleString('es-PE', {
+                        year: 'numeric', month: '2-digit', day: '2-digit',
+                        hour: '2-digit', minute: '2-digit', second: '2-digit'
+                      });
+                      const isCreacion = mov.campo_modificado === 'Creación' || mov.campo_modificado === 'Carga Inicial';
+                      
+                      const formatPrice = (val) => {
+                        if (val === null || val === undefined) return '-';
+                        return `S/. ${parseFloat(val).toFixed(2)}`;
+                      };
+
+                      return (
+                        <tr key={mov.id} style={{ borderBottom: '1px solid var(--border-color, #334155)' }}>
+                          <td style={{ padding: '8px 12px', fontSize: '11px', whiteSpace: 'nowrap' }}>{dt}</td>
+                          <td style={{ padding: '8px 12px', fontSize: '12px', fontWeight: isCreacion ? 'bold' : 'normal' }}>
+                            <span style={{ color: isCreacion ? '#52c41a' : 'inherit' }}>{mov.campo_modificado || '-'}</span>
+                          </td>
+                          <td style={{ padding: '8px 12px', fontSize: '12px', color: '#888', textAlign: 'right' }}>
+                            {formatPrice(mov.valor_inicial_ant)}
+                          </td>
+                          <td style={{ padding: '8px 12px', fontSize: '12px', fontWeight: 600, textAlign: 'right' }}>
+                            {formatPrice(mov.valor_inicial_nvo)}
+                          </td>
+                          <td style={{ padding: '8px 12px', fontSize: '12px', color: '#888', textAlign: 'right' }}>
+                            {formatPrice(mov.valor_actual_ant)}
+                          </td>
+                          <td style={{ padding: '8px 12px', fontSize: '12px', fontWeight: 600, textAlign: 'right' }}>
+                            {formatPrice(mov.valor_actual_nvo)}
+                          </td>
+                          <td style={{ padding: '8px 12px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            {mov.notas || ''}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Pagination */}
+            {!kardexLoading && kardexTotalPages > 1 && (
+              <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', borderTop: '1px solid var(--border-color, #334155)' }}>
+                <button className="btn btn-secondary" style={{ padding: '4px 12px', fontSize: '12px' }}
+                  onClick={() => fetchKardex(kardexCapital.id, kardexPage - 1, kardexFechaDesde, kardexFechaHasta)}
+                  disabled={kardexPage <= 1}>Anterior</button>
+                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Página {kardexPage} de {kardexTotalPages}</span>
+                <button className="btn btn-secondary" style={{ padding: '4px 12px', fontSize: '12px' }}
+                  onClick={() => fetchKardex(kardexCapital.id, kardexPage + 1, kardexFechaDesde, kardexFechaHasta)}
+                  disabled={kardexPage >= kardexTotalPages}>Siguiente</button>
+              </div>
+            )}
           </div>
         </div>
       )}

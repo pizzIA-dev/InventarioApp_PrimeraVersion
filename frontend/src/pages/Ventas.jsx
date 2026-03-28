@@ -50,6 +50,13 @@ function Ventas() {
   const [historyType, setHistoryType] = useState(''); // 'producto' or 'servicio'
   const [showGlobalKardex, setShowGlobalKardex] = useState(false);
 
+  // Alias for Cliente General (separate from formData/ventaData so it's not sent as-is)
+  const [clienteAlias, setClienteAlias] = useState('');
+  const [ventaClienteAlias, setVentaClienteAlias] = useState('');
+  // IGV calculation flags: false = IGV ya incluido en precios, true = calcular IGV automáticamente
+  const [calcularIgv, setCalcularIgv] = useState(false);
+  const [calcularIgvServicio, setCalcularIgvServicio] = useState(false);
+
   const openDetailModal = async (venta) => {
     // Determine if it's a service sale or product sale
     const isService = !!venta.servicio;
@@ -247,30 +254,41 @@ function Ventas() {
     return `${prefix}-${(maxNum + 1).toString().padStart(6, '0')}`;
   };
 
-  // Auto-calculate IGV and generate number for Products
+  // Auto-calculate IGV for Products — only when calcularIgv is enabled
   useEffect(() => {
-    if (modalMode === 'create') {
-      const subtotal = formData.detalle.reduce((sum, d) => {
-        return sum + (Number(d.cantidad || 0) * Number(d.precio_venta || 0) - Number(d.descuento || 0));
-      }, 0) - Number(formData.descuento || 0);
-      
-      const newImpuesto = Number((subtotal * 0.18).toFixed(2));
-      if (formData.impuesto !== newImpuesto) {
-        setFormData(prev => ({ ...prev, impuesto: newImpuesto }));
+    if (modalMode === 'create' || modalMode === 'edit') {
+      if (calcularIgv) {
+        const subtotal = formData.detalle.reduce((sum, d) => {
+          return sum + (Number(d.cantidad || 0) * Number(d.precio_venta || 0) - Number(d.descuento || 0));
+        }, 0) - Number(formData.descuento || 0);
+        const newImpuesto = Number((subtotal * 0.18).toFixed(2));
+        if (formData.impuesto !== newImpuesto) {
+          setFormData(prev => ({ ...prev, impuesto: newImpuesto }));
+        }
+      } else {
+        if (formData.impuesto !== 0) {
+          setFormData(prev => ({ ...prev, impuesto: 0 }));
+        }
       }
     }
-  }, [formData.detalle, formData.descuento, modalMode]);
+  }, [formData.detalle, formData.descuento, modalMode, calcularIgv]);
 
-  // Auto-calculate IGV and generate number for Services
+  // Auto-calculate IGV for Services — only when calcularIgvServicio is enabled
   useEffect(() => {
-    if (modalMode === 'venta') {
-      const subtotal = Number(ventaData.precio || 0) - Number(ventaData.descuento || 0);
-      const newImpuesto = Number((subtotal * 0.18).toFixed(2));
-      if (ventaData.impuesto !== newImpuesto) {
-        setVentaData(prev => ({ ...prev, impuesto: newImpuesto }));
+    if (modalMode === 'venta' || modalMode === 'editVenta') {
+      if (calcularIgvServicio) {
+        const subtotal = Number(ventaData.precio || 0) - Number(ventaData.descuento || 0);
+        const newImpuesto = Number((subtotal * 0.18).toFixed(2));
+        if (ventaData.impuesto !== newImpuesto) {
+          setVentaData(prev => ({ ...prev, impuesto: newImpuesto }));
+        }
+      } else {
+        if (ventaData.impuesto !== 0) {
+          setVentaData(prev => ({ ...prev, impuesto: 0 }));
+        }
       }
     }
-  }, [ventaData.precio, ventaData.descuento, modalMode]);
+  }, [ventaData.precio, ventaData.descuento, modalMode, calcularIgvServicio]);
 
   useEffect(() => {
     fetchVentas();
@@ -332,6 +350,8 @@ function Ventas() {
     setErrors({});
     if (mode === 'create') {
       const simpleNum = generateComprobanteNumber('SIMPLE');
+      setClienteAlias('');
+      setCalcularIgv(false);
       setFormData({
         cliente: '',
         cliente_nombre: '',
@@ -350,9 +370,15 @@ function Ventas() {
       try {
         const res = await ventasAPI.getById(venta.id);
         const full = res.data;
+        // Extract alias from cliente_nombre if it's "Cliente General - Alias"
+        const nombre = full.cliente_nombre || '';
+        const isGeneralWithAlias = nombre.startsWith('Cliente General - ');
+        setClienteAlias(isGeneralWithAlias ? nombre.slice('Cliente General - '.length) : '');
+        // Auto-detect IGV flag: if impuesto > 0 the original venta had IGV calculated
+        setCalcularIgv(Number(full.impuesto || 0) > 0);
         setFormData({
           cliente: full.cliente || '',
-          cliente_nombre: full.cliente_nombre || '',
+          cliente_nombre: isGeneralWithAlias ? 'Cliente General' : nombre,
           numero_comprobante_simple: full.numero_comprobante_simple || '',
           numero_comprobante: full.numero_comprobante || '',
           tipo_comprobante: full.tipo_comprobante || '',
@@ -369,9 +395,14 @@ function Ventas() {
         });
       } catch (err) {
         // Fallback to passed venta data
+        const nombre = venta.cliente_nombre || '';
+        const isGeneralWithAlias = nombre.startsWith('Cliente General - ');
+        setClienteAlias(isGeneralWithAlias ? nombre.slice('Cliente General - '.length) : '');
+        // Auto-detect IGV flag: if impuesto > 0 the original venta had IGV calculated
+        setCalcularIgv(Number(venta.impuesto || 0) > 0);
         setFormData({
           cliente: venta.cliente || '',
-          cliente_nombre: venta.cliente_nombre || '',
+          cliente_nombre: isGeneralWithAlias ? 'Cliente General' : nombre,
           numero_comprobante_simple: venta.numero_comprobante_simple || '',
           numero_comprobante: venta.numero_comprobante || '',
           tipo_comprobante: venta.tipo_comprobante || '',
@@ -474,29 +505,34 @@ function Ventas() {
 
     try {
       const submitData = new FormData();
-      Object.keys(formData).forEach(key => {
+      // Combine alias into cliente_nombre before submitting
+      const submitFormData = { ...formData };
+      if (submitFormData.cliente_nombre === 'Cliente General' && clienteAlias.trim()) {
+        submitFormData.cliente_nombre = `Cliente General - ${clienteAlias.trim()}`;
+      }
+      Object.keys(submitFormData).forEach(key => {
         if (key === 'detalle') {
-          submitData.append(key, JSON.stringify(formData.detalle.map(d => ({
+          submitData.append(key, JSON.stringify(submitFormData.detalle.map(d => ({
             producto: parseInt(d.producto),
             cantidad: Number(d.cantidad || 0),
             precio_venta: Number(d.precio_venta || 0),
             descuento: Number(d.descuento || 0),
           }))));
         } else if (key === 'cliente') {
-            if (formData[key]) {
-                submitData.append(key, parseInt(formData[key]));
+            if (submitFormData[key]) {
+                submitData.append(key, parseInt(submitFormData[key]));
             }
         } else if (key === 'comprobante_archivo') {
-          if (formData[key] instanceof File) {
-            submitData.append(key, formData[key]);
+          if (submitFormData[key] instanceof File) {
+            submitData.append(key, submitFormData[key]);
           }
         } else if (key === 'impuesto') {
-            submitData.append(key, Number(formData.impuesto || 0));
+            submitData.append(key, Number(submitFormData.impuesto || 0));
         } else if (key === 'descuento') {
-            submitData.append(key, Number(formData.descuento || 0));
+            submitData.append(key, Number(submitFormData.descuento || 0));
         } else {
-            if (formData[key] !== null && formData[key] !== '') {
-                submitData.append(key, formData[key]);
+            if (submitFormData[key] !== null && submitFormData[key] !== '') {
+                submitData.append(key, submitFormData[key]);
             }
         }
       });
@@ -579,6 +615,8 @@ function Ventas() {
   const openVentaModal = () => {
     const simpleNum = generateComprobanteNumber('SIMPLE');
     setVentaErrors({});
+    setVentaClienteAlias('');
+    setCalcularIgvServicio(false);
     setVentaData({
       servicio: '',
       servicio_nombre: '',
@@ -600,11 +638,17 @@ function Ventas() {
 
   const openVentaEditModal = (venta) => {
     setSelectedVenta(venta);
+    // Extract alias from cliente_nombre if it's "Cliente General - Alias"
+    const nombre = venta.cliente_nombre || '';
+    const isGeneralWithAlias = nombre.startsWith('Cliente General - ');
+    setVentaClienteAlias(isGeneralWithAlias ? nombre.slice('Cliente General - '.length) : '');
+    // Auto-detect IGV flag: if impuesto > 0 the original venta had IGV calculated
+    setCalcularIgvServicio(Number(venta.impuesto || 0) > 0);
     setVentaData({
       servicio: venta.servicio || '',
       servicio_nombre: venta.servicio_nombre || '',
       cliente: venta.cliente || '',
-      cliente_nombre: venta.cliente_nombre || '',
+      cliente_nombre: isGeneralWithAlias ? 'Cliente General' : nombre,
       precio: venta.precio || 0,
       descuento: venta.descuento || 0,
       impuesto: venta.impuesto || 0,
@@ -705,18 +749,23 @@ function Ventas() {
     }
 
     const ventaSubmitData = new FormData();
-    Object.keys(ventaData).forEach(key => {
+    // Combine alias into cliente_nombre before submitting
+    const submitVentaData = { ...ventaData };
+    if (submitVentaData.cliente_nombre === 'Cliente General' && ventaClienteAlias.trim()) {
+      submitVentaData.cliente_nombre = `Cliente General - ${ventaClienteAlias.trim()}`;
+    }
+    Object.keys(submitVentaData).forEach(key => {
         if (key === 'precio') {
-            ventaSubmitData.append(key, Number(ventaData.precio || 0));
+            ventaSubmitData.append(key, Number(submitVentaData.precio || 0));
         } else if (key === 'descuento') {
-            ventaSubmitData.append(key, Number(ventaData.descuento || 0));
+            ventaSubmitData.append(key, Number(submitVentaData.descuento || 0));
         } else if (key === 'comprobante_archivo') {
-            if (ventaData[key] instanceof File) {
-                ventaSubmitData.append(key, ventaData[key]);
+            if (submitVentaData[key] instanceof File) {
+                ventaSubmitData.append(key, submitVentaData[key]);
             }
         } else {
-            if (ventaData[key] !== null && ventaData[key] !== '') {
-                ventaSubmitData.append(key, ventaData[key]);
+            if (submitVentaData[key] !== null && submitVentaData[key] !== '') {
+                ventaSubmitData.append(key, submitVentaData[key]);
             }
         }
     });
@@ -1192,6 +1241,22 @@ function Ventas() {
                           onActionClick={() => setClienteModalVisible(true)}
                           actionLabel="➕ Crear Nuevo Cliente"
                         />
+                        {/* Alias input for Cliente General */}
+                        {ventaData.cliente_nombre === 'Cliente General' && (
+                          <div style={{ marginTop: '8px' }}>
+                            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                              Alias <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>(Nombre y Apellidos — opcional)</span>
+                            </label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="Ej: Juan Pérez o Tienda Martínez"
+                              value={ventaClienteAlias}
+                              onChange={(e) => setVentaClienteAlias(e.target.value)}
+                              style={{ borderColor: 'var(--accent, #1677ff)', transition: 'border-color 0.2s' }}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="grid grid-2">
@@ -1279,9 +1344,29 @@ function Ventas() {
                           name="impuesto"
                           className="form-input"
                           value={ventaData.impuesto}
-                          readOnly
-                          style={{ background: 'var(--bg-input)', opacity: 0.8 }}
+                          readOnly={calcularIgvServicio}
+                          onChange={calcularIgvServicio ? undefined : (e) => setVentaData(prev => ({ ...prev, impuesto: parseFloat(e.target.value) || 0 }))}
+                          onFocus={(e) => !calcularIgvServicio && e.target.select()}
+                          style={calcularIgvServicio ? { background: 'var(--bg-input)', opacity: 0.7 } : {}}
+                          min="0"
+                          step="0.01"
                         />
+                        <div style={{ marginTop: '6px' }}>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', userSelect: 'none' }}>
+                            <input
+                              type="checkbox"
+                              checked={calcularIgvServicio}
+                              onChange={(e) => setCalcularIgvServicio(e.target.checked)}
+                              style={{ width: '14px', height: '14px', cursor: 'pointer', accentColor: 'var(--accent, #1677ff)' }}
+                            />
+                            Agregar Cálculo de IGV
+                          </label>
+                          {!calcularIgvServicio && (
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                              IGV incluido en los precios ingresados
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </>
@@ -1335,6 +1420,22 @@ function Ventas() {
                       actionLabel="➕ Crear Nuevo Cliente"
                       error={errors.cliente}
                     />
+                    {/* Alias input for Cliente General */}
+                    {formData.cliente_nombre === 'Cliente General' && (
+                      <div style={{ marginTop: '8px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                          Alias <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>(Nombre y Apellidos — opcional)</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Ej: Juan Pérez o Tienda Martínez"
+                          value={clienteAlias}
+                          onChange={(e) => setClienteAlias(e.target.value)}
+                          style={{ borderColor: 'var(--accent, #1677ff)', transition: 'border-color 0.2s' }}
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="form-group">
                     <label className="form-label">Tipo Comprobante</label>
@@ -1478,7 +1579,34 @@ function Ventas() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Impuestos (IGV 18%)</label>
-                    <input type="number" name="impuesto" className="form-input" value={formData.impuesto} readOnly style={{ background: 'var(--bg-input)', opacity: 0.8 }} />
+                    <input
+                      type="number"
+                      name="impuesto"
+                      className="form-input"
+                      value={formData.impuesto}
+                      readOnly={calcularIgv}
+                      onChange={calcularIgv ? undefined : (e) => setFormData(prev => ({ ...prev, impuesto: parseFloat(e.target.value) || 0 }))}
+                      onFocus={(e) => !calcularIgv && e.target.select()}
+                      style={calcularIgv ? { background: 'var(--bg-input)', opacity: 0.7 } : {}}
+                      min="0"
+                      step="0.01"
+                    />
+                    <div style={{ marginTop: '6px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-secondary)', userSelect: 'none' }}>
+                        <input
+                          type="checkbox"
+                          checked={calcularIgv}
+                          onChange={(e) => setCalcularIgv(e.target.checked)}
+                          style={{ width: '14px', height: '14px', cursor: 'pointer', accentColor: 'var(--accent, #1677ff)' }}
+                        />
+                        Agregar Cálculo de IGV
+                      </label>
+                      {!calcularIgv && (
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                          IGV incluido en los precios ingresados
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Total Estimado</label>

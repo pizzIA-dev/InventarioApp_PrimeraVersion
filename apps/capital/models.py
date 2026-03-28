@@ -84,3 +84,30 @@ class Capital(models.Model):
     def valor_total(self):
         """Valor total del capital"""
         return self.valor_actual
+
+
+class MovimientoCapital(models.Model):
+    """Registro de cambios en un capital (Kardex)"""
+    capital = models.ForeignKey(
+        Capital,
+        on_delete=models.CASCADE,
+        related_name='movimientos'
+    )
+    fecha = models.DateTimeField(auto_now_add=True)
+    campo_modificado = models.CharField(max_length=100, blank=True, null=True)
+    valor_anterior = models.CharField(max_length=200, blank=True, null=True)
+    valor_nuevo = models.CharField(max_length=200, blank=True, null=True)
+    
+    # New specific tracking fields
+    valor_inicial_ant = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    valor_inicial_nvo = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    valor_actual_ant = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    valor_actual_nvo = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    
+    notas = models.TextField(blank=True, null=True)
+
+    class Meta:
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f"Movimiento {self.capital.nombre} - {self.fecha}"

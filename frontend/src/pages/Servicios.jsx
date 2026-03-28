@@ -1,7 +1,14 @@
 import { useState, useEffect } from 'react';
-import { serviciosAPI, clientesAPI } from '../services/api';
-import { PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, PlayCircleOutlined, HistoryOutlined, FileExcelOutlined } from '@ant-design/icons';
+import { serviciosAPI } from '../services/api';
+import { 
+  PlusOutlined, 
+  EditOutlined, 
+  DeleteOutlined, 
+  HistoryOutlined,
+  SettingOutlined
+} from '@ant-design/icons';
 import Pagination from '../components/Pagination';
+import SearchableSelect from '../components/SearchableSelect';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import ServicioHistoryModal from '../components/ServicioHistoryModal';
@@ -76,6 +83,13 @@ function Servicios() {
   const [errors, setErrors] = useState({});
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [historyServicio, setHistoryServicio] = useState(null);
+  
+  // Category Management State
+  const [catModalVisible, setCatModalVisible] = useState(false);
+  const [catModalMode, setCatModalMode] = useState('create');
+  const [editingCatId, setEditingCatId] = useState(null);
+  const [catFormData, setCatFormData] = useState({ nombre: '', descripcion: '' });
+  
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
@@ -116,6 +130,34 @@ function Servicios() {
     }
   };
 
+  const resetCatForm = () => {
+    setCatFormData({ nombre: '', descripcion: '' });
+    setCatModalMode('create');
+    setEditingCatId(null);
+  };
+
+  const handleCatSubmit = async (e) => {
+    e.preventDefault();
+    if (!catFormData.nombre) {
+      message.error('El nombre de la categoría es obligatorio');
+      return;
+    }
+    try {
+      if (catModalMode === 'create') {
+        await serviciosAPI.createCategoria(catFormData);
+        message.success('Categoría creada con éxito');
+      } else {
+        await serviciosAPI.updateCategoria(editingCatId, catFormData);
+        message.success('Categoría actualizada con éxito');
+      }
+      fetchCategorias();
+      resetCatForm();
+    } catch (error) {
+      console.error('Error saving categoria:', error);
+      message.error('Error al guardar la categoría');
+    }
+  };
+
   const openModal = (mode, servicio = null) => {
     setModalMode(mode);
     if (servicio) {
@@ -124,7 +166,7 @@ function Servicios() {
       setFormData({
         nombre: servicio.nombre || '',
         descripcion: servicio.descripcion || '',
-        categoria: servicio.categoria_nombre || '',
+        categoria: servicio.categoria || '',
         precio_base: servicio.precio_base || 0,
         costo: servicio.costo || 0,
         hasDuration: servicio.duracion_minutos !== null && servicio.duracion_minutos !== undefined,
@@ -157,7 +199,6 @@ function Servicios() {
     e.preventDefault();
     try {
       if (modalMode === 'create' || modalMode === 'edit') {
-        // Validation for Service
         const newErrors = {};
         if (!formData.nombre) newErrors.nombre = 'El nombre es obligatorio';
         if (!formData.precio_base) newErrors.precio_base = 'El precio base es obligatorio';
@@ -167,26 +208,8 @@ function Servicios() {
           return;
         }
 
-        // Categoría logic
-        let categoriaId = null;
-        if (formData.categoria) {
-          const existingCat = categorias.find(c => c.nombre.toLowerCase() === String(formData.categoria).toLowerCase());
-          if (existingCat) {
-            categoriaId = existingCat.id;
-          } else {
-            // Create new category
-            try {
-              const newCatRes = await serviciosAPI.createCategoria({ nombre: formData.categoria });
-              categoriaId = newCatRes.data.id;
-              fetchCategorias(); // refresh in background
-            } catch (catErr) {
-              console.error("Error creating category:", catErr);
-              // Fallback or handle error
-            }
-          }
-        }
+        const categoriaId = formData.categoria || null;
 
-        // Duration logic
         let totalMinutes = null;
         if (formData.hasDuration) {
           totalMinutes = (Number(formData.durationParts.meses || 0) * 43200) +
@@ -203,7 +226,6 @@ function Servicios() {
           costo: Number(formData.costo || 0),
           duracion_minutos: totalMinutes
         };
-        // Remove helper fields
         delete submitData.hasDuration;
         delete submitData.durationParts;
 
@@ -243,11 +265,7 @@ function Servicios() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    if (modalMode === 'venta') {
-      setVentaData(prev => ({ ...prev, [name]: value }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleExportar = async (periodo, anio) => {
@@ -293,7 +311,6 @@ function Servicios() {
     return searchMatch && activoMatch && categoriaMatch;
   });
 
-  // Pagination logic
   const totalPages = Math.max(1, Math.ceil(filteredServicios.length / SERVICIOS_PAGE_SIZE));
   const safePage = Math.min(serviciosPage, totalPages);
   const paginatedServicios = filteredServicios.slice(
@@ -366,7 +383,6 @@ function Servicios() {
         </div>
       </div>
 
-      {/* Servicios */}
       <div className="card" style={{ marginBottom: '24px' }}>
         <div className="card-header">
           <h3 className="card-title">Servicios Disponibles</h3>
@@ -458,20 +474,29 @@ function Servicios() {
                       </div>
                       <div className="form-group">
                         <label className="form-label">Categoría</label>
-                        <input
-                          type="text"
-                          name="categoria"
-                          className="form-input"
-                          value={formData.categoria}
-                          onChange={handleChange}
-                          placeholder="Escribe o selecciona una categoría"
-                          list="categorias-list"
-                        />
-                        <datalist id="categorias-list">
-                          {categorias.map(c => (
-                            <option key={c.id} value={c.nombre} />
-                          ))}
-                        </datalist>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                          <div style={{ flex: 1 }}>
+                            <SearchableSelect
+                              options={categorias.map(c => ({ id: c.id, nombre: c.nombre }))}
+                              value={formData.categoria}
+                              onChange={(val) => setFormData({ ...formData, categoria: val })}
+                              placeholder="Seleccionar categoría..."
+                              disabled={loading}
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => setCatModalVisible(true)}
+                            style={{ height: '42px', padding: '0 12px', whiteSpace: 'nowrap' }}
+                            title="Gestionar Categorías"
+                          >
+                            <SettingOutlined />
+                          </button>
+                        </div>
+                        <p className="field-hint" style={{ fontSize: '11px', marginTop: '4px', opacity: 0.7 }}>
+                          Selecciona una categoría existente o gestiona la lista.
+                        </p>
                       </div>
                     </div>
                     <div className="form-group">
@@ -630,6 +655,134 @@ function Servicios() {
           onClose={() => { setHistoryModalVisible(false); setHistoryServicio(null); }}
           servicio={historyServicio}
         />
+      )}
+
+      {/* Category Management Modal */}
+      {catModalVisible && (
+        <div className="modal-overlay" onClick={() => setCatModalVisible(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Gestionar Categorías de Servicios</h3>
+              <button className="modal-close" onClick={() => setCatModalVisible(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              {/* Form to create/edit */}
+              <form onSubmit={handleCatSubmit} style={{ marginBottom: '24px', padding: '16px', background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <h4 style={{ marginBottom: '12px' }}>{catModalMode === 'create' ? 'Nueva Categoría' : 'Editar Categoría'}</h4>
+                <div className="form-group">
+                  <label className="form-label">Nombre *</label>
+                  <input 
+                    type="text"
+                    className="form-input"
+                    value={catFormData.nombre}
+                    onChange={(e) => setCatFormData(prev => ({ ...prev, nombre: e.target.value }))}
+                    placeholder="Ej: Mantenimiento, Instalación..."
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Descripción</label>
+                  <textarea 
+                    className="form-input"
+                    value={catFormData.descripcion}
+                    onChange={(e) => setCatFormData(prev => ({ ...prev, descripcion: e.target.value }))}
+                    placeholder="Opcional..."
+                    rows={2}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                  {catModalMode === 'edit' && (
+                    <button type="button" className="btn btn-secondary" onClick={resetCatForm}>
+                      Cancelar Edición
+                    </button>
+                  )}
+                  <button type="submit" className="btn btn-primary">
+                    {catModalMode === 'create' ? 'Crear Categoría' : 'Guardar Cambios'}
+                  </button>
+                </div>
+              </form>
+
+              {/* List of existing categories */}
+              <div className="table-container">
+                <style>{`
+                  .cat-table th, .cat-table td { padding: 10px 12px; font-size: 14px; }
+                  .cat-actions { display: flex; gap: 4px; }
+                  .btn-small-icon { padding: 4px; border-radius: 4px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+                  .btn-small-edit { background: rgba(52, 152, 219, 0.1); color: #3498db; }
+                  .btn-small-edit:hover { background: #3498db; color: white; }
+                  .btn-small-delete { background: rgba(231, 76, 60, 0.1); color: #e74c3c; }
+                  .btn-small-delete:hover { background: #e74c3c; color: white; }
+                `}</style>
+                <table className="cat-table">
+                  <thead>
+                    <tr>
+                      <th>Nombre</th>
+                      <th>Descripción</th>
+                      <th>Aciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      const CAT_PAGE_SIZE = 5;
+                      const totalCatPages = Math.ceil(categorias.length / CAT_PAGE_SIZE);
+                      const safeCatPage = Math.min(catPage, totalCatPages || 1);
+                      const paginatedCats = categorias.slice(
+                        (safeCatPage - 1) * CAT_PAGE_SIZE,
+                        safeCatPage * CAT_PAGE_SIZE
+                      );
+                      
+                      return paginatedCats.map(cat => (
+                        <tr key={cat.id}>
+                          <td style={{ fontWeight: '500' }}>{cat.nombre}</td>
+                          <td style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{cat.descripcion || '-'}</td>
+                          <td>
+                            <div className="cat-actions">
+                              <button className="btn-small-icon btn-small-edit" onClick={() => handleEditCat(cat)} title="Editar">
+                                <EditOutlined fontSize={14} />
+                              </button>
+                              <button className="btn-small-icon btn-small-delete" onClick={() => handleDeleteCat(cat.id)} title="Eliminar">
+                                <DeleteOutlined fontSize={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ));
+                    })()}
+                    {categorias.length === 0 && (
+                      <tr><td colSpan="3" style={{ textAlign: 'center', color: '#aaa', padding: '20px' }}>No hay categorías registradas</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Custom Mini Pagination */}
+              {categorias.length > 5 && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '16px' }}>
+                  <button 
+                    className="btn btn-secondary" 
+                    style={{ padding: '4px 12px', fontSize: '12px' }}
+                    onClick={() => setCatPage(prev => Math.max(1, prev - 1))}
+                    disabled={catPage === 1}
+                  >
+                    Anterior
+                  </button>
+                  <span style={{ fontSize: '13px' }}>Pág {catPage} de {Math.ceil(categorias.length / 5)}</span>
+                  <button 
+                    className="btn btn-secondary" 
+                    style={{ padding: '4px 12px', fontSize: '12px' }}
+                    onClick={() => setCatPage(prev => Math.min(Math.ceil(categorias.length / 5), prev + 1))}
+                    disabled={catPage >= Math.ceil(categorias.length / 5)}
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setCatModalVisible(false)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

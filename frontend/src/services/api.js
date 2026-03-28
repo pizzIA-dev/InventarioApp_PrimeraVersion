@@ -106,7 +106,17 @@ export const capitalAPI = {
   getResumen: () => api.get('/capital/resumen/'),
   getPorTipo: () => api.get('/capital/por_tipo/'),
   getTipos: () => api.get('/capital/tipos/'),
+  createTipo: (data) => api.post('/capital/tipos/', data),
+  updateTipo: (id, data) => api.patch(`/capital/tipos/${id}/`, data),
+  deleteTipo: (id) => api.delete(`/capital/tipos/${id}/`),
+  // Historial / Kardex
+  getHistorial: (id, params) => api.get(`/capital/${id}/historial/`, { params }),
+  exportarHistorial: (id) => api.get(`/capital/${id}/exportar_historial/`, { responseType: 'blob' }),
+  // Export lists
+  exportar: (params) => api.get('/capital/exportar/', { params, responseType: 'blob' }),
+  exportarHistorialGlobal: (params) => api.get('/capital/exportar_historial_global/', { params, responseType: 'blob' }),
 };
+
 
 // Servicios
 export const serviciosAPI = {
@@ -126,6 +136,8 @@ export const serviciosAPI = {
   getHistoryEstadosVenta: (id, params) => api.get(`/servicios/ventas/${id}/history_estados/`, { params }),
   getCategorias: () => api.get('/servicios/categorias/'),
   createCategoria: (data) => api.post('/servicios/categorias/', data),
+  updateCategoria: (id, data) => api.patch(`/servicios/categorias/${id}/`, data),
+  deleteCategoria: (id) => api.delete(`/servicios/categorias/${id}/`),
   exportar: (params) => api.get('/servicios/exportar/', { params, responseType: 'blob' }),
   exportarVentas: (params) => api.get('/servicios/ventas/exportar/', { params, responseType: 'blob' }),
   exportarHistorialVenta: (id) => api.get(`/servicios/ventas/${id}/exportar_historial/`, { responseType: 'blob' }),
