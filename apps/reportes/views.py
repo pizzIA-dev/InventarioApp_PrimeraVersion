@@ -189,9 +189,26 @@ class DashboardView(APIView):
         total_clientes = Cliente.objects.filter(activo=True).count()
         total_proveedores = Proveedor.objects.filter(activo=True).count()
         
+        # INGRESOS Y EGRESOS EXTRAORDINARIOS
+        if producto_id or servicio_id:
+            total_ingresos_extra = 0
+            total_egresos_extra = 0
+        else:
+            filtro_transacciones = {}
+            if 'creado_en__date__gte' in filtro_fechas:
+                filtro_transacciones['fecha__date__gte'] = filtro_fechas['creado_en__date__gte']
+            if 'creado_en__date__lt' in filtro_fechas:
+                filtro_transacciones['fecha__date__lt'] = filtro_fechas['creado_en__date__lt']
+            
+            ingresos_extra_query = Transaccion.objects.filter(tipo='INGRESO', **filtro_transacciones)
+            total_ingresos_extra = sum(t.monto for t in ingresos_extra_query)
+            
+            egresos_extra_query = Transaccion.objects.filter(tipo='EGRESO', **filtro_transacciones)
+            total_egresos_extra = sum(t.monto for t in egresos_extra_query)
+        
         # BALANCE DEL PERIODO
-        ingresos_mes = total_ventas_mes + total_servicios_mes
-        egresos_mes = total_compras_mes
+        ingresos_mes = total_ventas_mes + total_servicios_mes + total_ingresos_extra
+        egresos_mes = total_compras_mes + total_egresos_extra
         balance_mes = ingresos_mes - egresos_mes
         
         return Response({
@@ -302,9 +319,24 @@ class ReporteMensualView(APIView):
                 )
                 total_servicios = sum(s.total for s in servicios)
             
+            # Ingresos y Egresos Extraordinarios (Módulo Transacciones)
+            ingresos_extra = Transaccion.objects.filter(
+                tipo='INGRESO',
+                fecha__date__gte=inicio_mes,
+                fecha__date__lt=fin_mes
+            )
+            total_ingresos_extra = sum(t.monto for t in ingresos_extra)
+
+            egresos_extra_qs = Transaccion.objects.filter(
+                tipo='EGRESO',
+                fecha__date__gte=inicio_mes,
+                fecha__date__lt=fin_mes
+            )
+            total_egresos_extra = sum(t.monto for t in egresos_extra_qs)
+            
             # Balance
-            ingresos = total_ventas + total_servicios
-            egresos = total_compras
+            ingresos = total_ventas + total_servicios + total_ingresos_extra
+            egresos = total_compras + total_egresos_extra
             balance = ingresos - egresos
             
             datos_mensuales.append({
@@ -313,6 +345,8 @@ class ReporteMensualView(APIView):
                 'ventas': total_ventas,
                 'compras': total_compras,
                 'servicios': total_servicios,
+                'ingresos_extra': total_ingresos_extra,
+                'egresos_extra': total_egresos_extra,
                 'ingresos': ingresos,
                 'egresos': egresos,
                 'balance': balance

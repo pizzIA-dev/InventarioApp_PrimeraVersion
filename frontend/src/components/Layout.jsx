@@ -28,7 +28,7 @@ const menuItems = [
   { path: '/compras', icon: <ContainerOutlined />, label: 'Compras' },
   { path: '/capital', icon: <WalletOutlined />, label: 'Capital' },
   { path: '/servicios', icon: <ToolOutlined />, label: 'Servicios' },
-  { path: '/transacciones', icon: <SwapOutlined />, label: 'Transacciones' },
+  { path: '/transacciones', icon: <SwapOutlined />, label: 'Otros Movimientos' },
   { path: '/reportes', icon: <BarChartOutlined />, label: 'Reportes' },
 ];
 

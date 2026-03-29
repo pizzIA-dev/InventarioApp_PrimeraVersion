@@ -25,6 +25,8 @@ function Ventas() {
   const [selectedVenta, setSelectedVenta] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState('ALL');
+  const [filterFechaInicio, setFilterFechaInicio] = useState('');
+  const [filterFechaFin, setFilterFechaFin] = useState('');
   const [productos, setProductos] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [clienteModalVisible, setClienteModalVisible] = useState(false);
@@ -36,6 +38,7 @@ function Ventas() {
   const VENTAS_PAGE_SIZE = 15;
   const [ventasPage, setVentasPage] = useState(1);
   const [ventasServiciosPage, setVentasServiciosPage] = useState(1);
+  const [filterServicio, setFilterServicio] = useState('ALL');
   const [servicios, setServicios] = useState([]);
   const [ventaConfirmDialog, setVentaConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
   const [detailModalVisible, setDetailModalVisible] = useState(false);
@@ -852,6 +855,12 @@ function Ventas() {
                         (v.numero_comprobante_simple || '').toLowerCase().includes(term) ||
                         `#${v.id}`.toLowerCase().includes(term);
     if (filterEstado !== 'ALL' && v.estado !== filterEstado) return false;
+    
+    // Date range match
+    const purchaseDate = new Date(v.creado_en).toISOString().split('T')[0];
+    if (filterFechaInicio && purchaseDate < filterFechaInicio) return false;
+    if (filterFechaFin && purchaseDate > filterFechaFin) return false;
+    
     return searchMatch;
   });
 
@@ -870,6 +879,16 @@ function Ventas() {
                                       (v.numero_comprobante || '').toLowerCase().includes(term) ||
                                       (v.numero_comprobante_simple || '').toLowerCase().includes(term);
     if (filterEstado !== 'ALL' && v.estado !== filterEstado) return false;
+    
+    // Date range match
+    if (v.creado_en) {
+      const saleDate = new Date(v.creado_en).toISOString().split('T')[0];
+      if (filterFechaInicio && saleDate < filterFechaInicio) return false;
+      if (filterFechaFin && saleDate > filterFechaFin) return false;
+    }
+
+    if (filterServicio !== 'ALL' && String(v.servicio) !== filterServicio) return false;
+    
     return searchMatch;
   });
 
@@ -883,6 +902,8 @@ function Ventas() {
 
   const handleSearchChange = (val) => { setSearchTerm(val); setVentasPage(1); setVentasServiciosPage(1); };
   const handleFilterEstadoChange = (val) => { setFilterEstado(val); setVentasPage(1); setVentasServiciosPage(1); };
+  const handleFilterFechaInicio = (val) => { setFilterFechaInicio(val); setVentasPage(1); setVentasServiciosPage(1); };
+  const handleFilterFechaFin = (val) => { setFilterFechaFin(val); setVentasPage(1); setVentasServiciosPage(1); };
 
   return (
     <div>
@@ -962,8 +983,9 @@ function Ventas() {
       </div>
 
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: 1, minWidth: '250px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Buscar</label>
             <input 
               type="text" 
               className="form-input" 
@@ -972,18 +994,79 @@ function Ventas() {
               onChange={(e) => handleSearchChange(e.target.value)}
             />
           </div>
+          <div style={{ width: '150px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Desde</label>
+            <input 
+              type="date" 
+              className="form-input" 
+              value={filterFechaInicio}
+              onChange={(e) => handleFilterFechaInicio(e.target.value)}
+            />
+          </div>
+          <div style={{ width: '150px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Hasta</label>
+            <input 
+              type="date" 
+              className="form-input" 
+              value={filterFechaFin}
+              onChange={(e) => handleFilterFechaFin(e.target.value)}
+            />
+          </div>
           <div style={{ width: '200px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Estado</label>
             <select 
               className="form-input" 
               value={filterEstado}
               onChange={(e) => handleFilterEstadoChange(e.target.value)}
             >
               <option value="ALL">Todos los estados</option>
-              <option value="CONFIRMADA">Confirmada</option>
-              <option value="BORRADOR">Borrador</option>
-              <option value="CANCELADA">Cancelada</option>
+              {activeTab === 'PRODUCTOS' ? (
+                <>
+                  <option value="CONFIRMADA">Confirmada</option>
+                  <option value="BORRADOR">Borrador</option>
+                  <option value="CANCELADA">Cancelada</option>
+                </>
+              ) : (
+                <>
+                  <option value="PENDIENTE">Pendiente</option>
+                  <option value="EN_PROGRESO">En Progreso</option>
+                  <option value="TERMINADO">Terminado</option>
+                  <option value="CANCELADO">Cancelado</option>
+                </>
+              )}
             </select>
           </div>
+          {activeTab === 'SERVICIOS' && (
+            <div style={{ width: '200px' }}>
+              <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Servicio</label>
+              <select 
+                className="form-input" 
+                value={filterServicio}
+                onChange={(e) => { setFilterServicio(e.target.value); setVentasServiciosPage(1); }}
+              >
+                <option value="ALL">Todos los servicios</option>
+                {servicios.map(s => (
+                  <option key={s.id} value={s.id}>{s.nombre}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <button 
+            className="btn btn-secondary" 
+            style={{ height: '38px', alignSelf: 'flex-end' }}
+            onClick={() => {
+              setSearchTerm('');
+              setFilterEstado('ALL');
+              setFilterFechaInicio('');
+              setFilterFechaFin('');
+              setFilterServicio('ALL');
+              setVentasPage(1);
+              setVentasServiciosPage(1);
+            }}
+            title="Limpiar filtros"
+          >
+            Limpiar
+          </button>
         </div>
       </div>
 

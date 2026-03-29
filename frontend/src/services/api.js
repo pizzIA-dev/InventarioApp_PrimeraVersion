@@ -159,7 +159,15 @@ export const transaccionesAPI = {
   getResumen: () => api.get('/transacciones/resumen/'),
   getPorCategoria: () => api.get('/transacciones/por_categoria/'),
   getCategorias: () => api.get('/transacciones/categorias/'),
+  createCategoria: (data) => api.post('/transacciones/categorias/', data),
+  updateCategoria: (id, data) => api.patch(`/transacciones/categorias/${id}/`, data),
+  deleteCategoria: (id) => api.delete(`/transacciones/categorias/${id}/`),
+  getCategoriaHistorial: (id, params) => api.get(`/transacciones/categorias/${id}/historial/`, { params }),
+  exportarCategoriaHistorial: (id, params) => api.get(`/transacciones/categorias/${id}/exportar_historial/`, { params, responseType: 'blob' }),
+  getHistorial: (id, params) => api.get(`/transacciones/${id}/historial/`, { params }),
+  exportarHistorial: (id, params) => api.get(`/transacciones/${id}/exportar_historial/`, { params, responseType: 'blob' }),
   exportar: (params) => api.get('/transacciones/exportar/', { params, responseType: 'blob' }),
+  exportarHistorialGlobal: (params) => api.get('/transacciones/exportar_historial_global/', { params, responseType: 'blob' }),
 };
 
 // Reportes

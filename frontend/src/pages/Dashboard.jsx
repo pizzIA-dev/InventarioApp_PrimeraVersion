@@ -13,7 +13,7 @@ function Dashboard() {
   const [reporteMensual, setReporteMensual] = useState(null);
   
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1));
   const [selectedProducto, setSelectedProducto] = useState('');
   const [selectedServicio, setSelectedServicio] = useState('');
   const [productos, setProductos] = useState([]);
@@ -97,7 +97,7 @@ function Dashboard() {
       </div>
 
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ width: '150px' }}>
             <label className="form-label" style={{ fontSize: '13px', marginBottom: '4px' }}>Año</label>
             <select 
@@ -165,6 +165,19 @@ function Dashboard() {
               ))}
             </select>
           </div>
+          <button
+            className="btn btn-secondary"
+            style={{ height: '38px' }}
+            onClick={() => {
+              setSelectedYear(new Date().getFullYear());
+              setSelectedMonth(String(new Date().getMonth() + 1));
+              setSelectedProducto('');
+              setSelectedServicio('');
+            }}
+            title="Limpiar filtros"
+          >
+            Limpiar
+          </button>
         </div>
       </div>
 

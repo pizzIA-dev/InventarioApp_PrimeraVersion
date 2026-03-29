@@ -8,9 +8,13 @@ function Reportes() {
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState(null);
   const [reporteMensual, setReporteMensual] = useState(null);
-  const [fechaInicio, setFechaInicio] = useState('');
-  const [fechaFin, setFechaFin] = useState('');
-  const [reporteAnio, setReporteAnio] = useState(new Date().getFullYear());
+  const now = new Date();
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+  const [fechaInicio, setFechaInicio] = useState(firstDay);
+  const [fechaFin, setFechaFin] = useState(lastDay);
+  const [reporteAnio, setReporteAnio] = useState(now.getFullYear());
 
   useEffect(() => {
     fetchBalance();
@@ -47,13 +51,50 @@ function Reportes() {
   const dataPieIngresos = balance ? [
     { name: 'Ventas Productos', value: balance.ingresos.desglose.ventas_productos },
     { name: 'Ventas Servicios', value: balance.ingresos.desglose.ventas_servicios },
-    { name: 'Ingresos Extra', value: balance.ingresos.desglose.ingresos_extra },
+    { name: 'Ingresos no Operativos', value: balance.ingresos.desglose.ingresos_extra },
   ] : [];
 
   const dataPieEgresos = balance ? [
     { name: 'Compras', value: balance.egresos.desglose.compras },
-    { name: 'Egresos Extra', value: balance.egresos.desglose.egresos_extra },
+    { name: 'Gastos', value: balance.egresos.desglose.egresos_extra },
   ] : [];
+
+  const renderCustomizedLabel = (props) => {
+    const { cx, cy, midAngle, outerRadius, value, fill, index } = props;
+    if (!value || value <= 0) return null;
+    const RADIAN = Math.PI / 180;
+    const sin = Math.sin(-RADIAN * midAngle);
+    const cos = Math.cos(-RADIAN * midAngle);
+    
+    const sx = cx + (outerRadius + 5) * cos;
+    const sy = cy + (outerRadius + 5) * sin;
+    
+    const mx = cx + (outerRadius + 20) * cos;
+    const verticalSpacing = (index % 2 === 0) ? -14 : 14;
+    const my = cy + (outerRadius + 20) * sin + verticalSpacing;
+    
+    const ex = mx + (cos >= 0 ? 1 : -1) * 22;
+    const ey = my;
+    const textAnchor = cos >= 0 ? 'start' : 'end';
+
+    return (
+      <g>
+        <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" opacity={0.8} />
+        <circle cx={ex} cy={ey} r={2} fill={fill} stroke="none" opacity={0.8} />
+        <text 
+          x={ex + (cos >= 0 ? 1 : -1) * 8} 
+          y={ey} 
+          dy={4} 
+          textAnchor={textAnchor} 
+          fill={fill} 
+          fontSize={14}
+          fontWeight={500}
+        >
+          {`S/. ${value.toFixed(2)}`}
+        </text>
+      </g>
+    );
+  };
 
   return (
     <div>
@@ -96,9 +137,27 @@ function Reportes() {
               onChange={(e) => setFechaFin(e.target.value)}
             />
           </div>
-          <div className="form-group" style={{ marginBottom: 0, display: 'flex', alignItems: 'flex-end' }}>
-            <button className="btn btn-primary" onClick={handleFiltrar} style={{ width: '100%' }}>
+          <div className="form-group" style={{ marginBottom: 0, display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+            <button className="btn btn-primary" onClick={handleFiltrar} style={{ flex: 1 }}>
               Filtrar
+            </button>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => {
+                const resetNow = new Date();
+                const resetFirstDay = new Date(resetNow.getFullYear(), resetNow.getMonth(), 1).toISOString().split('T')[0];
+                const resetLastDay = new Date(resetNow.getFullYear(), resetNow.getMonth() + 1, 0).toISOString().split('T')[0];
+                
+                setReporteAnio(resetNow.getFullYear());
+                setFechaInicio(resetFirstDay);
+                setFechaFin(resetLastDay);
+                // Trigger fetch manual if needed, but since unreportedAnio is likely current, 
+                // we might need to call fetchBalance manually here because useEffect only listens to reporteAnio
+                fetchBalance(); 
+              }} 
+              style={{ flex: 1 }}
+            >
+              Limpiar
             </button>
           </div>
         </div>
@@ -142,9 +201,9 @@ function Reportes() {
                     data={dataPieIngresos}
                     cx="50%"
                     cy="50%"
-                    labelLine={false}
-                    label={({ name, value }) => `${name}: S/. ${value?.toFixed(2)}`}
                     outerRadius={80}
+                    label={renderCustomizedLabel}
+                    labelLine={false}
                     fill="#8884d8"
                     dataKey="value"
                   >
@@ -153,6 +212,10 @@ function Reportes() {
                     ))}
                   </Pie>
                   <Tooltip formatter={(value) => `S/. ${value?.toFixed(2)}`} />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36} 
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -168,9 +231,9 @@ function Reportes() {
                     data={dataPieEgresos}
                     cx="50%"
                     cy="50%"
-                    labelLine={false}
-                    label={({ name, value }) => `${name}: S/. ${value?.toFixed(2)}`}
                     outerRadius={80}
+                    label={renderCustomizedLabel}
+                    labelLine={false}
                     fill="#8884d8"
                     dataKey="value"
                   >
@@ -179,59 +242,17 @@ function Reportes() {
                     ))}
                   </Pie>
                   <Tooltip formatter={(value) => `S/. ${value?.toFixed(2)}`} />
+                  <Legend 
+                    verticalAlign="bottom" 
+                    height={36} 
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          {/* Reporte Mensual */}
-          {reporteMensual && (
-            <div className="card" style={{ marginBottom: '24px' }}>
-              <div className="card-header">
-                <h3 className="card-title">Reporte Mensual Detallado</h3>
-              </div>
-              <div className="table-container">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Mes</th>
-                      <th>Ventas</th>
-                      <th>Compras</th>
-                      <th>Servicios</th>
-                      <th>Ingresos</th>
-                      <th>Egresos</th>
-                      <th>Balance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reporteMensual.datos.map((mes) => (
-                      <tr key={mes.mes}>
-                        <td>{mes.nombre_mes}</td>
-                        <td>S/. {mes.ventas?.toFixed(2)}</td>
-                        <td>S/. {mes.compras?.toFixed(2)}</td>
-                        <td>S/. {mes.servicios?.toFixed(2)}</td>
-                        <td style={{ color: '#52c41a', fontWeight: 'bold' }}>
-                          S/. {mes.ingresos?.toFixed(2)}
-                        </td>
-                        <td style={{ color: '#ff4d4f', fontWeight: 'bold' }}>
-                          S/. {mes.egresos?.toFixed(2)}
-                        </td>
-                        <td style={{ 
-                          color: mes.balance >= 0 ? '#52c41a' : '#ff4d4f', 
-                          fontWeight: 'bold' 
-                        }}>
-                          S/. {mes.balance?.toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
           {/* Desglose Detallado */}
-          <div className="grid grid-2">
+          <div className="grid grid-2" style={{ marginBottom: '24px' }}>
             <div className="card">
               <div className="card-header">
                 <h3 className="card-title">Desglose de Ingresos</h3>
@@ -246,7 +267,7 @@ function Reportes() {
                   <strong>S/. {balance.ingresos.desglose.ventas_servicios?.toFixed(2)}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span>Ingresos Extra:</span>
+                  <span>Ingresos no Operativos:</span>
                   <strong>S/. {balance.ingresos.desglose.ingresos_extra?.toFixed(2)}</strong>
                 </div>
                 <div style={{ 
@@ -273,7 +294,7 @@ function Reportes() {
                   <strong>S/. {balance.egresos.desglose.compras?.toFixed(2)}</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span>Egresos Extra:</span>
+                  <span>Gastos:</span>
                   <strong>S/. {balance.egresos.desglose.egresos_extra?.toFixed(2)}</strong>
                 </div>
                 <div style={{ 
@@ -290,6 +311,57 @@ function Reportes() {
               </div>
             </div>
           </div>
+
+          {/* Reporte Mensual */}
+          {reporteMensual && (
+            <div className="card" style={{ marginBottom: '24px' }}>
+              <div className="card-header">
+                <h3 className="card-title">Reporte Mensual Detallado</h3>
+              </div>
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style={{ whiteSpace: 'nowrap' }}>Mes</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Venta de Productos</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Venta de Servicios</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Ingresos no Operativos</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Compras</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Gastos</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Ingresos</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Egresos</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reporteMensual.datos.map((mes) => (
+                      <tr key={mes.mes}>
+                        <td style={{ whiteSpace: 'nowrap' }}>{mes.nombre_mes}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>S/. {mes.ventas?.toFixed(2)}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>S/. {mes.servicios?.toFixed(2)}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>S/. {mes.ingresos_extra?.toFixed(2) || '0.00'}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>S/. {mes.compras?.toFixed(2)}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>S/. {mes.egresos_extra?.toFixed(2) || '0.00'}</td>
+                        <td style={{ color: '#52c41a', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                          S/. {mes.ingresos?.toFixed(2)}
+                        </td>
+                        <td style={{ color: '#ff4d4f', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                          S/. {mes.egresos?.toFixed(2)}
+                        </td>
+                        <td style={{ 
+                          color: mes.balance >= 0 ? '#52c41a' : '#ff4d4f', 
+                          fontWeight: 'bold',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          S/. {mes.balance?.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

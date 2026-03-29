@@ -275,7 +275,7 @@ function Proveedores() {
       </div>
 
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: 1, minWidth: '200px' }}>
             <label className="form-label" style={{ fontSize: '13px' }}>Buscar Proveedor</label>
             <input 
@@ -332,6 +332,21 @@ function Proveedores() {
               <option value="EMPRESA">Empresa</option>
             </select>
           </div>
+          <button
+            className="btn btn-secondary"
+            style={{ height: '38px' }}
+            onClick={() => {
+              setSearchTerm('');
+              setSearchContacto('');
+              setFilterEstado('ALL');
+              setFilterContrato('ALL');
+              setFilterTipo('ALL');
+              setProveedoresPage(1);
+            }}
+            title="Limpiar filtros"
+          >
+            Limpiar
+          </button>
         </div>
       </div>
 

@@ -12,6 +12,7 @@ import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import SearchableSelect from '../components/SearchableSelect';
+import { message } from 'antd';
 
 function Capital() {
   const [loading, setLoading] = useState(true);
@@ -22,6 +23,12 @@ function Capital() {
   const [selectedCapital, setSelectedCapital] = useState(null);
   const [tipos, setTipos] = useState([]);
   const [confirmDialog, setConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
+  const [confirmTipoDialog, setConfirmTipoDialog] = useState({ visible: false, id: null, nombre: '' });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterFechaInicio, setFilterFechaInicio] = useState('');
+  const [filterFechaFin, setFilterFechaFin] = useState('');
+  const [filterEstadoCapital, setFilterEstadoCapital] = useState('ALL');
+  const [filterTipoCapital, setFilterTipoCapital] = useState('ALL');
   const [formData, setFormData] = useState({
     tipo: '',
     nombre: '',
@@ -55,7 +62,8 @@ function Capital() {
   const [tipoFormData, setTipoFormData] = useState({
     nombre: '',
     tipo: 'BIEN',
-    descripcion: ''
+    descripcion: '',
+    activo: true
   });
 
   // Pagination
@@ -79,10 +87,26 @@ function Capital() {
     }
   };
 
+  // Filtering logic
+  const filteredCapitales = capitales.filter(c => {
+    const term = searchTerm.toLowerCase();
+    const searchMatch = (c.nombre || '').toLowerCase().includes(term) || 
+                        (c.tipo_nombre || '').toLowerCase().includes(term);
+    const estadoMatch = filterEstadoCapital === 'ALL' ? true : c.estado === filterEstadoCapital;
+    const tipoMatch = filterTipoCapital === 'ALL' ? true : String(c.tipo) === filterTipoCapital;
+    
+    // Date range match (using creado_en)
+    const recordDate = new Date(c.creado_en).toISOString().split('T')[0];
+    if (filterFechaInicio && recordDate < filterFechaInicio) return false;
+    if (filterFechaFin && recordDate > filterFechaFin) return false;
+
+    return searchMatch && estadoMatch && tipoMatch;
+  });
+
   // Pagination logic
-  const totalPages = Math.max(1, Math.ceil(capitales.length / CAPITAL_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredCapitales.length / CAPITAL_PAGE_SIZE));
   const safePage = Math.min(capitalPage, totalPages);
-  const paginatedCapitales = capitales.slice(
+  const paginatedCapitales = filteredCapitales.slice(
     (safePage - 1) * CAPITAL_PAGE_SIZE,
     safePage * CAPITAL_PAGE_SIZE
   );
@@ -211,25 +235,66 @@ function Capital() {
   };
 
   const resetTipoForm = () => {
-    setTipoFormData({ nombre: '', tipo: 'BIEN', descripcion: '' });
+    setTipoFormData({
+      nombre: '',
+      tipo: 'BIEN',
+      descripcion: '',
+      activo: true
+    });
     setTipoModalMode('create');
     setEditingTipoId(null);
   };
 
-  const handleEditTipo = (tipo) => {
+  const handleEditTipo = (tipoObj) => {
     setTipoModalMode('edit');
-    setEditingTipoId(tipo.id);
+    setEditingTipoId(tipoObj.id);
     setTipoFormData({
-      nombre: tipo.nombre,
-      tipo: tipo.tipo,
-      descripcion: tipo.descripcion || ''
+      nombre: tipoObj.nombre,
+      tipo: tipoObj.tipo,
+      descripcion: tipoObj.descripcion || '',
+      activo: tipoObj.activo !== undefined ? tipoObj.activo : true
     });
+  };
+
+  const handleToggleTipoActive = async (tipoObj) => {
+    try {
+      const nuevoEstado = !tipoObj.activo;
+      await capitalAPI.updateTipo(tipoObj.id, { activo: nuevoEstado });
+      message.success(`Tipo de capital ${nuevoEstado ? 'activado' : 'desactivado'} con éxito`);
+      fetchTipos();
+    } catch (error) {
+      console.error('Error toggling tipo status:', error);
+      message.error('Error al cambiar el estado del tipo de capital');
+    }
+  };
+
+  const handleDeleteTipo = (tipoObj) => {
+    setConfirmTipoDialog({ visible: true, id: tipoObj.id, nombre: tipoObj.nombre });
+  };
+
+  const handleDeleteTipoConfirm = async () => {
+    if (!confirmTipoDialog.id) return;
+    try {
+      await capitalAPI.deleteTipo(confirmTipoDialog.id);
+      message.success('Tipo de capital eliminado con éxito');
+      fetchTipos();
+      setConfirmTipoDialog({ visible: false, id: null, nombre: '' });
+    } catch (error) {
+      console.error('Error deleting tipo:', error);
+      const isConstraintError = error.response?.status === 400 || error.response?.data?.detail?.includes('asociados');
+      if (isConstraintError) {
+        message.warning('No se puede eliminar: este tipo de capital tiene registros asociados. Te recomendamos desactivarlo en su lugar.');
+      } else {
+        message.error('Error al eliminar el tipo de capital.');
+      }
+      setConfirmTipoDialog({ visible: false, id: null, nombre: '' });
+    }
   };
 
   const handleTipoSubmit = async (e) => {
     e.preventDefault();
     if (!tipoFormData.nombre) {
-      alert('El nombre del tipo es obligatorio');
+      message.error('El nombre del tipo es obligatorio');
       return;
     }
     try {
@@ -240,32 +305,18 @@ function Capital() {
         response = await capitalAPI.updateTipo(editingTipoId, tipoFormData);
       }
       
-      const typesResponse = await capitalAPI.getTipos();
-      const updatedTipos = typesResponse.data.results || typesResponse.data;
-      setTipos(updatedTipos);
+      fetchTipos();
       
       if (tipoModalMode === 'create') {
         setFormData(prev => ({ ...prev, tipo: response.data.id }));
         setTipoModalVisible(false);
       }
       
+      message.success(`Tipo de capital ${tipoModalMode === 'create' ? 'creado' : 'actualizado'} con éxito`);
       resetTipoForm();
     } catch (error) {
       console.error(`Error ${tipoModalMode === 'create' ? 'creating' : 'updating'} tipo:`, error);
-      alert(`Error al ${tipoModalMode === 'create' ? 'crear' : 'actualizar'} el tipo de capital`);
-    }
-  };
-
-  const handleDeleteTipo = async (id) => {
-    if (window.confirm('¿Estás seguro de que deseas eliminar este tipo de capital? Solo se marcará como inactivo si tiene registros asociados.')) {
-      try {
-        await capitalAPI.deleteTipo(id);
-        const typesResponse = await capitalAPI.getTipos();
-        setTipos(typesResponse.data.results || typesResponse.data);
-      } catch (error) {
-        console.error('Error deleting tipo:', error);
-        alert('Error al eliminar el tipo de capital');
-      }
+      message.error(`Error al ${tipoModalMode === 'create' ? 'crear' : 'actualizar'} el tipo de capital`);
     }
   };
 
@@ -370,6 +421,15 @@ function Capital() {
         confirmText="Sí, eliminar"
         danger={true}
       />
+      <ConfirmDialog 
+        visible={confirmTipoDialog.visible}
+        onCancel={() => setConfirmTipoDialog({ visible: false, id: null, nombre: '' })}
+        onConfirm={handleDeleteTipoConfirm}
+        title="Eliminar Tipo de Capital"
+        message={`¿Estás seguro de que deseas eliminar el tipo "${confirmTipoDialog.nombre}"? Los registros que usen este tipo de capital perderán su referencia, pero no serán eliminados.`}
+        confirmText="Sí, eliminar tipo"
+        danger={true}
+      />
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">Capital</h1>
@@ -401,6 +461,80 @@ function Capital() {
           </div>
         </div>
       )}
+
+      <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div style={{ flex: 1, minWidth: '250px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Buscar</label>
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Buscar por nombre o tipo..." 
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setCapitalPage(1); }}
+            />
+          </div>
+          <div style={{ width: '150px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Desde</label>
+            <input 
+              type="date" 
+              className="form-input" 
+              value={filterFechaInicio}
+              onChange={(e) => { setFilterFechaInicio(e.target.value); setCapitalPage(1); }}
+            />
+          </div>
+          <div style={{ width: '150px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Hasta</label>
+            <input 
+              type="date" 
+              className="form-input" 
+              value={filterFechaFin}
+              onChange={(e) => { setFilterFechaFin(e.target.value); setCapitalPage(1); }}
+            />
+          </div>
+          <div style={{ width: '180px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Estado</label>
+            <select 
+              className="form-input" 
+              value={filterEstadoCapital}
+              onChange={(e) => { setFilterEstadoCapital(e.target.value); setCapitalPage(1); }}
+            >
+              <option value="ALL">Todos los estados</option>
+              <option value="ACTIVO">Activo</option>
+              <option value="INACTIVO">Inactivo</option>
+              <option value="VENDIDO">Vendido</option>
+            </select>
+          </div>
+          <div style={{ width: '200px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Categoría</label>
+            <select 
+              className="form-input" 
+              value={filterTipoCapital}
+              onChange={(e) => { setFilterTipoCapital(e.target.value); setCapitalPage(1); }}
+            >
+              <option value="ALL">Todas las categorías</option>
+              {tipos.map(t => (
+                <option key={t.id} value={t.id}>{t.nombre}</option>
+              ))}
+            </select>
+          </div>
+          <button 
+            className="btn btn-secondary" 
+            style={{ height: '38px' }}
+            onClick={() => {
+              setSearchTerm('');
+              setFilterEstadoCapital('ALL');
+              setFilterFechaInicio('');
+              setFilterFechaFin('');
+              setFilterTipoCapital('ALL');
+              setCapitalPage(1);
+            }}
+            title="Limpiar filtros"
+          >
+            Limpiar
+          </button>
+        </div>
+      </div>
 
       <div className="card">
         <div className="table-container">
@@ -463,7 +597,7 @@ function Capital() {
           totalPages={totalPages}
           onPageChange={setCapitalPage}
           pageSize={CAPITAL_PAGE_SIZE}
-          totalItems={capitales.length}
+          totalItems={filteredCapitales.length}
           itemName="registros de capital"
         />
       </div>
@@ -485,7 +619,9 @@ function Capital() {
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                       <div style={{ flex: 1 }}>
                         <SearchableSelect
-                          options={tipos.map(t => ({ id: t.id, nombre: t.nombre }))}
+                          options={tipos
+                            .filter(t => t.activo !== false)
+                            .map(t => ({ id: t.id, nombre: t.nombre }))}
                           value={formData.tipo}
                           onChange={(val) => setFormData({ ...formData, tipo: val })}
                           placeholder="Seleccionar tipo..."
@@ -688,6 +824,16 @@ function Capital() {
                   </select>
                 </div>
                 <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={tipoFormData.activo} 
+                      onChange={(e) => setTipoFormData(prev => ({ ...prev, activo: e.target.checked }))} 
+                    />
+                    Este tipo de capital está activo (disponible para nuevos registros)
+                  </label>
+                </div>
+                <div className="form-group">
                   <label className="form-label">Descripción</label>
                   <textarea
                     name="descripcion"
@@ -722,23 +868,47 @@ function Capital() {
                   <thead>
                     <tr style={{ textAlign: 'left', color: '#666' }}>
                       <th>Nombre</th>
-                      <th>Categoría</th>
+                      <th>Cat.</th>
+                      <th>Estado</th>
+                      <th>Uso</th>
                       <th style={{ textAlign: 'right' }}>Acción</th>
                     </tr>
                   </thead>
                   <tbody style={{ minHeight: '150px' }}>
                     {paginatedTipos.map(t => (
-                      <tr key={t.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                        <td style={{ padding: '8px 0' }}>{t.nombre}</td>
+                      <tr key={t.id} style={{ borderBottom: '1px solid #f5f5f5', opacity: t.activo ? 1 : 0.6 }}>
+                        <td style={{ padding: '8px 0' }}>
+                           <div style={{ fontWeight: 500 }}>{t.nombre}</div>
+                        </td>
                         <td style={{ padding: '8px 0' }}>
                           <span className={`badge ${t.tipo === 'DINERO' ? 'badge-info' : 'badge-warning'}`} style={{ fontSize: '10px' }}>
                             {t.tipo}
                           </span>
                         </td>
+                        <td style={{ padding: '8px 0' }}>
+                          <span 
+                            onClick={() => handleToggleTipoActive(t)}
+                            style={{ 
+                              cursor: 'pointer',
+                              padding: '1px 6px', 
+                              borderRadius: '10px', 
+                              fontSize: '10px', 
+                              fontWeight: 600,
+                              background: t.activo ? '#f6ffed' : '#fff1f0',
+                              color: t.activo ? '#52c41a' : '#ff4d4f',
+                              border: `1px solid ${t.activo ? '#b7eb8f' : '#ffa39e'}`
+                            }}
+                          >
+                            {t.activo ? 'ACT' : 'INA'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '8px 0', fontSize: '11px', color: '#888' }}>
+                          {t.capital_count || 0} reg.
+                        </td>
                         <td style={{ padding: '8px 0', textAlign: 'right' }}>
                           <button 
                             className="btn btn-info" 
-                            style={{ padding: '2px 8px', fontSize: '12px', marginRight: '8px' }}
+                            style={{ padding: '2px 8px', fontSize: '12px', marginRight: '4px' }}
                             onClick={() => handleEditTipo(t)}
                             title="Editar"
                           >
@@ -746,9 +916,10 @@ function Capital() {
                           </button>
                           <button 
                             className="btn btn-danger" 
-                            style={{ padding: '2px 8px', fontSize: '12px' }}
-                            onClick={() => handleDeleteTipo(t.id)}
-                            title="Eliminar"
+                            style={{ padding: '2px 8px', fontSize: '12px', opacity: (t.capital_count > 0) ? 0.5 : 1 }}
+                            onClick={() => handleDeleteTipo(t)}
+                            title={(t.capital_count > 0) ? "No se puede eliminar (tiene registros)" : "Eliminar"}
+                            disabled={t.capital_count > 0}
                           >
                             <DeleteOutlined />
                           </button>

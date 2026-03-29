@@ -96,13 +96,14 @@ class ServicioViewSet(viewsets.ModelViewSet):
             
             return ', '.join(parts) or '0 min'
 
-        headers = ['ID', 'Nombre', 'Categoría', 'Costo de Servicio', 'Precio de Servicio', 'Margen', 'Duración', 'Estado', 'Fecha Creación', 'Última Modificación']
+        headers = ['ID', 'Nombre', 'Categoría', 'Descripción', 'Costo de Servicio', 'Precio de Servicio', 'Margen', 'Duración', 'Estado', 'Fecha Creación', 'Última Modificación']
         rows = []
         for obj in queryset:
             rows.append([
                 obj.id,
                 obj.nombre,
                 obj.categoria.nombre if obj.categoria else 'Sin categoría',
+                obj.descripcion or '',
                 float(obj.costo),
                 float(obj.precio_base),
                 float(obj.margen_ganancia),
@@ -203,7 +204,7 @@ class ServicioViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(fecha__date__gte=date_from, fecha__date__lte=date_to)
 
-        headers = ['Fecha', 'Servicio', 'Tipo', 'Costo Anterior', 'Costo Nuevo', 'Precio Anterior', 'Precio Nuevo', 'Estado', 'Notas']
+        headers = ['Fecha', 'Servicio', 'Descripción', 'Tipo', 'Costo Anterior', 'Costo Nuevo', 'Precio Anterior', 'Precio Nuevo', 'Estado', 'Notas']
         rows = []
         for mv in queryset:
             fecha_str = mv.fecha.strftime("%d/%m/%Y %H:%M:%S")
@@ -218,6 +219,7 @@ class ServicioViewSet(viewsets.ModelViewSet):
             rows.append([
                 fecha_str,
                 mv.servicio.nombre,
+                mv.servicio.descripcion or '',
                 mv.get_tipo_display(),
                 float(mv.costo_anterior) if mv.costo_anterior is not None else '-',
                 float(mv.costo_nuevo),

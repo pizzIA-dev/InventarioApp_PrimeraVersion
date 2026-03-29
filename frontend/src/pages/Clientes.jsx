@@ -177,7 +177,7 @@ function Clientes() {
       </div>
 
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: 1, minWidth: '250px' }}>
             <input 
               type="text" 
@@ -218,6 +218,20 @@ function Clientes() {
               <option value="INACTIVO">Inactivos</option>
             </select>
           </div>
+          <button
+            className="btn btn-secondary"
+            style={{ height: '38px', alignSelf: 'flex-end' }}
+            onClick={() => {
+              setSearchTerm('');
+              setSearchContacto('');
+              setFilterTipo('ALL');
+              setFilterEstado('ALL');
+              setClientesPage(1);
+            }}
+            title="Limpiar filtros"
+          >
+            Limpiar
+          </button>
         </div>
       </div>
 

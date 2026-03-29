@@ -79,6 +79,7 @@ function Servicios() {
   const [filterActivo, setFilterActivo] = useState('ALL');
   const [filterCategoria, setFilterCategoria] = useState('ALL');
   const [confirmDialog, setConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
+  const [confirmCatDialog, setConfirmCatDialog] = useState({ visible: false, id: null, nombre: '' });
   const [categorias, setCategorias] = useState([]);
   const [errors, setErrors] = useState({});
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
@@ -88,7 +89,8 @@ function Servicios() {
   const [catModalVisible, setCatModalVisible] = useState(false);
   const [catModalMode, setCatModalMode] = useState('create');
   const [editingCatId, setEditingCatId] = useState(null);
-  const [catFormData, setCatFormData] = useState({ nombre: '', descripcion: '' });
+  const [catFormData, setCatFormData] = useState({ nombre: '', descripcion: '', activo: true });
+  const [catPage, setCatPage] = useState(1);
   
   const [formData, setFormData] = useState({
     nombre: '',
@@ -124,14 +126,72 @@ function Servicios() {
   const fetchCategorias = async () => {
     try {
       const response = await serviciosAPI.getCategorias();
-      setCategorias(response.data.results || response.data);
+      const fetchedCats = response.data.results || response.data;
+      // Sort alphabetically by name
+      const sorted = [...fetchedCats].sort((a, b) => 
+        (a.nombre || '').localeCompare(b.nombre || '')
+      );
+      setCategorias(sorted);
     } catch (error) {
       console.error('Error fetching categorias:', error);
     }
   };
 
+  // Category Pagination Logic
+  const CAT_PAGE_SIZE = 5;
+  const totalCatPages = Math.ceil(categorias.length / CAT_PAGE_SIZE);
+  const safeCatPage = Math.min(catPage, totalCatPages || 1);
+  const paginatedCats = categorias.slice(
+    (safeCatPage - 1) * CAT_PAGE_SIZE,
+    safeCatPage * CAT_PAGE_SIZE
+  );
+
+  const handleEditCat = (cat) => {
+    setCatModalMode('edit');
+    setEditingCatId(cat.id);
+    setCatFormData({ 
+      nombre: cat.nombre, 
+      descripcion: cat.descripcion || '',
+      activo: cat.activo !== undefined ? cat.activo : true 
+    });
+  };
+
+  const handleToggleCatActive = async (cat) => {
+    try {
+      const nuevoEstado = !cat.activo;
+      await serviciosAPI.updateCategoria(cat.id, { activo: nuevoEstado });
+      message.success(`Categoría ${nuevoEstado ? 'activada' : 'desactivada'} con éxito`);
+      fetchCategorias();
+    } catch (error) {
+      message.error('Error al cambiar el estado de la categoría');
+    }
+  };
+
+  const handleDeleteCat = (cat) => {
+    setConfirmCatDialog({ visible: true, id: cat.id, nombre: cat.nombre });
+  };
+
+  const handleDeleteCatConfirm = async () => {
+    if (!confirmCatDialog.id) return;
+    try {
+      await serviciosAPI.deleteCategoria(confirmCatDialog.id);
+      message.success('Categoría eliminada con éxito');
+      fetchCategorias();
+      setConfirmCatDialog({ visible: false, id: null, nombre: '' });
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      const isConstraintError = error.response?.status === 400 || error.response?.data?.detail?.includes('asociados');
+      if (isConstraintError) {
+        message.warning('No se puede eliminar: esta categoría tiene servicios asociados. Te recomendamos desactivarla en su lugar.');
+      } else {
+        message.error('Error al eliminar categoría.');
+      }
+      setConfirmCatDialog({ visible: false, id: null, nombre: '' });
+    }
+  };
+
   const resetCatForm = () => {
-    setCatFormData({ nombre: '', descripcion: '' });
+    setCatFormData({ nombre: '', descripcion: '', activo: true });
     setCatModalMode('create');
     setEditingCatId(null);
   };
@@ -332,6 +392,16 @@ function Servicios() {
         danger={true}
       />
 
+      <ConfirmDialog 
+        visible={confirmCatDialog.visible}
+        onCancel={() => setConfirmCatDialog({ visible: false, id: null, nombre: '' })}
+        onConfirm={handleDeleteCatConfirm}
+        title="Eliminar Categoría"
+        message={`¿Estás seguro de que deseas eliminar la categoría "${confirmCatDialog.nombre}"? Los servicios que usen esta categoría perderán su referencia, pero no serán eliminados.`}
+        confirmText="Sí, eliminar categoría"
+        danger={true}
+      />
+
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">Servicios</h1>
@@ -347,7 +417,7 @@ function Servicios() {
       </div>
 
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: 1, minWidth: '250px' }}>
             <input 
               type="text" 
@@ -380,6 +450,19 @@ function Servicios() {
               ))}
             </select>
           </div>
+          <button
+            className="btn btn-secondary"
+            style={{ height: '38px' }}
+            onClick={() => {
+              setSearchTerm('');
+              setFilterActivo('ALL');
+              setFilterCategoria('ALL');
+              setServiciosPage(1);
+            }}
+            title="Limpiar filtros"
+          >
+            Limpiar
+          </button>
         </div>
       </div>
 
@@ -393,6 +476,7 @@ function Servicios() {
               <tr>
                 <th>Nombre</th>
                 <th>Categoría</th>
+                <th>Descripción</th>
                 <th>Costo de Servicio</th>
                 <th>Precio de Servicio</th>
                 <th>Margen</th>
@@ -406,6 +490,7 @@ function Servicios() {
                 <tr key={servicio.id}>
                   <td>{servicio.nombre}</td>
                   <td>{servicio.categoria_nombre || '-'}</td>
+                  <td>{servicio.descripcion || '-'}</td>
                   <td>S/. {Number(servicio.costo || 0).toFixed(2)}</td>
                   <td>S/. {Number(servicio.precio_base || 0).toFixed(2)}</td>
                   <td>{Number(servicio.margen_ganancia || 0).toFixed(2)}%</td>
@@ -455,60 +540,61 @@ function Servicios() {
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
-                <div className="grid grid-2">
-                      <div className="form-group">
-                        <label className="form-label">Nombre *</label>
-                        <input
-                          type="text"
-                          name="nombre"
-                          className={`form-input${errors.nombre ? ' input-error' : ''}`}
-                          value={formData.nombre}
-                          onChange={(e) => {
-                            handleChange(e);
-                            if (errors.nombre) setErrors(prev => ({ ...prev, nombre: null }));
-                          }}
-                          onFocus={(e) => e.target.select()}
-                          required
-                        />
-                        {errors.nombre && <div className="error-message" style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{errors.nombre}</div>}
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Categoría</label>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                          <div style={{ flex: 1 }}>
-                            <SearchableSelect
-                              options={categorias.map(c => ({ id: c.id, nombre: c.nombre }))}
-                              value={formData.categoria}
-                              onChange={(val) => setFormData({ ...formData, categoria: val })}
-                              placeholder="Seleccionar categoría..."
-                              disabled={loading}
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            className="btn btn-secondary"
-                            onClick={() => setCatModalVisible(true)}
-                            style={{ height: '42px', padding: '0 12px', whiteSpace: 'nowrap' }}
-                            title="Gestionar Categorías"
-                          >
-                            <SettingOutlined />
-                          </button>
-                        </div>
-                        <p className="field-hint" style={{ fontSize: '11px', marginTop: '4px', opacity: 0.7 }}>
-                          Selecciona una categoría existente o gestiona la lista.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Descripción</label>
-                      <textarea
-                        name="descripcion"
-                        className="form-input"
-                        value={formData.descripcion}
-                        onChange={handleChange}
-                        rows={2}
+                <div className="form-group">
+                  <label className="form-label">Nombre *</label>
+                  <input
+                    type="text"
+                    name="nombre"
+                    className={`form-input${errors.nombre ? ' input-error' : ''}`}
+                    value={formData.nombre}
+                    onChange={(e) => {
+                      handleChange(e);
+                      if (errors.nombre) setErrors(prev => ({ ...prev, nombre: null }));
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    required
+                  />
+                  {errors.nombre && <div className="error-message" style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{errors.nombre}</div>}
+                </div>
+                
+                <div className="form-group">
+                  <label className="form-label">Categoría</label>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1 }}>
+                      <SearchableSelect
+                        options={categorias
+                          .filter(c => c.activo !== false)
+                          .map(c => ({ id: c.id, nombre: c.nombre }))}
+                        value={formData.categoria}
+                        onChange={(val) => setFormData({ ...formData, categoria: val })}
+                        placeholder="Seleccionar categoría..."
+                        disabled={loading}
                       />
                     </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => { resetCatForm(); setCatModalVisible(true); }}
+                      style={{ height: '42px', padding: '0 12px', whiteSpace: 'nowrap' }}
+                      title="Gestionar Categorías"
+                    >
+                      <PlusOutlined />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Descripción</label>
+                  <textarea
+                    name="descripcion"
+                    className="form-input"
+                    value={formData.descripcion}
+                    onChange={handleChange}
+                    rows={2}
+                    style={{ resize: 'vertical' }}
+                    placeholder="Breve descripción del servicio..."
+                  />
+                </div>
                     <div className="grid grid-2">
                       <div className="form-group">
                         <label className="form-label">Costo de Servicio (S/.)</label>
@@ -681,6 +767,16 @@ function Servicios() {
                   />
                 </div>
                 <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={catFormData.activo} 
+                      onChange={(e) => setCatFormData(prev => ({ ...prev, activo: e.target.checked }))} 
+                    />
+                    Esta categoría está activa (disponible para nuevos servicios)
+                  </label>
+                </div>
+                <div className="form-group">
                   <label className="form-label">Descripción</label>
                   <textarea 
                     className="form-input"
@@ -704,74 +800,97 @@ function Servicios() {
 
               {/* List of existing categories */}
               <div className="table-container">
-                <style>{`
-                  .cat-table th, .cat-table td { padding: 10px 12px; font-size: 14px; }
-                  .cat-actions { display: flex; gap: 4px; }
-                  .btn-small-icon { padding: 4px; border-radius: 4px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
-                  .btn-small-edit { background: rgba(52, 152, 219, 0.1); color: #3498db; }
-                  .btn-small-edit:hover { background: #3498db; color: white; }
-                  .btn-small-delete { background: rgba(231, 76, 60, 0.1); color: #e74c3c; }
-                  .btn-small-delete:hover { background: #e74c3c; color: white; }
-                `}</style>
                 <table className="cat-table">
                   <thead>
                     <tr>
                       <th>Nombre</th>
-                      <th>Descripción</th>
-                      <th>Aciones</th>
+                      <th>Estado</th>
+                      <th>Uso</th>
+                      <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {(() => {
-                      const CAT_PAGE_SIZE = 5;
-                      const totalCatPages = Math.ceil(categorias.length / CAT_PAGE_SIZE);
-                      const safeCatPage = Math.min(catPage, totalCatPages || 1);
-                      const paginatedCats = categorias.slice(
-                        (safeCatPage - 1) * CAT_PAGE_SIZE,
-                        safeCatPage * CAT_PAGE_SIZE
-                      );
-                      
-                      return paginatedCats.map(cat => (
-                        <tr key={cat.id}>
-                          <td style={{ fontWeight: '500' }}>{cat.nombre}</td>
-                          <td style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{cat.descripcion || '-'}</td>
-                          <td>
-                            <div className="cat-actions">
-                              <button className="btn-small-icon btn-small-edit" onClick={() => handleEditCat(cat)} title="Editar">
-                                <EditOutlined fontSize={14} />
-                              </button>
-                              <button className="btn-small-icon btn-small-delete" onClick={() => handleDeleteCat(cat.id)} title="Eliminar">
-                                <DeleteOutlined fontSize={14} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ));
-                    })()}
-                    {categorias.length === 0 && (
-                      <tr><td colSpan="3" style={{ textAlign: 'center', color: '#aaa', padding: '20px' }}>No hay categorías registradas</td></tr>
+                    {paginatedCats.map(cat => (
+                      <tr key={cat.id} style={{ opacity: cat.activo ? 1 : 0.6 }}>
+                        <td>
+                          <div style={{ fontWeight: 500 }}>{cat.nombre}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{cat.descripcion || ''}</div>
+                        </td>
+                        <td>
+                          <span 
+                            onClick={() => handleToggleCatActive(cat)}
+                            style={{ 
+                              cursor: 'pointer',
+                              padding: '2px 8px', 
+                              borderRadius: '12px', 
+                              fontSize: '11px', 
+                              fontWeight: 600,
+                              background: cat.activo ? '#f6ffed' : '#fff1f0',
+                              color: cat.activo ? '#52c41a' : '#ff4d4f',
+                              border: `1px solid ${cat.activo ? '#b7eb8f' : '#ffa39e'}`
+                            }}
+                          >
+                            {cat.activo ? 'ACTIVO' : 'INACTIVO'}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                           {cat.servicios_count || 0} serv.
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <button
+                              className="btn btn-secondary"
+                              onClick={() => handleEditCat(cat)}
+                              style={{ padding: '4px 8px' }}
+                              title="Editar"
+                            >
+                              <EditOutlined style={{ fontSize: '14px' }} />
+                            </button>
+                            <button
+                              className="btn btn-danger"
+                              onClick={() => handleDeleteCat(cat)}
+                              style={{ padding: '4px 8px', opacity: (cat.servicios_count > 0) ? 0.5 : 1 }}
+                              title={(cat.servicios_count > 0) ? "No se puede eliminar (tiene servicios)" : "Eliminar"}
+                              disabled={cat.servicios_count > 0}
+                            >
+                              <DeleteOutlined style={{ fontSize: '14px' }} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {paginatedCats.length === 0 && (
+                      <tr>
+                        <td colSpan="4" style={{ textAlign: 'center', padding: '16px', color: '#999' }}>
+                          No hay categorías registradas
+                        </td>
+                      </tr>
                     )}
                   </tbody>
                 </table>
               </div>
               
-              {/* Custom Mini Pagination */}
-              {categorias.length > 5 && (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginTop: '16px' }}>
+              {/* Pagination Controls */}
+              {totalCatPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '16px', fontSize: '12px' }}>
                   <button 
+                    type="button"
                     className="btn btn-secondary" 
-                    style={{ padding: '4px 12px', fontSize: '12px' }}
-                    onClick={() => setCatPage(prev => Math.max(1, prev - 1))}
-                    disabled={catPage === 1}
+                    style={{ padding: '2px 8px' }}
+                    onClick={() => setCatPage(p => Math.max(1, p - 1))}
+                    disabled={safeCatPage === 1}
                   >
                     Anterior
                   </button>
-                  <span style={{ fontSize: '13px' }}>Pág {catPage} de {Math.ceil(categorias.length / 5)}</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    Pág {safeCatPage} de {totalCatPages}
+                  </span>
                   <button 
+                    type="button"
                     className="btn btn-secondary" 
-                    style={{ padding: '4px 12px', fontSize: '12px' }}
-                    onClick={() => setCatPage(prev => Math.min(Math.ceil(categorias.length / 5), prev + 1))}
-                    disabled={catPage >= Math.ceil(categorias.length / 5)}
+                    style={{ padding: '2px 8px' }}
+                    onClick={() => setCatPage(p => Math.min(totalCatPages, p + 1))}
+                    disabled={safeCatPage === totalCatPages}
                   >
                     Siguiente
                   </button>

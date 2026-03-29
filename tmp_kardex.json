@@ -1,0 +1,58 @@
+[
+  {
+    "id": 9,
+    "fecha": "2026-03-28T23:16:00-05:00",
+    "tipo_movimiento": "TRANSACCION",
+    "campo_modificado": "Registro de Movimiento",
+    "valor_anterior": null,
+    "valor_nuevo": null,
+    "monto": "100.00",
+    "descripcion": "Ingreso: Dinero donado por mi madre",
+    "referencia": "",
+    "transaccion_id": 2,
+    "notas": "Carga hist\u00f3rica",
+    "categoria": 1
+  },
+  {
+    "id": 11,
+    "fecha": "2026-03-28T20:48:48.471623-05:00",
+    "tipo_movimiento": "ESTADO",
+    "campo_modificado": "Estado",
+    "valor_anterior": "Inactivo",
+    "valor_nuevo": "Activo",
+    "monto": null,
+    "descripcion": "Cambio de estado: Activado.",
+    "referencia": null,
+    "transaccion_id": null,
+    "notas": null,
+    "categoria": 1
+  },
+  {
+    "id": 10,
+    "fecha": "2026-03-28T20:48:30.490853-05:00",
+    "tipo_movimiento": "ESTADO",
+    "campo_modificado": "Estado",
+    "valor_anterior": "Activo",
+    "valor_nuevo": "Inactivo",
+    "monto": null,
+    "descripcion": "Cambio de estado: Desactivado.",
+    "referencia": null,
+    "transaccion_id": null,
+    "notas": null,
+    "categoria": 1
+  },
+  {
+    "id": 2,
+    "fecha": "2026-03-28T19:42:31.363828-05:00",
+    "tipo_movimiento": "ESTADO",
+    "campo_modificado": "Creaci\u00f3n",
+    "valor_anterior": null,
+    "valor_nuevo": "Activo",
+    "monto": null,
+    "descripcion": "Carga inicial de historial para Apoyo Familiar.",
+    "referencia": null,
+    "transaccion_id": null,
+    "notas": null,
+    "categoria": 1
+  }
+]

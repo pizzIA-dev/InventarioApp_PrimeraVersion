@@ -22,7 +22,8 @@ function Compras() {
   const [selectedCompraForDetail, setSelectedCompraForDetail] = useState(null);
   const [searchProveedor, setSearchProveedor] = useState('');
   const [searchComprobante, setSearchComprobante] = useState('');
-  const [filterFecha, setFilterFecha] = useState('');
+  const [filterFechaInicio, setFilterFechaInicio] = useState('');
+  const [filterFechaFin, setFilterFechaFin] = useState('');
   const [filterEstado, setFilterEstado] = useState('ALL');
   const [proveedores, setProveedores] = useState([]);
   const [productos, setProductos] = useState([]);
@@ -587,11 +588,16 @@ function Compras() {
     const compMatch = (c.numero_comprobante || '').toLowerCase().includes(searchComprobante.toLowerCase());
     const estadoMatch = filterEstado === 'ALL' ? true : c.estado === filterEstado;
     
-    // Date match
+    // Date range match
     let dateMatch = true;
-    if (filterFecha) {
-      const purchaseDate = new Date(c.creado_en).toISOString().split('T')[0];
-      dateMatch = purchaseDate === filterFecha;
+    const purchaseDate = new Date(c.creado_en).toISOString().split('T')[0];
+    
+    if (filterFechaInicio && filterFechaFin) {
+      dateMatch = purchaseDate >= filterFechaInicio && purchaseDate <= filterFechaFin;
+    } else if (filterFechaInicio) {
+      dateMatch = purchaseDate >= filterFechaInicio;
+    } else if (filterFechaFin) {
+      dateMatch = purchaseDate <= filterFechaFin;
     }
     
     return proveMatch && compMatch && estadoMatch && dateMatch;
@@ -608,7 +614,8 @@ function Compras() {
   // Reset page on filter change
   const handleSearchProveedor = (val) => { setSearchProveedor(val); setComprasPage(1); };
   const handleSearchComprobante = (val) => { setSearchComprobante(val); setComprasPage(1); };
-  const handleFilterFecha = (val) => { setFilterFecha(val); setComprasPage(1); };
+  const handleFilterFechaInicio = (val) => { setFilterFechaInicio(val); setComprasPage(1); };
+  const handleFilterFechaFin = (val) => { setFilterFechaFin(val); setComprasPage(1); };
   const handleFilterEstado = (val) => { setFilterEstado(val); setComprasPage(1); };
 
   return (
@@ -659,13 +666,22 @@ function Compras() {
               onChange={(e) => handleSearchComprobante(e.target.value)}
             />
           </div>
-          <div style={{ width: '180px' }}>
-            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Fecha</label>
+          <div style={{ width: '150px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Desde</label>
             <input 
               type="date" 
               className="form-input" 
-              value={filterFecha}
-              onChange={(e) => handleFilterFecha(e.target.value)}
+              value={filterFechaInicio}
+              onChange={(e) => handleFilterFechaInicio(e.target.value)}
+            />
+          </div>
+          <div style={{ width: '150px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Hasta</label>
+            <input 
+              type="date" 
+              className="form-input" 
+              value={filterFechaFin}
+              onChange={(e) => handleFilterFechaFin(e.target.value)}
             />
           </div>
           <div style={{ width: '180px' }}>
@@ -687,7 +703,8 @@ function Compras() {
             onClick={() => {
               setSearchProveedor('');
               setSearchComprobante('');
-              setFilterFecha('');
+              setFilterFechaInicio('');
+              setFilterFechaFin('');
               setFilterEstado('ALL');
               setComprasPage(1);
             }}

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CategoriaTransaccion, Transaccion
+from .models import CategoriaTransaccion, Transaccion, MovimientoCategoria, HistorialTransaccion
 
 
 class CategoriaTransaccionSerializer(serializers.ModelSerializer):
@@ -46,3 +46,17 @@ class TransaccionCreateSerializer(serializers.ModelSerializer):
             )
         
         return data
+
+
+class MovimientoCategoriaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MovimientoCategoria
+        fields = '__all__'
+        read_only_fields = ['id', 'fecha']
+
+
+class HistorialTransaccionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HistorialTransaccion
+        fields = '__all__'
+        read_only_fields = ['id', 'fecha']

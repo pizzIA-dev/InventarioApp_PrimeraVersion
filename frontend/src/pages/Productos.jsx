@@ -254,7 +254,7 @@ function Productos() {
       </div>
 
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: 1, minWidth: '250px' }}>
             <label className="form-label" style={{ fontSize: '13px' }}>Búsqueda</label>
             <input 
@@ -302,6 +302,20 @@ function Productos() {
               <option value="OUT">Agotados</option>
             </select>
           </div>
+          <button
+            className="btn btn-secondary"
+            style={{ height: '38px' }}
+            onClick={() => {
+              setSearchTerm('');
+              setFilterEstado('ALL');
+              setFilterCategoria('ALL');
+              setFilterStock('ALL');
+              setProductsPage(1);
+            }}
+            title="Limpiar filtros"
+          >
+            Limpiar
+          </button>
         </div>
       </div>
 
