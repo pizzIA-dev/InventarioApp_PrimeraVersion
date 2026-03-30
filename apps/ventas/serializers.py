@@ -132,6 +132,16 @@ class VentaUpdateSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         detalle_data = validated_data.pop('detalle', None)
         estado_anterior = instance.estado
+        nuevo_estado = validated_data.get('estado', instance.estado)
+        
+        # Si se va a cancelar una venta ya confirmada, revertimos stock ANTES de modificar nada
+        if estado_anterior == 'CONFIRMADA' and nuevo_estado == 'CANCELADA':
+            instance.revertir_stock()
+            
+        # Si estaba CONFIRMADA y SIGUE CONFIRMADA, y estoy cambiando detalles,
+        # DEBO revertir el stock de LOS VIEJOS y luego registrar la salida de LOS NUEVOS.
+        elif estado_anterior == 'CONFIRMADA' and nuevo_estado == 'CONFIRMADA' and detalle_data is not None:
+            instance.revertir_stock()
         
         # Actualizar campos de la venta
         for attr, value in validated_data.items():
@@ -144,8 +154,12 @@ class VentaUpdateSerializer(serializers.ModelSerializer):
             for item in detalle_data:
                 DetalleVenta.objects.create(venta=instance, **item)
             instance.calcular_totales()
+            
+            # Si sigue CONFIRMADA, re-registramos la salida de stock con los nuevos detalles
+            if estado_anterior == 'CONFIRMADA' and instance.estado == 'CONFIRMADA':
+                instance.registrar_salida_stock()
         
-        # Registrar salida de stock si cambio a confirmada
+        # Registrar salida de stock si cambió a confirmada desde otro estado
         if estado_anterior != 'CONFIRMADA' and instance.estado == 'CONFIRMADA':
             instance.registrar_salida_stock()
         

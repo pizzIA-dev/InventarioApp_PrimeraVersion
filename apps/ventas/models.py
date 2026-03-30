@@ -128,6 +128,24 @@ class Venta(models.Model):
                     referencia=f"Venta {self.numero_comprobante or self.id}"
                 )
 
+    def revertir_stock(self):
+        """Revierte el stock de los productos asociados a esta venta"""
+        if self.estado in ['CONFIRMADA']:
+            for detalle in self.detalleventa_set.all():
+                MovimientoStock.objects.create(
+                    producto=detalle.producto,
+                    tipo='ENTRADA',
+                    origen='DEVOLUCION',
+                    cantidad=detalle.cantidad,
+                    stock_anterior=detalle.producto.stock_actual,
+                    precio_unitario=detalle.precio_venta,
+                    precio_compra_anterior=detalle.producto.precio_compra,
+                    precio_compra_nuevo=detalle.producto.precio_compra,
+                    precio_venta_anterior=detalle.producto.precio_venta,
+                    precio_venta_nuevo=detalle.producto.precio_venta,
+                    referencia=f"Cancelación/Eliminación Venta {self.numero_comprobante or self.id}"
+                )
+
 
 class DetalleVenta(models.Model):
     """Detalle de productos en una venta"""
