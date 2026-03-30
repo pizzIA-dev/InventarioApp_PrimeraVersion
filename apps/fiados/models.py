@@ -109,6 +109,41 @@ class Fiado(models.Model):
                     referencia=f"Reversión de stock por eliminación/cancelación de Fiado #{self.id}"
                 )
 
+    def reactivar(self):
+        """Re-descuenta el stock y cambia el estado a una deuda activa"""
+        if self.estado != 'CANCELADO':
+            raise ValueError("Solo se pueden reactivar fiados cancelados.")
+            
+        if self.tipo == 'PRODUCTO':
+            # 1. Validar Stock
+            errores = []
+            for detalle in self.detalles_producto.all():
+                if detalle.producto.stock_actual < detalle.cantidad:
+                    errores.append(f"'{detalle.producto.nombre}' (Stock: {detalle.producto.stock_actual}, Requerido: {detalle.cantidad})")
+            
+            if errores:
+                raise ValueError(f"Stock insuficiente para reactivar: {', '.join(errores)}")
+            
+            # 2. Descontar Stock
+            for detalle in self.detalles_producto.all():
+                MovimientoStock.objects.create(
+                    producto=detalle.producto,
+                    tipo='SALIDA',
+                    origen='FIADO',
+                    cantidad=detalle.cantidad,
+                    stock_anterior=detalle.producto.stock_actual,
+                    precio_unitario=detalle.precio_unidad,
+                    precio_compra_anterior=detalle.producto.precio_compra,
+                    precio_compra_nuevo=detalle.producto.precio_compra,
+                    precio_venta_anterior=detalle.producto.precio_venta,
+                    precio_venta_nuevo=detalle.producto.precio_venta,
+                    referencia=f"Reactivación de Fiado #{self.id}"
+                )
+        
+        # 3. Cambiar estado y guardar (esto recalcula el estado final: Pendiente o Pagado Parcial)
+        self.estado = 'PENDIENTE'
+        self.save()
+
     def delete(self, *args, **kwargs):
         # Al eliminar, revertimos el stock primero
         self.revertir_stock()
@@ -168,12 +203,13 @@ class DetalleFiadoServicio(models.Model):
 
 
 class HistorialFiado(models.Model):
-    """Registro de abonos y cambios de cada Fiado"""
-    fiado = models.ForeignKey(Fiado, on_delete=models.CASCADE, related_name='historial')
+    """Registro de abonos y cambios de cada Fiado o acciones de cliente"""
+    fiado = models.ForeignKey(Fiado, on_delete=models.CASCADE, related_name='historial', null=True, blank=True)
+    cliente = models.ForeignKey(ClienteFiado, on_delete=models.CASCADE, related_name='historial_directo', null=True, blank=True)
     fecha = models.DateTimeField(auto_now_add=True)
     total_deuda = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     abono = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    saldo_restante = models.DecimalField(max_digits=12, decimal_places=2)
+    saldo_restante = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     estado_nuevo = models.CharField(max_length=20)
     notas = models.TextField(blank=True, null=True)
 

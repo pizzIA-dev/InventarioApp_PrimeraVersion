@@ -23,9 +23,31 @@ class ClienteFiadoViewSet(viewsets.ModelViewSet):
         # Si viene empresa en la data, usarla, si no usar la de los params
         empresa_id = self.request.data.get('empresa') or self.request.query_params.get('empresa')
         if empresa_id:
-            serializer.save(empresa_id=empresa_id)
+            instance = serializer.save(empresa_id=empresa_id)
         else:
-            serializer.save()
+            instance = serializer.save()
+            
+        # Registro inicial en historial
+        HistorialFiado.objects.create(
+            cliente=instance,
+            notas="Cliente registrado en el sistema",
+            estado_nuevo="ACTIVO",
+            total_deuda=0,
+            abono=0,
+            saldo_restante=0
+        )
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        # Registro de edición en historial
+        HistorialFiado.objects.create(
+            cliente=instance,
+            notas="Información del cliente actualizada",
+            estado_nuevo="ACTIVO",
+            total_deuda=0,
+            abono=0,
+            saldo_restante=0
+        )
 
     def list(self, request, *args, **kwargs):
         """Sobrescribir listado para incluir la fecha límite más próxima de sus fiados"""
@@ -57,6 +79,68 @@ class ClienteFiadoViewSet(viewsets.ModelViewSet):
             
         return Response(data)
 
+    @action(detail=False, methods=['get'])
+    def exportar(self, request):
+        """Exportar lista de clientes fiados con resumen de deuda"""
+        from django.db.models import Sum, Min, Q
+        
+        periodo = request.query_params.get('periodo', 'todo')
+        anio = request.query_params.get('anio')
+        anio = int(anio) if anio else None
+
+        queryset = self.get_queryset()
+        
+        # Filtro de periodo basado en creado_en del cliente
+        period_range = get_period_range(periodo, anio)
+        if period_range:
+            date_from, date_to = period_range
+            queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
+
+        # Anotaciones financieras
+        queryset = queryset.annotate(
+            total_deuda=Sum('fiados__total'),
+            saldo_pendiente_total=Sum('fiados__saldo_pendiente'),
+            proxima_fecha_limite=Min(
+                'fiados__fecha_limite',
+                filter=Q(fiados__estado__in=['PENDIENTE', 'PAGADO_PARCIAL']) & Q(fiados__fecha_limite__isnull=False)
+            )
+        )
+
+        headers = [
+            'ID', 'Nombre', 'Documento', 'Tel/Celular', 'Dirección', 
+            'Total Deuda (S/.)', 'Saldo Pendiente (S/.)', 'Próxima Fecha Límite', 
+            'Estado', 'Última Modificación'
+        ]
+        
+        rows = []
+        for obj in queryset:
+            fecha_modificacion = obj.actualizado_en.strftime('%d/%m/%Y %H:%M:%S') if obj.actualizado_en else ''
+            proxima_fecha = obj.proxima_fecha_limite.strftime('%d/%m/%Y') if obj.proxima_fecha_limite else '-'
+            estado = 'Activo' if obj.activo else 'Inactivo'
+            
+            rows.append([
+                str(obj.id).zfill(6),
+                obj.nombre,
+                obj.documento or '-',
+                obj.telefono or '-',
+                obj.direccion or '-',
+                float(obj.total_deuda or 0),
+                float(obj.saldo_pendiente_total or 0),
+                proxima_fecha,
+                estado,
+                fecha_modificacion
+            ])
+
+        period_label = get_period_label(periodo, anio)
+        return create_excel_response(
+            filename='reporte_clientes_fiados.xlsx',
+            sheet_name='Clientes',
+            headers=headers,
+            rows=rows,
+            title='Reporte General de Clientes Fiados',
+            period_label=period_label
+        )
+
     # Soft delete
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -77,9 +161,13 @@ class ClienteFiadoViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def historial(self, request, pk=None):
-        """Retorna todo el historial de movimientos de todos los fiados del cliente"""
+        """Retorna todo el historial de movimientos de todos los fiados y registros administrativos del cliente"""
+        from django.db.models import Q
         cliente = self.get_object()
-        historial = HistorialFiado.objects.filter(fiado__cliente=cliente).order_by('-fecha')
+        # Incluir tanto historial vinculado a sus fiados como el vinculado directamente al cliente
+        historial = HistorialFiado.objects.filter(
+            Q(fiado__cliente=cliente) | Q(cliente=cliente)
+        ).order_by('-fecha')
         
         # Filtros de fecha
         fecha_desde = request.query_params.get('fecha_desde')
@@ -102,13 +190,13 @@ class ClienteFiadoViewSet(viewsets.ModelViewSet):
         for h in paged_historial:
             data.append({
                 "id": h.id,
-                "fiado_id": h.fiado.id,
-                "fiado_tipo": h.fiado.tipo,
+                "fiado_id": h.fiado.id if h.fiado else None,
+                "fiado_tipo": h.fiado.tipo if h.fiado else 'ADMIN',
                 "fecha": h.fecha.isoformat(),
                 "total_deuda": str(h.total_deuda),
                 "abono": str(h.abono),
-                "saldo_restante": str(h.saldo_restante),
-                "fecha_limite": h.fiado.fecha_limite.isoformat() if h.fiado.fecha_limite else None,
+                "saldo_restante": str(h.saldo_restante) if h.saldo_restante is not None else None,
+                "fecha_limite": h.fiado.fecha_limite.isoformat() if h.fiado and h.fiado.fecha_limite else None,
                 "estado_nuevo": h.estado_nuevo,
                 "notas": h.notas
             })
@@ -227,6 +315,7 @@ class FiadoViewSet(viewsets.ModelViewSet):
         # Registrar en el historial unificado (Abono + Estado)
         HistorialFiado.objects.create(
             fiado=fiado,
+            cliente=fiado.cliente,
             total_deuda=fiado.total,
             abono=monto,
             saldo_restante=fiado.saldo_pendiente,
@@ -255,6 +344,7 @@ class FiadoViewSet(viewsets.ModelViewSet):
         
         HistorialFiado.objects.create(
             fiado=fiado,
+            cliente=fiado.cliente,
             total_deuda=fiado.total,
             abono=0,
             saldo_restante=fiado.saldo_pendiente,
@@ -263,6 +353,28 @@ class FiadoViewSet(viewsets.ModelViewSet):
         )
         
         return Response(FiadoSerializer(fiado).data)
+
+    @action(detail=True, methods=['post'])
+    def reactivar(self, request, pk=None):
+        """Reactiva un fiado cancelado, validando y descontando stock nuevamente"""
+        fiado = self.get_object()
+        try:
+            fiado.reactivar()
+            
+            # Registrar historial de la reactivación
+            HistorialFiado.objects.create(
+                fiado=fiado,
+                cliente=fiado.cliente,
+                total_deuda=fiado.total,
+                abono=0,
+                saldo_restante=fiado.saldo_pendiente,
+                estado_nuevo=fiado.estado,
+                notas="Operación REACTIVADA. Stock descontado nuevamente."
+            )
+            
+            return Response(FiadoSerializer(fiado).data)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=['get'])
     def historial(self, request, pk=None):
@@ -411,15 +523,31 @@ class FiadoViewSet(viewsets.ModelViewSet):
         
         rows = []
         for h in queryset:
+            # Obtener datos del cliente, priorizando el enlace directo si el fiado no existe (admin)
+            cliente_nombre = ''
+            fiado_id = '-'
+            fiado_tipo = '-'
+            fecha_limite = '-'
+            
+            if h.fiado:
+                cliente_nombre = h.fiado.cliente.nombre if h.fiado.cliente else 'S/C'
+                fiado_id = f"#{str(h.fiado.id).zfill(6)}"
+                fiado_tipo = h.fiado.get_tipo_display()
+                fecha_limite = h.fiado.fecha_limite.strftime("%d/%m/%Y") if h.fiado.fecha_limite else '-'
+            elif h.cliente:
+                cliente_nombre = h.cliente.nombre
+                fiado_id = 'SISTEMA'
+                fiado_tipo = 'ADMIN'
+                
             rows.append([
                 h.fecha.strftime("%d/%m/%Y %H:%M:%S") if h.fecha else '',
-                f"#{str(h.fiado.id).zfill(6)}",
-                h.fiado.cliente.nombre if h.fiado.cliente else 'S/C',
-                h.fiado.get_tipo_display(),
-                h.fiado.fecha_limite.strftime("%d/%m/%Y") if h.fiado.fecha_limite else '-',
+                fiado_id,
+                cliente_nombre,
+                fiado_tipo,
+                fecha_limite,
                 float(h.total_deuda),
                 float(h.abono),
-                float(h.saldo_restante),
+                float(h.saldo_restante) if h.saldo_restante is not None else 0,
                 h.estado_nuevo,
                 h.notas or ''
             ])

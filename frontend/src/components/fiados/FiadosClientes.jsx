@@ -4,6 +4,8 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, HistoryOutlined } from '@an
 import ConfirmDialog from '../ConfirmDialog';
 import FiadoClienteFormModal from './FiadoClienteFormModal';
 import ClienteFiadoHistorialModal from './ClienteFiadoHistorialModal';
+import ExportDropdown from '../ExportDropdown';
+import { message } from 'antd';
 
 function FiadosClientes() {
   const [loading, setLoading] = useState(true);
@@ -77,6 +79,38 @@ function FiadosClientes() {
       fetchClientes();
     }
   };
+  
+  const handleExportClientes = async (periodo, anio) => {
+    try {
+      const response = await fiadosAPI.exportarClientes({ periodo, anio });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `reporte_clientes_fiados_${periodo}_${anio || 'todo'}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error exportando clientes:', error);
+      message.error('No se pudo generar el reporte de clientes.');
+    }
+  };
+
+  const handleExportHistorialGlobal = async (periodo, anio) => {
+    try {
+      const response = await fiadosAPI.exportarHistorialGlobal({ periodo, anio });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `kardex_global_fiados_${periodo}_${anio || 'todo'}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error exportando historial global:', error);
+      message.error('No se pudo generar el historial global.');
+    }
+  };
 
   const filteredClientes = clientes.filter(c => {
     const term = searchTerm.toLowerCase();
@@ -93,6 +127,14 @@ function FiadosClientes() {
           <p style={{ margin: '4px 0 0', color: 'var(--text-muted, #94a3b8)' }}>Gestión interna de cuentas por cobrar y cliente fiados</p>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <ExportDropdown 
+            label="Exportar Historial Global"
+            onExport={handleExportHistorialGlobal}
+          />
+          <ExportDropdown 
+            label="Exportar Clientes Fiados"
+            onExport={handleExportClientes}
+          />
           <button className="btn btn-primary" onClick={() => openModal('create')} style={{ borderRadius: '8px', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <PlusOutlined /> Nuevo Cliente
           </button>

@@ -117,6 +117,7 @@ class FiadoCreateSerializer(serializers.ModelSerializer):
         # Registrar historial inicial con el total real
         HistorialFiado.objects.create(
             fiado=fiado,
+            cliente=fiado.cliente,
             total_deuda=fiado.total,
             abono=0,
             saldo_restante=fiado.saldo_pendiente,

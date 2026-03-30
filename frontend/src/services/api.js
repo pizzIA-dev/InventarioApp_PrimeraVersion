@@ -189,6 +189,7 @@ export const fiadosAPI = {
   deleteCliente: (id) => api.delete(`/fiados/clientes-fiados/${id}/`),
   getHistorialCliente: (id, params) => api.get(`/fiados/clientes-fiados/${id}/historial/`, { params }),
   exportarHistorialCliente: (id) => api.get(`/fiados/clientes-fiados/${id}/exportar_historial/`, { responseType: 'blob' }),
+  exportarClientes: (params) => api.get('/fiados/clientes-fiados/exportar/', { params, responseType: 'blob' }),
   
   // Operaciones Fiado
   getFiados: (params) => api.get('/fiados/fiados/', { params }),
@@ -196,8 +197,9 @@ export const fiadosAPI = {
   createFiado: (data) => api.post('/fiados/fiados/', data),
   updateFiado: (id, data) => api.patch(`/fiados/fiados/${id}/`, data),
   deleteFiado: (id) => api.delete(`/fiados/fiados/${id}/`),
-  abonarFiado: (id, data) => api.post(`/fiados/fiados/${id}/abonar/`, data),
   cancelarFiado: (id) => api.post(`/fiados/fiados/${id}/cancelar/`),
+  reactivarFiado: (id) => api.post(`/fiados/fiados/${id}/reactivar/`),
+  abonarFiado: (id, data) => api.post(`/fiados/fiados/${id}/abonar/`, data),
   getHistorialFiado: (id, params) => api.get(`/fiados/fiados/${id}/historial/`, { params }),
   exportarHistorialFiado: (id) => api.get(`/fiados/fiados/${id}/exportar_historial/`, { responseType: 'blob' }),
   exportar: (params) => api.get('/fiados/fiados/exportar/', { params, responseType: 'blob' }),

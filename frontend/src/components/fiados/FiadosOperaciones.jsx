@@ -150,6 +150,18 @@ function FiadosOperaciones() {
     }
   };
 
+  const handleReactivar = async (id) => {
+    try {
+      await fiadosAPI.reactivarFiado(id);
+      message.success('Operación reactivada y stock descontado correctamente');
+      closeFormModal();
+      fetchData();
+    } catch (error) {
+      console.error('Error reactivando fiado:', error);
+      message.error(error.response?.data?.error || 'Error al reactivar el fiado.');
+    }
+  };
+
   const handleAbonoSubmit = async (fiadoId, data) => {
     try {
       const response = await fiadosAPI.abonarFiado(fiadoId, data);
@@ -509,7 +521,7 @@ function FiadosOperaciones() {
                         <HistoryOutlined />
                       </button>
 
-                      {fiado.estado !== 'LIQUIDADO' && (
+                      {fiado.estado !== 'LIQUIDADO' && fiado.estado !== 'CANCELADO' && (
                         <button className="btn btn-primary" onClick={() => openAbonoModal(fiado)} title="Registrar Abono">
                           <DollarOutlined /> Abonar
                         </button>
@@ -568,6 +580,7 @@ function FiadosOperaciones() {
           initialData={selectedFiado}
           onClose={closeFormModal}
           onSave={handleFormSubmit}
+          onReactivar={handleReactivar}
         />
       )}
 

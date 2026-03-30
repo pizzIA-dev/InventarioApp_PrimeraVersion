@@ -4,7 +4,7 @@ import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { message } from 'antd';
 import SearchableSelect from '../SearchableSelect';
 
-function FiadoOperacionFormModal({ visible, clientes, initialData, onClose, onSave }) {
+function FiadoOperacionFormModal({ visible, clientes, initialData, onClose, onSave, onReactivar }) {
   const isEdit = !!initialData;
   const [formData, setFormData] = useState({
     cliente: '',
@@ -18,6 +18,7 @@ function FiadoOperacionFormModal({ visible, clientes, initialData, onClose, onSa
     total: 0,
     igv_automatico: false
   });
+  const [reactivarChecked, setReactivarChecked] = useState(false);
 
   const [productos, setProductos] = useState([]);
   const [servicios, setServicios] = useState([]);
@@ -64,6 +65,7 @@ function FiadoOperacionFormModal({ visible, clientes, initialData, onClose, onSa
           igv_automatico: false
         });
       }
+      setReactivarChecked(false);
     }
   }, [visible, initialData]);
 
@@ -153,6 +155,12 @@ function FiadoOperacionFormModal({ visible, clientes, initialData, onClose, onSa
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (reactivarChecked) {
+      onReactivar(initialData.id);
+      return;
+    }
+
     if (!formData.cliente) {
       message.error('Debe seleccionar un cliente fiado');
       return;
@@ -278,6 +286,29 @@ function FiadoOperacionFormModal({ visible, clientes, initialData, onClose, onSa
                 />
               </div>
             </div>
+
+            {isEdit && initialData?.estado === 'CANCELADO' && (
+              <div style={{ 
+                background: 'rgba(40, 167, 69, 0.1)', 
+                padding: '12px', 
+                borderRadius: '8px', 
+                border: '1px solid rgba(40, 167, 69, 0.3)',
+                marginBottom: '16px' 
+              }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: '600', color: '#1e7e34' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={reactivarChecked} 
+                    onChange={(e) => setReactivarChecked(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                  Reactivar Operación (Retomar stock y deuda activa)
+                </label>
+                <p style={{ margin: '4px 0 0 28px', fontSize: '13px', color: '#2b542c' }}>
+                  Al marcar esta casilla, esta operación volverá a estar pendiente de cobro y se descontará el stock nuevamente.
+                </p>
+              </div>
+            )}
 
             <hr style={{ margin: '16px 0', borderColor: 'var(--border-color)' }} />
             
@@ -442,8 +473,13 @@ function FiadoOperacionFormModal({ visible, clientes, initialData, onClose, onSa
 
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="btn btn-primary">
-              {isEdit ? 'Guardar Cambios' : 'Registrar Operación'}
+            <button 
+              type="submit" 
+              className={`btn ${reactivarChecked ? 'btn-success' : 'btn-primary'}`} 
+              disabled={isEdit && initialData?.estado === 'CANCELADO' && !reactivarChecked}
+              style={reactivarChecked ? { background: '#28a745', borderColor: '#28a745', color: 'white' } : {}}
+            >
+              {reactivarChecked ? 'Confirmar y Reactivar' : (isEdit ? 'Guardar Cambios' : 'Registrar Operación')}
             </button>
           </div>
         </form>

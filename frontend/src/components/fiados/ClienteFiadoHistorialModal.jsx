@@ -167,10 +167,18 @@ function ClienteFiadoHistorialModal({ visible, onClose, cliente }) {
                   historialGlobal.map((h, i) => (
                     <tr key={`${h.id}-${i}`} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={{ padding: '10px 16px' }}>
-                        <span style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '12px' }}>
-                          #{String(h.fiado_id).padStart(6, '0')}
-                        </span>
-                        <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{h.fiado_tipo}</div>
+                        {h.fiado_id ? (
+                          <>
+                            <span style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '12px' }}>
+                              #{String(h.fiado_id).padStart(6, '0')}
+                            </span>
+                            <div style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{h.fiado_tipo}</div>
+                          </>
+                        ) : (
+                          <span style={{ fontWeight: 600, color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase' }}>
+                            Admin / Sistema
+                          </span>
+                        )}
                       </td>
                       <td style={{ padding: '10px 16px', fontSize: '11px', whiteSpace: 'nowrap' }}>
                         {new Date(h.fecha).toLocaleString('es-PE', { 
@@ -179,7 +187,7 @@ function ClienteFiadoHistorialModal({ visible, onClose, cliente }) {
                         }).replace(',', '')}
                       </td>
                       <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 600, fontSize: '12px' }}>
-                        S/ {Number(h.total_deuda || 0).toFixed(2)}
+                        {h.fiado_id ? `S/ ${Number(h.total_deuda || 0).toFixed(2)}` : '—'}
                       </td>
                       <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 'bold' }}>
                         <span style={{ color: Number(h.abono) > 0 ? 'var(--color-success)' : 'inherit', fontSize: '12px' }}>
@@ -187,7 +195,7 @@ function ClienteFiadoHistorialModal({ visible, onClose, cliente }) {
                         </span>
                       </td>
                       <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: '12px', fontWeight: 'bold', color: Number(h.saldo_restante) > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                        S/ {Number(h.saldo_restante).toFixed(2)}
+                        {h.fiado_id ? `S/ ${Number(h.saldo_restante || 0).toFixed(2)}` : '—'}
                       </td>
                       <td style={{ textAlign: 'center', padding: '10px 16px', fontSize: '12px' }}>
                         {h.fecha_limite ? new Date(h.fecha_limite + 'T12:00:00').toLocaleDateString() : '-'}
