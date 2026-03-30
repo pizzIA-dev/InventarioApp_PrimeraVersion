@@ -8,10 +8,7 @@ function Fiados() {
 
   return (
     <div>
-      <div className="page-header">
-        <h1 className="page-title">Módulo de Fiados</h1>
-        <p className="page-subtitle">Gestión interna de cuentas por cobrar y clientes fiados</p>
-      </div>
+
 
       <div className="tabs">
         <button 

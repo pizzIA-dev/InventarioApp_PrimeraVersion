@@ -87,6 +87,17 @@ function FiadosClientes() {
 
   return (
     <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: '24px', color: 'var(--text-primary, #f8fafc)' }}>Módulo de Fiados</h1>
+          <p style={{ margin: '4px 0 0', color: 'var(--text-muted, #94a3b8)' }}>Gestión interna de cuentas por cobrar y cliente fiados</p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button className="btn btn-primary" onClick={() => openModal('create')} style={{ borderRadius: '8px', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PlusOutlined /> Nuevo Cliente
+          </button>
+        </div>
+      </div>
       <ConfirmDialog
         visible={confirmDialog.visible}
         title="Eliminar Cliente de Fiados"
@@ -98,7 +109,7 @@ function FiadosClientes() {
       />
 
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ flex: 1, minWidth: '250px' }}>
             <input 
               type="text" 
@@ -108,9 +119,6 @@ function FiadosClientes() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button className="btn btn-primary" onClick={() => openModal('create')}>
-            <PlusOutlined /> Nuevo Cliente Fiado
-          </button>
         </div>
       </div>
 
@@ -123,6 +131,7 @@ function FiadosClientes() {
                 <th>Documento</th>
                 <th>Tel/Celular</th>
                 <th>Dirección</th>
+                <th>Próxima Fecha Límite</th>
                 <th>Estado</th>
                 <th>Acciones</th>
               </tr>
@@ -134,6 +143,12 @@ function FiadosClientes() {
                   <td>{cliente.documento || '-'}</td>
                   <td>{cliente.telefono || '-'}</td>
                   <td>{cliente.direccion || '-'}</td>
+                  <td style={{ 
+                    color: cliente.proxima_fecha_limite && new Date(cliente.proxima_fecha_limite) < new Date() ? 'var(--danger-color)' : 'inherit',
+                    fontWeight: '600'
+                  }}>
+                    {cliente.proxima_fecha_limite ? new Date(cliente.proxima_fecha_limite + 'T12:00:00').toLocaleDateString() : '-'}
+                  </td>
                   <td>
                     <span className={`badge ${cliente.activo ? 'badge-success' : 'badge-danger'}`}>
                       {cliente.activo ? 'Activo' : 'Inactivo'}
@@ -154,7 +169,7 @@ function FiadosClientes() {
               ))}
               {filteredClientes.length === 0 && (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '24px', color: '#888' }}>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: '#888' }}>
                     No se encontraron clientes fiados.
                   </td>
                 </tr>

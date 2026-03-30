@@ -10,6 +10,7 @@ import ServicioVentaFormModal from '../ventas/ServicioVentaFormModal';
 import ClienteFormModal from '../ClienteFormModal';
 import ProductFormModal from '../ProductFormModal';
 import FiadoHistorialModal from './FiadoHistorialModal';
+import ExportDropdown from '../ExportDropdown';
 
 function FiadosOperaciones() {
   const [loading, setLoading] = useState(true);
@@ -346,8 +347,60 @@ function FiadosOperaciones() {
     }
   };
 
+  const handleExportFiados = async (periodo, anio) => {
+    try {
+      const response = await fiadosAPI.exportar({ periodo, anio });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `reporte_fiados_${periodo}_${anio || 'todo'}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error exportando fiados', error);
+      message.error('No se pudo generar el reporte de fiados.');
+    }
+  };
+
+  const handleExportHistorialGlobal = async (periodo, anio) => {
+    try {
+      const response = await fiadosAPI.exportarHistorialGlobal({ periodo, anio });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `kardex_global_fiados_${periodo}_${anio || 'todo'}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (error) {
+      console.error('Error exportando historial global', error);
+      message.error('No se pudo generar el historial global.');
+    }
+  };
+
   return (
     <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: '24px', color: 'var(--text-primary, #f8fafc)' }}>Módulo de Fiados</h1>
+          <p style={{ margin: '4px 0 0', color: 'var(--text-muted, #94a3b8)' }}>Gestión interna de cuentas por cobrar y cliente fiados</p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <ExportDropdown 
+            label="Exportar Historial Global"
+            onExport={handleExportHistorialGlobal}
+          />
+          <ExportDropdown 
+            label="Exportar Fiados"
+            onExport={handleExportFiados}
+          />
+          <button className="btn btn-primary" onClick={() => openFormModal()} style={{ borderRadius: '8px', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PlusOutlined /> Nuevo Fiado
+          </button>
+        </div>
+      </div>
+
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: 1, minWidth: '250px' }}>
@@ -414,10 +467,6 @@ function FiadosOperaciones() {
           >
             Limpiar
           </button>
-
-          <button className="btn btn-primary" onClick={() => openFormModal()}>
-            <PlusOutlined /> Nuevo Fiado
-          </button>
         </div>
       </div>
 
@@ -450,7 +499,9 @@ function FiadosOperaciones() {
                   <td style={{ fontWeight: 'bold', color: fiado.saldo_pendiente > 0 ? 'var(--danger-color)' : 'var(--success-color)' }}>
                     S/ {Number(fiado.saldo_pendiente).toFixed(2)}
                   </td>
-                  <td>{fiado.fecha_limite ? new Date(fiado.fecha_limite).toLocaleDateString() : '-'}</td>
+                  <td style={{ color: fiado.fecha_limite && new Date(fiado.fecha_limite) < new Date() && fiado.estado !== 'LIQUIDADO' ? 'var(--danger-color)' : 'inherit', fontWeight: '500' }}>
+                    {fiado.fecha_limite ? new Date(fiado.fecha_limite + 'T12:00:00').toLocaleDateString() : '-'}
+                  </td>
                   <td>{getEstadoBadge(fiado.estado)}</td>
                    <td>
                     <div style={{ display: 'flex', gap: '8px' }}>

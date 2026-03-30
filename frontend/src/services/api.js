@@ -200,6 +200,8 @@ export const fiadosAPI = {
   cancelarFiado: (id) => api.post(`/fiados/fiados/${id}/cancelar/`),
   getHistorialFiado: (id, params) => api.get(`/fiados/fiados/${id}/historial/`, { params }),
   exportarHistorialFiado: (id) => api.get(`/fiados/fiados/${id}/exportar_historial/`, { responseType: 'blob' }),
+  exportar: (params) => api.get('/fiados/fiados/exportar/', { params, responseType: 'blob' }),
+  exportarHistorialGlobal: (params) => api.get('/fiados/fiados/exportar_historial_global/', { params, responseType: 'blob' }),
 };
 
 export default api;

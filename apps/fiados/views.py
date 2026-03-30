@@ -2,7 +2,7 @@ from django.http import HttpResponse
 from django.utils import timezone
 from decimal import Decimal, InvalidOperation
 from rest_framework import viewsets, status
-import openpyxl
+from apps.core.export_utils import create_excel_response, get_period_range, get_period_label
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import ClienteFiado, Fiado, HistorialFiado
@@ -26,6 +26,36 @@ class ClienteFiadoViewSet(viewsets.ModelViewSet):
             serializer.save(empresa_id=empresa_id)
         else:
             serializer.save()
+
+    def list(self, request, *args, **kwargs):
+        """Sobrescribir listado para incluir la fecha límite más próxima de sus fiados"""
+        from django.db.models import Min, Q
+        
+        queryset = self.get_queryset()
+        # Agregar anotación de la fecha límite mínima de fiados no liquidados
+        queryset = queryset.annotate(
+            proxima_fecha_limite=Min(
+                'fiados__fecha_limite',
+                filter=Q(fiados__estado__in=['PENDIENTE', 'PAGADO_PARCIAL']) & Q(fiados__fecha_limite__isnull=False)
+            )
+        )
+        
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            data = []
+            for c in page:
+                d = self.get_serializer(c).data
+                d['proxima_fecha_limite'] = c.proxima_fecha_limite.isoformat() if hasattr(c, 'proxima_fecha_limite') and c.proxima_fecha_limite else None
+                data.append(d)
+            return self.get_paginated_response(data)
+            
+        data = []
+        for c in queryset:
+            d = self.get_serializer(c).data
+            d['proxima_fecha_limite'] = c.proxima_fecha_limite.isoformat() if hasattr(c, 'proxima_fecha_limite') and c.proxima_fecha_limite else None
+            data.append(d)
+            
+        return Response(data)
 
     # Soft delete
     def destroy(self, request, *args, **kwargs):
@@ -75,8 +105,10 @@ class ClienteFiadoViewSet(viewsets.ModelViewSet):
                 "fiado_id": h.fiado.id,
                 "fiado_tipo": h.fiado.tipo,
                 "fecha": h.fecha.isoformat(),
+                "total_deuda": str(h.total_deuda),
                 "abono": str(h.abono),
                 "saldo_restante": str(h.saldo_restante),
+                "fecha_limite": h.fiado.fecha_limite.isoformat() if h.fiado.fecha_limite else None,
                 "estado_nuevo": h.estado_nuevo,
                 "notas": h.notas
             })
@@ -90,41 +122,38 @@ class ClienteFiadoViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def exportar_historial(self, request, pk=None):
-        """Exporta el historial de movimientos de un cliente a Excel"""
+        """Exporta el historial de movimientos de un cliente a Excel usando el formato estándar"""
         cliente = self.get_object()
         historial = HistorialFiado.objects.filter(fiado__cliente=cliente).order_by('-fecha')
 
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = f"Historial Cliente {cliente.id}"
-
-        # Setup headers
         headers = [
-            'ID Fiado', 'Tipo Operación', 'Fecha Movimiento', 
-            'Abono Realizado (S/.)', 'Saldo Restante (S/.)', 
+            'ID Fiado', 'Tipo Operación', 'Fecha Movimiento', 'Fecha Límite',
+            'Total Deuda (S/.)', 'Abono Realizado (S/.)', 'Saldo Pendiente (S/.)', 
             'Estado', 'Notas'
         ]
-        ws.append(headers)
-
-        for cell in ws[1]:
-            cell.font = openpyxl.styles.Font(bold=True)
-            cell.fill = openpyxl.styles.PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
-
+        
+        rows = []
         for h in historial:
-            ws.append([
+            rows.append([
                 f"#{h.fiado.id}",
                 h.fiado.get_tipo_display(),
                 h.fecha.strftime("%d/%m/%Y %H:%M:%S") if h.fecha else '',
+                h.fiado.fecha_limite.strftime("%d/%m/%Y") if h.fiado.fecha_limite else '-',
+                float(h.total_deuda),
                 float(h.abono),
                 float(h.saldo_restante),
                 h.estado_nuevo,
-                h.notas or ''
+                h.notes or ''
             ])
 
-        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = f'attachment; filename="historial_cliente_{cliente.id}.xlsx"'
-        wb.save(response)
-        return response
+        return create_excel_response(
+            filename=f"kardex_cliente_{cliente.documento or cliente.id}.xlsx",
+            sheet_name="Kardex Global",
+            headers=headers,
+            rows=rows,
+            title=f"Kardex Global de Cliente: {cliente.nombre} (DNI: {cliente.documento or 'S/D'})",
+            period_label="Historial Completo"
+        )
 
 
 class FiadoViewSet(viewsets.ModelViewSet):
@@ -195,13 +224,14 @@ class FiadoViewSet(viewsets.ModelViewSet):
         # Guardar (el save ya calculará el estado automáticamente)
         fiado.save()
         
-        # Registrar en el historial manualmente para que registre el abono per-se
+        # Registrar en el historial unificado (Abono + Estado)
         HistorialFiado.objects.create(
             fiado=fiado,
+            total_deuda=fiado.total,
             abono=monto,
             saldo_restante=fiado.saldo_pendiente,
             estado_nuevo=fiado.estado,
-            notas=notas or f"Abono de S/ {monto:.2f} registrado."
+            notas=notas or f"Abono de S/ {monto:.2f} registrado. Estado: {fiado.get_estado_display()}."
         )
         
         return Response(FiadoSerializer(fiado).data)
@@ -225,6 +255,7 @@ class FiadoViewSet(viewsets.ModelViewSet):
         
         HistorialFiado.objects.create(
             fiado=fiado,
+            total_deuda=fiado.total,
             abono=0,
             saldo_restante=fiado.saldo_pendiente,
             estado_nuevo='CANCELADO',
@@ -261,8 +292,10 @@ class FiadoViewSet(viewsets.ModelViewSet):
             data.append({
                 "id": h.id,
                 "fecha": h.fecha.isoformat(),
+                "total_deuda": str(h.total_deuda),
                 "abono": str(h.abono),
                 "saldo_restante": str(h.saldo_restante),
+                "fecha_limite": fiado.fecha_limite.isoformat() if fiado.fecha_limite else None,
                 "estado_nuevo": h.estado_nuevo,
                 "notas": h.notas
             })
@@ -276,34 +309,127 @@ class FiadoViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['get'])
     def exportar_historial(self, request, pk=None):
-        """Exporta el historial de un fiado a Excel"""
+        """Exporta el historial de un fiado a Excel usando el formato estándar"""
         fiado = self.get_object()
         historial = fiado.historial.all().order_by('-fecha')
 
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = f"Historial Fiado {fiado.id}"
-
         headers = [
-            'Fecha Movimiento', 'Abono Registrado (S/.)', 
-            'Saldo Restante (S/.)', 'Estado Resultante', 'Notas'
+            'Fecha Movimiento', 'Fecha Límite', 'Total Deuda (S/.)', 
+            'Abono Registrado (S/.)', 'Saldo Pendiente (S/.)', 
+            'Estado Resultante', 'Notas'
         ]
-        ws.append(headers)
-
-        for cell in ws[1]:
-            cell.font = openpyxl.styles.Font(bold=True)
-            cell.fill = openpyxl.styles.PatternFill(start_color="DDDDDD", end_color="DDDDDD", fill_type="solid")
-
+        
+        rows = []
         for h in historial:
-            ws.append([
+            rows.append([
                 h.fecha.strftime("%d/%m/%Y %H:%M:%S") if h.fecha else '',
+                fiado.fecha_limite.strftime("%d/%m/%Y") if fiado.fecha_limite else '-',
+                float(h.total_deuda),
                 float(h.abono),
                 float(h.saldo_restante),
                 h.estado_nuevo,
                 h.notas or ''
             ])
 
-        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = f'attachment; filename="historial_fiado_{fiado.id}.xlsx"'
-        wb.save(response)
-        return response
+        return create_excel_response(
+            filename=f"kardex_fiado_{fiado.id}.xlsx",
+            sheet_name="Historial",
+            headers=headers,
+            rows=rows,
+            title=f"Historial de Operación: #{str(fiado.id).zfill(6)} - {fiado.cliente.nombre} (DNI: {fiado.cliente.documento or 'S/D'})",
+            period_label="Historial Completo"
+        )
+        
+    @action(detail=False, methods=['get'])
+    def exportar(self, request):
+        """Exportar lista de fiados con filtro de período"""
+        periodo = request.query_params.get('periodo', 'todo')
+        anio = request.query_params.get('anio')
+        anio = int(anio) if anio else None
+
+        queryset = self.filter_queryset(self.get_queryset())
+
+        period_range = get_period_range(periodo, anio)
+        if period_range:
+            date_from, date_to = period_range
+            queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
+
+        headers = [
+            'ID', 'Fecha Ingreso', 'Cliente Fiado', 'Tipo', 
+            'Total Deuda (S/.)', 'Saldo Pendiente (S/.)', 
+            'Fecha Límite', 'Estado', 'Última Modificación'
+        ]
+        
+        rows = []
+        for obj in queryset:
+            fecha_ingreso = obj.creado_en.strftime('%d/%m/%Y %H:%M') if obj.creado_en else ''
+            fecha_modificacion = obj.actualizado_en.strftime('%d/%m/%Y %H:%M') if obj.actualizado_en else ''
+            fecha_limite = obj.fecha_limite.strftime('%d/%m/%Y') if obj.fecha_limite else '-'
+            
+            rows.append([
+                str(obj.id).zfill(6),
+                fecha_ingreso,
+                obj.cliente.nombre if obj.cliente else 'Sin Cliente',
+                obj.get_tipo_display(),
+                float(obj.total),
+                float(obj.saldo_pendiente),
+                fecha_limite,
+                obj.get_estado_display(),
+                fecha_modificacion
+            ])
+
+        period_label = get_period_label(periodo, anio)
+        return create_excel_response(
+            filename='reporte_fiados.xlsx',
+            sheet_name='Fiados',
+            headers=headers,
+            rows=rows,
+            title='Reporte General de Fiados (Cuentas por Cobrar)',
+            period_label=period_label
+        )
+
+    @action(detail=False, methods=['get'])
+    def exportar_historial_global(self, request):
+        """Exportar historial global de movimientos de fiados (Kardex Global)"""
+        periodo = request.query_params.get('periodo', 'todo')
+        anio = request.query_params.get('anio')
+        anio = int(anio) if anio else None
+
+        queryset = HistorialFiado.objects.all().order_by('-fecha')
+        
+        # Filtro por periodo basado en la fecha del movimiento
+        period_range = get_period_range(periodo, anio)
+        if period_range:
+            date_from, date_to = period_range
+            queryset = queryset.filter(fecha__date__gte=date_from, fecha__date__lte=date_to)
+
+        headers = [
+            'Fecha Movimiento', 'ID Fiado', 'Cliente', 'Tipo Fiado', 
+            'Fecha Límite Fiado', 'Total Deuda (S/.)', 'Abono Realizado (S/.)', 
+            'Saldo Pendiente (S/.)', 'Nuevo Estado', 'Notas'
+        ]
+        
+        rows = []
+        for h in queryset:
+            rows.append([
+                h.fecha.strftime("%d/%m/%Y %H:%M:%S") if h.fecha else '',
+                f"#{str(h.fiado.id).zfill(6)}",
+                h.fiado.cliente.nombre if h.fiado.cliente else 'S/C',
+                h.fiado.get_tipo_display(),
+                h.fiado.fecha_limite.strftime("%d/%m/%Y") if h.fiado.fecha_limite else '-',
+                float(h.total_deuda),
+                float(h.abono),
+                float(h.saldo_restante),
+                h.estado_nuevo,
+                h.notas or ''
+            ])
+
+        period_label = get_period_label(periodo, anio)
+        return create_excel_response(
+            filename='kardex_global_fiados.xlsx',
+            sheet_name='Historial Global',
+            headers=headers,
+            rows=rows,
+            title='Historial Global de Fiados (Kardex Unificado)',
+            period_label=period_label
+        )

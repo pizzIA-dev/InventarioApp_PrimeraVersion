@@ -88,23 +88,7 @@ class Fiado(models.Model):
                 self.estado = 'PENDIENTE'
 
         super().save(*args, **kwargs)
-
-        if is_new:
-            HistorialFiado.objects.create(
-                fiado=self,
-                abono=0,
-                saldo_restante=self.saldo_pendiente,
-                estado_nuevo=self.estado,
-                notas=f"Fiado registrado. Saldo inicial: S/ {self.saldo_pendiente}"
-            )
-        elif old_estado and old_estado != self.estado:
-             HistorialFiado.objects.create(
-                fiado=self,
-                abono=0,
-                saldo_restante=self.saldo_pendiente,
-                estado_nuevo=self.estado,
-                notas=f"Estado del fiado cambió a {self.estado}"
-            )
+        # La creación de historial se manejará en Serializers y ViewSets para evitar duplicidad o saldos incorrectos en la creación inicial.
 
 
     def revertir_stock(self):
@@ -187,6 +171,7 @@ class HistorialFiado(models.Model):
     """Registro de abonos y cambios de cada Fiado"""
     fiado = models.ForeignKey(Fiado, on_delete=models.CASCADE, related_name='historial')
     fecha = models.DateTimeField(auto_now_add=True)
+    total_deuda = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     abono = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     saldo_restante = models.DecimalField(max_digits=12, decimal_places=2)
     estado_nuevo = models.CharField(max_length=20)

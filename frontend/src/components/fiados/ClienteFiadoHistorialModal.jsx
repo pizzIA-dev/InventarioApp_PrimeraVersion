@@ -144,8 +144,10 @@ function ClienteFiadoHistorialModal({ visible, onClose, cliente }) {
                 <tr>
                   <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Ref. Fiado</th>
                   <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Fecha de Movimiento</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Total Deuda</th>
                   <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Abono Registrado</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Saldo Restante</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'right', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Saldo Pendiente</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'center', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Fecha Límite</th>
                   <th style={{ padding: '10px 16px', textAlign: 'center', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Estado</th>
                   <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Notas</th>
                 </tr>
@@ -176,6 +178,9 @@ function ClienteFiadoHistorialModal({ visible, onClose, cliente }) {
                           hour: '2-digit', minute: '2-digit', second: '2-digit'
                         }).replace(',', '')}
                       </td>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 600, fontSize: '12px' }}>
+                        S/ {Number(h.total_deuda || 0).toFixed(2)}
+                      </td>
                       <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 'bold' }}>
                         <span style={{ color: Number(h.abono) > 0 ? 'var(--color-success)' : 'inherit', fontSize: '12px' }}>
                           {Number(h.abono) > 0 ? `+ S/ ${Number(h.abono).toFixed(2)}` : '—'}
@@ -183,6 +188,9 @@ function ClienteFiadoHistorialModal({ visible, onClose, cliente }) {
                       </td>
                       <td style={{ padding: '10px 16px', textAlign: 'right', fontSize: '12px', fontWeight: 'bold', color: Number(h.saldo_restante) > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
                         S/ {Number(h.saldo_restante).toFixed(2)}
+                      </td>
+                      <td style={{ textAlign: 'center', padding: '10px 16px', fontSize: '12px' }}>
+                        {h.fecha_limite ? new Date(h.fecha_limite + 'T12:00:00').toLocaleDateString() : '-'}
                       </td>
                       <td style={{ padding: '10px 16px', textAlign: 'center' }}>
                         {getEstadoBadge(h.estado_nuevo)}
