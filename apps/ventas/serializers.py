@@ -167,14 +167,16 @@ class VentaKardexSerializer(serializers.ModelSerializer):
     producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)
     producto_codigo = serializers.CharField(source='producto.codigo', read_only=True)
     precio_unitario = serializers.DecimalField(source='precio_venta', max_digits=10, decimal_places=2, read_only=True)
-    total = serializers.DecimalField(source='subtotal', max_digits=12, decimal_places=2, read_only=True)
+    subtotal_bruto = serializers.SerializerMethodField()
+    impuesto = serializers.DecimalField(source='venta.impuesto', max_digits=12, decimal_places=2, read_only=True)
+    total = serializers.SerializerMethodField()
 
     class Meta:
         model = DetalleVenta
         fields = [
             'fecha', 'tipo_comprobante_simple', 'numero_comprobante_simple', 
             'tipo_comprobante', 'comprobante', 'cliente',
-            'producto_nombre', 'producto_codigo', 'cantidad', 'precio_unitario', 'descuento', 'total'
+            'producto_nombre', 'producto_codigo', 'cantidad', 'precio_unitario', 'subtotal_bruto', 'descuento', 'impuesto', 'total'
         ]
 
     def get_tipo_comprobante_simple(self, obj):
@@ -186,3 +188,11 @@ class VentaKardexSerializer(serializers.ModelSerializer):
 
     def get_cliente(self, obj):
         return obj.venta.cliente_nombre or (obj.venta.cliente.nombre if obj.venta.cliente else "Cliente General")
+
+    def get_subtotal_bruto(self, obj):
+        return float(obj.cantidad) * float(obj.precio_venta)
+
+    def get_total(self, obj):
+        # Total = (Cant * P.Unit) - Desc + Impuesto
+        bruto = float(obj.cantidad) * float(obj.precio_venta)
+        return bruto - float(obj.descuento) + float(obj.venta.impuesto)

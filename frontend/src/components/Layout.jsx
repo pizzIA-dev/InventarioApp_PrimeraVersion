@@ -17,6 +17,7 @@ import {
   MenuOutlined,
   BulbOutlined,
   BulbFilled,
+  CreditCardOutlined,
 } from '@ant-design/icons';
 
 const menuItems = [
@@ -29,6 +30,7 @@ const menuItems = [
   { path: '/capital', icon: <WalletOutlined />, label: 'Capital' },
   { path: '/servicios', icon: <ToolOutlined />, label: 'Servicios' },
   { path: '/transacciones', icon: <SwapOutlined />, label: 'Otros Movimientos' },
+  { path: '/fiados', icon: <CreditCardOutlined />, label: 'Fiados' },
   { path: '/reportes', icon: <BarChartOutlined />, label: 'Reportes' },
 ];
 

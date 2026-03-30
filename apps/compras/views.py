@@ -142,62 +142,38 @@ class CompraViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
-        # Sheet 1: Compras
-        headers_compras = ['ID', 'Fecha', 'Comprobante', 'Proveedor', 'Tipo', 'Estado', 'Subtotal (S/.)', 'Impuesto (S/.)', 'Total (S/.)']
-        rows_compras = []
-        compra_ids = []
+        # Configuración de cabeceras
+        headers = ['ID', 'Fecha', 'Comprobante', 'Proveedor', 'Tipo', 'Estado', 'Subtotal (S/.)', 'Impuesto (S/.)', 'Descuento (S/.)', 'Total (S/.)']
+        rows = []
+        
         for obj in queryset:
-            compra_ids.append(obj.id)
-            rows_compras.append([
+            # Calcular descuento total de la compra (suma de descuentos de sus detalles)
+            total_descuento = obj.detallecompra_set.aggregate(Sum('descuento'))['descuento__sum'] or 0
+            # Subtotal Bruto recalculado para coherencia del reporte (Subtotal Neto + Descuento)
+            subtotal_bruto = float(obj.subtotal) + float(total_descuento)
+            
+            rows.append([
                 obj.id,
                 timezone.localtime(obj.creado_en).strftime("%d/%m/%Y %H:%M:%S"),
                 f"{obj.tipo_comprobante or ''} {obj.numero_comprobante or ''}".strip(),
                 obj.proveedor_nombre or (obj.proveedor.nombre if obj.proveedor else 'Sin Proveedor'),
                 obj.get_tipo_compra_display(),
                 obj.get_estado_display(),
-                float(obj.subtotal),
+                subtotal_bruto,
                 float(obj.impuesto),
+                float(total_descuento),
                 float(obj.total)
-            ])
-
-        # Sheet 2: Estados de Compra
-        estados_qs = MovimientoEstadoCompra.objects.filter(compra_id__in=compra_ids).select_related('compra', 'compra__proveedor').order_by('-fecha')
-        headers_estados = ['Fecha', 'Comprobante', 'Proveedor', 'Estado Anterior', 'Estado Nuevo', 'Notas']
-        rows_estados = []
-        for e in estados_qs:
-            c = e.compra
-            comp_prov = c.proveedor_nombre or (c.proveedor.nombre if c.proveedor else 'Sin Proveedor')
-            comp_num = f"{c.tipo_comprobante or ''} {c.numero_comprobante or ''}".strip()
-            rows_estados.append([
-                e.fecha.strftime("%d/%m/%Y %H:%M:%S"),
-                comp_num or f"#{c.id}",
-                comp_prov,
-                e.estado_anterior,
-                e.estado_nuevo,
-                e.notas
             ])
 
         period_label = get_period_label(periodo, anio)
         
-        sheets_data = [
-            {
-                'sheet_name': 'Compras',
-                'headers': headers_compras,
-                'rows': rows_compras,
-                'title': 'Historial de Compras',
-                'period_label': period_label
-            },
-            {
-                'sheet_name': 'Historial de Estados',
-                'headers': headers_estados,
-                'rows': rows_estados,
-                'title': 'Historial de Estados de las Compras',
-                'period_label': period_label
-            }
-        ]
-        return create_multi_sheet_excel_response(
+        return create_excel_response(
             filename=f'compras_{periodo}{"_" + str(anio) if anio else ""}.xlsx',
-            sheets_data=sheets_data
+            headers=headers,
+            rows=rows,
+            title='Historial de Compras',
+            period_label=period_label,
+            sheet_name='Compras'
         )
 
     @action(detail=True, methods=['get'])
@@ -322,12 +298,13 @@ class CompraViewSet(viewsets.ModelViewSet):
 
         # Sheet 2: Productos
         detalles = compra.detallecompra_set.all().select_related('producto').order_by('id')
-        headers_productos = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Proveedor', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra', 'Descuento', 'Total']
+        headers_productos = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Proveedor', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)']
         
         comp_fecha = timezone.localtime(compra.creado_en).strftime("%d/%m/%Y %H:%M:%S")
         comp_tipo = compra.tipo_comprobante or ''
         comp_num = compra.numero_comprobante or ''
         comp_prov = compra.proveedor_nombre or (compra.proveedor.nombre if compra.proveedor else 'Sin Proveedor')
+        comp_impuesto = float(compra.impuesto or 0)
 
         rows_productos = [
             [
@@ -340,7 +317,8 @@ class CompraViewSet(viewsets.ModelViewSet):
                 float(d.cantidad),
                 float(d.precio_compra),
                 float(d.descuento),
-                float(d.subtotal)
+                comp_impuesto,
+                (float(d.cantidad) * float(d.precio_compra)) - float(d.descuento) + comp_impuesto
             ] for d in detalles
         ]
 
@@ -415,12 +393,13 @@ class CompraViewSet(viewsets.ModelViewSet):
                 e.notas
             ])
 
-        headers_productos = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Proveedor', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra', 'Descuento', 'Total']
+        headers_productos = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Proveedor', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)']
         rows_productos = []
         for d in detalles_qs:
             c = d.compra
             comp_prov = c.proveedor_nombre or (c.proveedor.nombre if c.proveedor else 'Sin Proveedor')
             comp_num = f"{c.numero_comprobante or ''}".strip()
+            comp_impuesto = float(c.impuesto or 0)
             rows_productos.append([
                 timezone.localtime(c.creado_en).strftime("%d/%m/%Y %H:%M:%S"),
                 c.tipo_comprobante or '',
@@ -431,7 +410,8 @@ class CompraViewSet(viewsets.ModelViewSet):
                 float(d.cantidad),
                 float(d.precio_compra),
                 float(d.descuento),
-                float(d.subtotal)
+                comp_impuesto,
+                (float(d.cantidad) * float(d.precio_compra)) - float(d.descuento) + comp_impuesto
             ])
 
         period_label = get_period_label(periodo, anio)

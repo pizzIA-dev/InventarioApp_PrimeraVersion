@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'apps.servicios.apps.ServiciosConfig',
     'apps.transacciones.apps.TransaccionesConfig',
     'apps.reportes.apps.ReportesConfig',
+    'apps.fiados.apps.FiadosConfig',
 ]
 
 MIDDLEWARE = [

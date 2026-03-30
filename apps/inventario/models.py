@@ -121,6 +121,7 @@ class MovimientoStock(models.Model):
     ORIGEN_MOVIMIENTO_CHOICES = [
         ('COMPRA', 'Compra a proveedor'),
         ('VENTA', 'Venta'),
+        ('FIADO', 'Fiado (Venta diferida)'),
         ('AJUSTE', 'Ajuste manual'),
         ('DEVOLUCION', 'Devolución'),
         ('MERMA', 'Merma'),

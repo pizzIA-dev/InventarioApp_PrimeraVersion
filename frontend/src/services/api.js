@@ -76,6 +76,7 @@ export const ventasAPI = {
   exportar: (params) => api.get('/ventas/exportar/', { params, responseType: 'blob' }),
   exportarHistorial: (id) => api.get(`/ventas/${id}/exportar_historial/`, { responseType: 'blob' }),
   exportarHistorialGlobal: (params) => api.get('/ventas/exportar_historial_global/', { params, responseType: 'blob' }),
+  getNextNumber: (tipo) => api.get('/ventas/proximo_numero/', { params: { tipo } }),
 };
 
 // Compras
@@ -175,6 +176,30 @@ export const reportesAPI = {
   getBalance: (params) => api.get('/reportes/balance/', { params }),
   getDashboard: (params) => api.get('/reportes/dashboard/', { params }),
   getReporteMensual: (params) => api.get('/reportes/reporte-mensual/', { params }),
+  exportarReporteMensualDetalle: (params) => api.get('/reportes/reporte-mensual/exportar/', { params, responseType: 'blob' }),
+};
+
+// Fiados (Créditos)
+export const fiadosAPI = {
+  // Clientes Fiados
+  getClientes: (params) => api.get('/fiados/clientes-fiados/', { params }),
+  getClienteById: (id) => api.get(`/fiados/clientes-fiados/${id}/`),
+  createCliente: (data) => api.post('/fiados/clientes-fiados/', data),
+  updateCliente: (id, data) => api.patch(`/fiados/clientes-fiados/${id}/`, data),
+  deleteCliente: (id) => api.delete(`/fiados/clientes-fiados/${id}/`),
+  getHistorialCliente: (id, params) => api.get(`/fiados/clientes-fiados/${id}/historial/`, { params }),
+  exportarHistorialCliente: (id) => api.get(`/fiados/clientes-fiados/${id}/exportar_historial/`, { responseType: 'blob' }),
+  
+  // Operaciones Fiado
+  getFiados: (params) => api.get('/fiados/fiados/', { params }),
+  getFiadoById: (id) => api.get(`/fiados/fiados/${id}/`),
+  createFiado: (data) => api.post('/fiados/fiados/', data),
+  updateFiado: (id, data) => api.patch(`/fiados/fiados/${id}/`, data),
+  deleteFiado: (id) => api.delete(`/fiados/fiados/${id}/`),
+  abonarFiado: (id, data) => api.post(`/fiados/fiados/${id}/abonar/`, data),
+  cancelarFiado: (id) => api.post(`/fiados/fiados/${id}/cancelar/`),
+  getHistorialFiado: (id, params) => api.get(`/fiados/fiados/${id}/historial/`, { params }),
+  exportarHistorialFiado: (id) => api.get(`/fiados/fiados/${id}/exportar_historial/`, { responseType: 'blob' }),
 };
 
 export default api;

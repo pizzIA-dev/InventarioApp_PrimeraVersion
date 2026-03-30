@@ -624,6 +624,7 @@ function Proveedores() {
                             <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Cantidad</th>
                             <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Precio de compra</th>
                             <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Descuento</th>
+                            <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Impuesto</th>
                             <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Total</th>
                           </tr>
                         </thead>
@@ -645,6 +646,7 @@ function Proveedores() {
                                 <td style={{ textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{p.cantidad}</td>
                                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>S/. {Number(p.precio_compra).toFixed(2)}</td>
                                 <td style={{ textAlign: 'right', color: '#ff4d4f', whiteSpace: 'nowrap' }}>-S/. {Number(p.descuento || 0).toFixed(2)}</td>
+                                <td style={{ textAlign: 'right', color: 'var(--primary-color)', whiteSpace: 'nowrap' }}>+S/. {Number(p.impuesto || 0).toFixed(2)}</td>
                                 <td style={{ textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>S/. {Number(p.total).toFixed(2)}</td>
                               </tr>
                             ))

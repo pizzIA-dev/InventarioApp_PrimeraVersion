@@ -228,7 +228,12 @@ function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="nombre_mes" />
                 <YAxis />
-                <Tooltip formatter={(value) => [`S/. ${Number(value).toFixed(2)}`, 'Monto']} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--bg-table-header)', color: 'var(--text-primary)', borderRadius: '8px' }}
+                  itemStyle={{ color: 'var(--text-primary)' }}
+                  labelStyle={{ color: 'var(--text-secondary)' }}
+                  formatter={(value) => [`S/. ${Number(value).toFixed(2)}`, 'Monto']} 
+                />
                 <Legend />
                 <Bar dataKey="ingresos" fill="#1890ff" name="Ingresos (Prod + Serv)" />
                 <Bar dataKey="compras" fill="#faad14" name="Compras" />
@@ -248,7 +253,12 @@ function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="nombre_mes" />
                 <YAxis />
-                <Tooltip formatter={(value) => [`S/. ${Number(value).toFixed(2)}`, 'Monto']} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--bg-table-header)', color: 'var(--text-primary)', borderRadius: '8px' }}
+                  itemStyle={{ color: 'var(--text-primary)' }}
+                  labelStyle={{ color: 'var(--text-secondary)' }}
+                  formatter={(value) => [`S/. ${Number(value).toFixed(2)}`, 'Monto']} 
+                />
                 <Legend />
                 <Line type="monotone" dataKey="balance" stroke="#52c41a" name="Balance" />
               </LineChart>

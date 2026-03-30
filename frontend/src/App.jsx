@@ -13,6 +13,7 @@ import Capital from './pages/Capital';
 import Servicios from './pages/Servicios';
 import Transacciones from './pages/Transacciones';
 import Reportes from './pages/Reportes';
+import Fiados from './pages/Fiados';
 
 const AppContent = () => {
   const { isDark } = useTheme();
@@ -37,6 +38,7 @@ const AppContent = () => {
             <Route path="servicios" element={<Servicios />} />
             <Route path="transacciones" element={<Transacciones />} />
             <Route path="reportes" element={<Reportes />} />
+            <Route path="fiados" element={<Fiados />} />
           </Route>
         </Routes>
       </Router>

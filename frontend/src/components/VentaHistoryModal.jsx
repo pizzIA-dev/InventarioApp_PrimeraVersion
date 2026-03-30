@@ -239,6 +239,9 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
                           <th>Comprobante</th>
                           <th>Cliente</th>
                           <th>Servicio</th>
+                          <th style={{ textAlign: 'right' }}>Precio Serv.</th>
+                          <th style={{ textAlign: 'right' }}>Descuento</th>
+                          <th style={{ textAlign: 'right' }}>Impuesto</th>
                           <th style={{ textAlign: 'right' }}>Total</th>
                         </tr>
                       ) : (
@@ -253,7 +256,9 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
                           <th>Código</th>
                           <th style={{ textAlign: 'right' }}>Cant.</th>
                           <th style={{ textAlign: 'right' }}>P. Unit.</th>
+                          <th style={{ textAlign: 'right' }}>Subtotal</th>
                           <th style={{ textAlign: 'right' }}>Desc.</th>
+                           <th style={{ textAlign: 'right' }}>Impuesto</th>
                           <th style={{ textAlign: 'right' }}>Total</th>
                         </tr>
                       )}
@@ -271,7 +276,10 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
                             <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{s.comprobante}</td>
                             <td>{s.cliente}</td>
                             <td style={{ fontWeight: 600 }}>{s.servicio}</td>
-                            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>S/. {Number(s.total).toFixed(2)}</td>
+                            <td style={{ textAlign: 'right' }}>S/. {Number(s.precio).toFixed(2)}</td>
+                            <td style={{ textAlign: 'right', color: 'var(--color-danger)' }}>-S/. {Number(s.descuento || 0).toFixed(2)}</td>
+                            <td style={{ textAlign: 'right' }}>S/. {Number(s.impuesto || 0).toFixed(2)}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>S/. { ( (s.precio || 0) - (s.descuento || 0) + (Number(s.impuesto) || 0) ).toFixed(2) }</td>
                           </tr>
                         ))
                       ) : (
@@ -289,8 +297,10 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
                             <td style={{ color: 'var(--text-secondary)' }}>{p.producto_codigo}</td>
                             <td style={{ textAlign: 'right', fontWeight: 600 }}>{p.cantidad}</td>
                             <td style={{ textAlign: 'right' }}>S/. {Number(p.precio_unitario).toFixed(2)}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 600 }}>S/. {Number(p.cantidad * p.precio_unitario).toFixed(2)}</td>
                             <td style={{ textAlign: 'right', color: 'var(--color-danger)' }}>-S/. {Number(p.descuento || 0).toFixed(2)}</td>
-                            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>S/. {Number(p.total).toFixed(2)}</td>
+                             <td style={{ textAlign: 'right' }}>S/. {Number(p.impuesto || 0).toFixed(2)}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>S/. {( (p.cantidad * p.precio_unitario) - (p.descuento || 0) + (Number(p.impuesto) || 0) ).toFixed(2)}</td>
                           </tr>
                         ))
                       )}

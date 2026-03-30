@@ -96,7 +96,7 @@ class ServicioViewSet(viewsets.ModelViewSet):
             
             return ', '.join(parts) or '0 min'
 
-        headers = ['ID', 'Nombre', 'Categoría', 'Descripción', 'Costo de Servicio', 'Precio de Servicio', 'Margen', 'Duración', 'Estado', 'Fecha Creación', 'Última Modificación']
+        headers = ['ID', 'Nombre', 'Categoría', 'Descripción', 'Costo de Servicio (S/.)', 'Precio de Servicio (S/.)', 'Margen (S/.)', 'Duración', 'Estado', 'Fecha Creación', 'Última Modificación']
         rows = []
         for obj in queryset:
             rows.append([
@@ -158,7 +158,7 @@ class ServicioViewSet(viewsets.ModelViewSet):
         if hasta:
             queryset = queryset.filter(fecha__date__lte=hasta)
 
-        headers = ['Fecha', 'Tipo', 'Costo de Servicio Anterior', 'Costo de Servicio Nuevo', 'Precio de Servicio Anterior', 'Precio de Servicio Nuevo', 'Estado', 'Notas']
+        headers = ['Fecha', 'Tipo', 'Costo de Servicio Anterior (S/.)', 'Costo de Servicio Nuevo (S/.)', 'Precio de Servicio Anterior (S/.)', 'Precio de Servicio Nuevo (S/.)', 'Estado', 'Notas']
         rows = []
         for mv in queryset:
             fecha_str = mv.fecha.strftime("%d/%m/%Y %H:%M:%S")
@@ -204,7 +204,7 @@ class ServicioViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(fecha__date__gte=date_from, fecha__date__lte=date_to)
 
-        headers = ['Fecha', 'Servicio', 'Descripción', 'Tipo', 'Costo Anterior', 'Costo Nuevo', 'Precio Anterior', 'Precio Nuevo', 'Estado', 'Notas']
+        headers = ['Fecha', 'Servicio', 'Descripción', 'Tipo', 'Costo Anterior (S/.)', 'Costo Nuevo (S/.)', 'Precio Anterior (S/.)', 'Precio Nuevo (S/.)', 'Estado', 'Notas']
         rows = []
         for mv in queryset:
             fecha_str = mv.fecha.strftime("%d/%m/%Y %H:%M:%S")
@@ -250,6 +250,32 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return VentaServicioCreateSerializer
         return VentaServicioSerializer
+        
+    def create(self, request, *args, **kwargs):
+        data = request.data.copy()
+        origen_fiado_id = data.pop('origen_fiado_id', None)
+        
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        
+        if origen_fiado_id:
+            try:
+                from apps.fiados.models import Fiado
+                fiado_id = origen_fiado_id[0] if isinstance(origen_fiado_id, list) else origen_fiado_id
+                fiado = Fiado.objects.get(id=fiado_id)
+                fiado.estado = 'LIQUIDADO'
+                fiado.venta_servicio_ref = serializer.instance
+                fiado.save()
+                
+                serializer.instance.estado = 'TERMINADO'
+                serializer.instance.save()
+            except Exception as e:
+                print(f"Error al vincular fiado: {e}")
+                
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     
     @action(detail=True, methods=['post'])
     def completar(self, request, pk=None):
@@ -319,6 +345,9 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
             'comprobante': l_num,
             'cliente': comp_cliente,
             'servicio': venta.servicio_nombre or (venta.servicio.nombre if venta.servicio else 'Sin Servicio'),
+            'precio': float(venta.precio),
+            'descuento': float(venta.descuento),
+            'impuesto': float(venta.impuesto),
             'total': float(venta.total)
         }]
         
@@ -358,9 +387,9 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
         headers = [
-            'ID', 'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
-            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Estado',
-            'Servicio', 'Impuesto', 'Total'
+            'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
+            'Tipo Comprobante', 'Comprobante', 'Cliente',
+            'Servicio', 'Precio Serv. (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
         ]
         rows = []
         for obj in queryset.order_by('-creado_en'):
@@ -370,17 +399,17 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
             comp_cliente = obj.cliente_nombre or (obj.cliente.nombre if obj.cliente else 'Sin Cliente')
             
             rows.append([
-                obj.id,
                 timezone.localtime(obj.creado_en).strftime("%d/%m/%Y %H:%M:%S"),
                 "COMPROBANTE SIMPLE",
                 obj.numero_comprobante_simple or "",
                 l_tipo,
                 l_num,
                 comp_cliente,
-                obj.get_estado_display(),
                 obj.servicio_nombre or (obj.servicio.nombre if obj.servicio else 'Sin Servicio'),
+                float(obj.precio),
+                float(obj.descuento),
                 float(obj.impuesto),
-                float(obj.total)
+                float(obj.precio) - float(obj.descuento) + float(obj.impuesto)
             ])
 
         period_label = get_period_label(periodo, anio)
@@ -428,9 +457,8 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
         # Sheet 2: Detalle de Venta de Servicio
         headers_detalle = [
             'Fecha/Hora', 'Tipo Comprobante Simple', 'Comprobante Simple',
-            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Estado',
-            'Servicio', 'Precio de Servicio (S/.)', 'Descuento (S/.)', 
-            'Impuesto (S/.)', 'Total (S/.)'
+            'Tipo Comprobante', 'Comprobante', 'Cliente',
+            'Servicio', 'Precio Serv. (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
         ]
         
         comp_fecha = timezone.localtime(venta.creado_en).strftime("%d/%m/%Y %H:%M:%S")
@@ -443,12 +471,11 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
                 l_tipo,
                 l_num,
                 comp_cliente,
-                venta.get_estado_display(),
                 venta.servicio_nombre or (venta.servicio.nombre if venta.servicio else 'Sin Servicio'),
                 float(venta.precio),
                 float(venta.descuento),
                 float(venta.impuesto),
-                float(venta.total)
+                float(venta.precio) - float(venta.descuento) + float(venta.impuesto)
             ]
         ]
 
@@ -517,7 +544,8 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
         # Sheet 2: Detalle de Venta de Servicios Global
         headers_detalle = [
             'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
-            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Servicio', 'Total (S/.)'
+            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Servicio', 
+            'Precio Serv. (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
         ]
         
         rows_detalle = []
@@ -535,7 +563,10 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
                 l_num,
                 comp_cliente,
                 v.servicio_nombre or (v.servicio.nombre if v.servicio else 'Sin Servicio'),
-                float(v.total)
+                float(v.precio),
+                float(v.descuento),
+                float(v.impuesto),
+                float(v.precio) - float(v.descuento) + float(v.impuesto)
             ])
 
         period_label = get_period_label(periodo, anio)

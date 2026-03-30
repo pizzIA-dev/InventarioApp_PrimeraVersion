@@ -166,15 +166,22 @@ class KardexProductoCompraSerializer(serializers.ModelSerializer):
     proveedor_nombre = serializers.SerializerMethodField()
     producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)
     producto_codigo = serializers.CharField(source='producto.codigo', read_only=True)
-    total = serializers.DecimalField(source='subtotal', max_digits=12, decimal_places=2, read_only=True)
+    impuesto = serializers.DecimalField(source='compra.impuesto', max_digits=12, decimal_places=2, read_only=True)
+    total = serializers.SerializerMethodField()
 
     class Meta:
         model = DetalleCompra
         fields = [
             'id', 'fecha', 'tipo_comprobante', 'numero_comprobante',
             'proveedor_nombre', 'producto_nombre', 'producto_codigo',
-            'cantidad', 'precio_compra', 'descuento', 'total'
+            'cantidad', 'precio_compra', 'descuento', 'impuesto', 'total'
         ]
 
     def get_proveedor_nombre(self, obj):
         return obj.compra.proveedor_nombre or (obj.compra.proveedor.nombre if obj.compra.proveedor else 'N/A')
+
+    def get_total(self, obj):
+        """Total = (Cantidad * Precio Compra) - Descuento + Impuesto"""
+        subtotal = (obj.cantidad * obj.precio_compra) - obj.descuento
+        impuesto = obj.compra.impuesto or 0
+        return subtotal + impuesto

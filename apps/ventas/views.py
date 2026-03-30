@@ -33,11 +33,77 @@ class VentaViewSet(viewsets.ModelViewSet):
         return VentaSerializer
     
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        # Extraer el ID del fiado si viene en la petición
+        data = request.data.copy()
+        origen_fiado_id = data.pop('origen_fiado_id', None)
+        
+        serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
+        
+        # Si la venta proviene de un fiado, vincular y liquidar el fiado
+        if origen_fiado_id:
+            try:
+                from apps.fiados.models import Fiado
+                # origen_fiado_id could be a list if from form data or a single value
+                fiado_id = origen_fiado_id[0] if isinstance(origen_fiado_id, list) else origen_fiado_id
+                fiado = Fiado.objects.get(id=fiado_id)
+                fiado.estado = 'LIQUIDADO'
+                fiado.venta_ref = serializer.instance
+                fiado.save()
+                
+                # Automáticamente confirmar la venta si viene de un fiado que ya está pagado
+                serializer.instance.estado = 'CONFIRMADA'
+                serializer.instance.save()
+                
+            except Exception as e:
+                print(f"Error al vincular fiado: {e}")
+                
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    @action(detail=False, methods=['get'])
+    def proximo_numero(self, request):
+        """Calcula el siguiente número correlativo basado en todas las ventas del sistema"""
+        tipo = request.query_params.get('tipo', 'SIMPLE')
+        prefix_map = {
+            'SIMPLE': 'SMP',
+            'BOLETA': 'BOL',
+            'FACTURA': 'FAC'
+        }
+        prefix = prefix_map.get(tipo, 'DOC')
+        
+        from apps.servicios.models import VentaServicio
+        from django.db.models import Q
+        
+        # Filtros base
+        if tipo == 'SIMPLE':
+            q_v = Q(numero_comprobante_simple__startswith=f"{prefix}-")
+            q_vs = Q(numero_comprobante_simple__startswith=f"{prefix}-")
+        else:
+            q_v = Q(numero_comprobante__startswith=f"{prefix}-")
+            q_vs = Q(numero_comprobante__startswith=f"{prefix}-")
+            
+        # Obtener valores
+        vals_v = Venta.objects.filter(q_v).values_list(
+            'numero_comprobante_simple' if tipo == 'SIMPLE' else 'numero_comprobante', flat=True
+        )
+        vals_vs = VentaServicio.objects.filter(q_vs).values_list(
+            'numero_comprobante_simple' if tipo == 'SIMPLE' else 'numero_comprobante', flat=True
+        )
+        
+        nums = []
+        for val in list(vals_v) + list(vals_vs):
+            if val and '-' in val:
+                try:
+                    nums.append(int(val.split('-')[1]))
+                except (IndexError, ValueError):
+                    pass
+        
+        max_num = max(nums) if nums else 0
+        next_val = f"{prefix}-{(max_num + 1):06d}"
+        
+        return Response({'proximo_numero': next_val})
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
@@ -55,7 +121,10 @@ class VentaViewSet(viewsets.ModelViewSet):
         venta = self.get_object()
         venta.estado = 'CONFIRMADA'
         venta.save()
-        venta.registrar_salida_stock()
+        
+        # Solo descontar stock si NO proviene de un fiado (el fiado ya descontó el stock pidiendo confirmación de reserva)
+        if not venta.fiado_origen.exists():
+            venta.registrar_salida_stock()
         
         serializer = self.get_serializer(venta)
         return Response(serializer.data)
@@ -286,7 +355,7 @@ class VentaViewSet(viewsets.ModelViewSet):
         anio = request.query_params.get('anio')
         anio = int(anio) if anio else None
 
-        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.filter_queryset(self.get_queryset()).prefetch_related('detalleventa_set')
 
         period_range = get_period_range(periodo, anio)
         if period_range:
@@ -296,7 +365,7 @@ class VentaViewSet(viewsets.ModelViewSet):
         headers = [
             'ID', 'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
             'Tipo Comprobante', 'Comprobante', 'Cliente', 'Estado',
-            'Subtotal', 'Descuento', 'Impuesto', 'Total'
+            'Subtotal (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
         ]
         rows = []
         for obj in queryset.order_by('-creado_en'):
@@ -304,6 +373,12 @@ class VentaViewSet(viewsets.ModelViewSet):
             legal_tipo = tipo_comprobante if tipo_comprobante and tipo_comprobante != 'SIMPLE' else ""
             legal_num = obj.numero_comprobante if legal_tipo else ""
             
+            # Calcular Subtotal Bruto y Descuento Total (Línea + Global)
+            detalles = obj.detalleventa_set.all()
+            gross_subtotal = sum(float(d.cantidad) * float(d.precio_venta) for d in detalles)
+            total_row_discounts = sum(float(d.descuento) for d in detalles)
+            total_descuento = float(obj.descuento) + total_row_discounts
+
             rows_ventas_item = [
                 obj.id,
                 timezone.localtime(obj.creado_en).strftime("%d/%m/%Y %H:%M:%S"),
@@ -313,8 +388,8 @@ class VentaViewSet(viewsets.ModelViewSet):
                 legal_num,
                 obj.cliente_nombre or (obj.cliente.nombre if obj.cliente else 'Sin Cliente'),
                 obj.get_estado_display(),
-                float(obj.subtotal),
-                float(obj.descuento),
+                gross_subtotal,
+                total_descuento,
                 float(obj.impuesto),
                 float(obj.total)
             ]
@@ -365,10 +440,9 @@ class VentaViewSet(viewsets.ModelViewSet):
         # Sheet 2: Productos
         detalles = venta.detalleventa_set.all().select_related('producto').order_by('id')
         headers_productos = [
-            'Fecha/Hora', 'Tipo Comprobante Simple', 'Comprobante Simple',
-            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Estado',
-            'Producto', 'Código de Producto', 'Cantidad', 'Precio Unitario', 
-            'Descuento Unit.', 'Total Línea', 'Subtotal Venta', 'Impuesto Venta', 'Total Venta'
+            'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
+            'Tipo Comprobante', 'Comprobante', 'Cliente',
+            'Producto', 'Código', 'Cant.', 'P. Unit. (S/.)', 'Subtotal (S/.)', 'Desc. (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
         ]
         
         comp_fecha = timezone.localtime(venta.creado_en).strftime("%d/%m/%Y %H:%M:%S")
@@ -390,16 +464,14 @@ class VentaViewSet(viewsets.ModelViewSet):
                 legal_tipo,
                 legal_num,
                 comp_cliente,
-                venta.get_estado_display(),
                 d.producto.nombre,
                 d.producto.codigo,
                 float(d.cantidad),
                 float(d.precio_venta),
+                float(d.cantidad) * float(d.precio_venta),
                 float(d.descuento),
-                float(d.subtotal),
-                float(venta.subtotal),
-                float(venta.impuesto),
-                float(venta.total)
+                float(v.impuesto),
+                (float(d.cantidad) * float(d.precio_venta)) - float(d.descuento) + float(v.impuesto)
             ] for d in detalles
         ]
 
@@ -488,10 +560,9 @@ class VentaViewSet(viewsets.ModelViewSet):
             detalles_qs = detalles_qs.filter(producto_id=producto)
 
         headers_productos = [
-            'Fecha/Hora', 'Tipo Comprobante Simple', 'Comprobante Simple',
-            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Estado',
-            'Producto', 'Código de Producto', 'Cantidad', 'Precio Unitario', 
-            'Descuento Unit.', 'Total Línea', 'Subtotal Venta', 'Impuesto Venta', 'Total Venta'
+            'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
+            'Tipo Comprobante', 'Comprobante', 'Cliente',
+            'Producto', 'Código', 'Cant.', 'P. Unit. (S/.)', 'Subtotal (S/.)', 'Desc. (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
         ]
         rows_productos = []
         for d in detalles_qs:
@@ -509,16 +580,14 @@ class VentaViewSet(viewsets.ModelViewSet):
                 legal_tipo,
                 legal_num,
                 comp_cliente,
-                v.get_estado_display(),
                 d.producto.nombre,
                 d.producto.codigo,
                 float(d.cantidad),
                 float(d.precio_venta),
+                float(d.cantidad) * float(d.precio_venta),
                 float(d.descuento),
-                float(d.subtotal),
-                float(v.subtotal),
                 float(v.impuesto),
-                float(v.total)
+                (float(d.cantidad) * float(d.precio_venta)) - float(d.descuento) + float(v.impuesto)
             ])
 
         period_label = get_period_label(periodo, anio)

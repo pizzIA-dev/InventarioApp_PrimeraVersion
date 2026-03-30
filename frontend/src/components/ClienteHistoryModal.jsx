@@ -298,7 +298,9 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
                         <th style={{ padding: '10px 12px', textAlign: 'left' }}>Código</th>
                         <th style={{ padding: '10px 12px', textAlign: 'right' }}>Cant.</th>
                         <th style={{ padding: '10px 12px', textAlign: 'right' }}>P. Unit.</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'right' }}>Subtotal</th>
                         <th style={{ padding: '10px 12px', textAlign: 'right' }}>Desc.</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'right' }}>Impuesto</th>
                         <th style={{ padding: '10px 12px', textAlign: 'right' }}>Total</th>
                       </tr>
                     </thead>
@@ -320,17 +322,19 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
                             <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', fontSize: '11px' }}>{record.producto_codigo}</td>
                             <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 'bold' }}>{record.cantidad}</td>
                             <td style={{ padding: '10px 12px', textAlign: 'right' }}>S/. {Number(record.precio_unitario).toFixed(2)}</td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '600' }}>S/. {(record.cantidad * record.precio_unitario).toFixed(2)}</td>
                             <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--color-danger)' }}>
                               {record.descuento > 0 ? `-S/. ${Number(record.descuento).toFixed(2)}` : '-'}
                             </td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right' }}>S/. {Number(record.impuesto || 0).toFixed(2)}</td>
                             <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 'bold', color: 'var(--accent)' }}>
-                              S/. {Number(record.total).toFixed(2)}
+                              S/. { ( (record.cantidad ? (record.cantidad * record.precio_unitario) : Number(record.precio_servicio)) - (record.descuento || 0) + (Number(record.impuesto) || 0) ).toFixed(2) }
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="11" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                          <td colSpan="14" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
                             No hay registro de productos para este cliente.
                           </td>
                         </tr>
@@ -350,6 +354,9 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
                         <th style={{ padding: '10px 12px', textAlign: 'left' }}>Comprobante</th>
                         <th style={{ padding: '10px 12px', textAlign: 'left' }}>Cliente</th>
                         <th style={{ padding: '10px 12px', textAlign: 'left' }}>Servicio</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'right' }}>Precio Serv.</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'right' }}>Descuento</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'right' }}>Impuesto</th>
                         <th style={{ padding: '10px 12px', textAlign: 'right' }}>Total</th>
                       </tr>
                     </thead>
@@ -366,14 +373,19 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
                             <td style={{ padding: '10px 12px', color: 'var(--accent)', fontWeight: 'bold' }}>{record.comprobante}</td>
                             <td style={{ padding: '10px 12px' }}>{record.cliente}</td>
                             <td style={{ padding: '10px 12px' }}>{record.servicio_nombre}</td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right' }}>S/. {Number(record.precio_servicio).toFixed(2)}</td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--color-danger)' }}>
+                              {record.descuento > 0 ? `-S/. ${Number(record.descuento).toFixed(2)}` : '-'}
+                            </td>
+                            <td style={{ padding: '10px 12px', textAlign: 'right' }}>S/. {Number(record.impuesto || 0).toFixed(2)}</td>
                             <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 'bold', color: 'var(--accent)' }}>
-                              S/. {Number(record.total).toFixed(2)}
+                              S/. { ( (record.cantidad ? (record.cantidad * record.precio_unitario) : Number(record.precio_servicio)) - (record.descuento || 0) + (Number(record.impuesto) || 0) ).toFixed(2) }
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                          <td colSpan="11" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
                             No hay registro de servicios para este cliente.
                           </td>
                         </tr>

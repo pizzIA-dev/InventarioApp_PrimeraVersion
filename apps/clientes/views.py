@@ -34,6 +34,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
     pagination_class = None
     
     def get_serializer_class(self):
+
         if self.action == 'create':
             return ClienteCreateSerializer
         return ClienteSerializer
@@ -185,14 +186,16 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def exportar(self, request):
-        """Exportar clientes a Excel (Hoja única)"""
+        """Exportar clientes a Excel (Multi-hoja: Productos y Servicios)"""
         periodo = request.query_params.get('periodo', 'todo')
         anio = request.query_params.get('anio')
         anio = int(anio) if anio else None
 
         queryset = self.filter_queryset(self.get_queryset()).annotate(
             num_ventas=Count('ventas', filter=models.Q(ventas__estado='CONFIRMADA')),
-            ventas_total=Sum('ventas__total', filter=models.Q(ventas__estado='CONFIRMADA'))
+            ventas_total=Sum('ventas__total', filter=models.Q(ventas__estado='CONFIRMADA')),
+            num_servicios=Count('servicios_contratados', filter=models.Q(servicios_contratados__estado='TERMINADO')),
+            servicios_total=Sum('servicios_contratados__total', filter=models.Q(servicios_contratados__estado='TERMINADO'))
         )
 
         period_range = get_period_range(periodo, anio)
@@ -203,12 +206,15 @@ class ClienteViewSet(viewsets.ModelViewSet):
         # Cabeceras: ID Nombre Tipo Documento Contacto Email Teléfono Recurrencia Total Comprado Estado Última Modificación
         headers = [
             'ID', 'Nombre', 'Tipo', 'Documento', 'Contacto', 'Email', 
-            'Teléfono', 'Recurrencia', 'Total Comprado', 'Estado', 'Última Modificación'
+            'Teléfono', 'Recurrencia', 'Total Comprado (S/.)', 'Estado', 'Última Modificación'
         ]
         
-        rows = []
+        rows_productos = []
+        rows_servicios = []
+
         for obj in queryset:
-            rows.append([
+            # Common data
+            common_data = [
                 obj.id,
                 obj.nombre,
                 obj.get_tipo_cliente_display(),
@@ -216,20 +222,53 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 obj.contacto or '',
                 obj.email or '',
                 obj.telefono or '',
-                obj.num_ventas or 0,
-                float(obj.ventas_total) if obj.ventas_total else 0.0,
+            ]
+            common_footer = [
                 'Activo' if obj.activo else 'Inactivo',
                 timezone.localtime(obj.actualizado_en).strftime("%d/%m/%Y %H:%M:%S")
-            ])
+            ]
+
+            # Product sheet logic
+            if (obj.num_ventas or 0) > 0:
+                total_v = float(obj.ventas_total) if obj.ventas_total else 0.0
+                rows_productos.append(
+                    common_data + [
+                        obj.num_ventas or 0,
+                        total_v,
+                    ] + common_footer
+                )
+
+            # Service sheet logic
+            if (obj.num_servicios or 0) > 0:
+                total_s = float(obj.servicios_total) if obj.servicios_total else 0.0
+                rows_servicios.append(
+                    common_data + [
+                        obj.num_servicios or 0,
+                        total_s,
+                    ] + common_footer
+                )
 
         period_label = get_period_label(periodo, anio)
-        return create_excel_response(
+        sheets_data = [
+            {
+                'sheet_name': 'Clientes (Productos)',
+                'headers': headers,
+                'rows': rows_productos,
+                'title': 'Registro de Clientes (Compras de Productos)',
+                'period_label': period_label
+            },
+            {
+                'sheet_name': 'Clientes (Servicios)',
+                'headers': headers,
+                'rows': rows_servicios,
+                'title': 'Registro de Clientes (Contratación de Servicios)',
+                'period_label': period_label
+            }
+        ]
+
+        return create_multi_sheet_excel_response(
             filename=f'clientes_{periodo}{"_" + str(anio) if anio else ""}.xlsx',
-            sheet_name='Clientes',
-            headers=headers,
-            rows=rows,
-            title='Registro de Clientes',
-            period_label=period_label
+            sheets_data=sheets_data
         )
 
     @action(detail=True, methods=['get'])
@@ -273,6 +312,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 'comprobante': l_num,
                 'cliente': v.cliente_nombre or (v.cliente.nombre if v.cliente else "Cliente General"),
                 'servicio_nombre': v.servicio_nombre or (v.servicio.nombre if v.servicio else 'Sin Servicio'),
+                'precio_servicio': float(v.precio),
+                'descuento': float(v.descuento),
+                'impuesto': float(v.impuesto),
                 'total': float(v.total)
             })
 
@@ -311,7 +353,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         headers_productos = [
             'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
             'Tipo Comprobante', 'Comprobante', 'Cliente', 'Producto',
-            'Código', 'Cant.', 'P. Unit.', 'Desc.', 'Total'
+            'Código', 'Cant.', 'P. Unit. (S/.)', 'Subtotal (S/.)', 'Desc. (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
         ]
         rows_productos = []
         for d in detalles:
@@ -326,7 +368,10 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 l_t, l_n,
                 v.cliente_nombre or (v.cliente.nombre if v.cliente else "Cliente General"),
                 d.producto.nombre, d.producto.codigo,
-                float(d.cantidad), float(d.precio_venta), float(d.descuento), float(d.subtotal)
+                float(d.cantidad), float(d.precio_venta),
+                float(d.cantidad) * float(d.precio_venta),
+                float(d.descuento), float(v.impuesto),
+                (float(d.cantidad) * float(d.precio_venta)) - float(d.descuento) + float(v.impuesto)
             ])
 
         # Hoja 3: Detalle de Venta de Servicios
@@ -337,7 +382,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
         headers_servicios = [
             'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
-            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Servicio', 'Total'
+            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Servicio',
+            'Precio Serv. (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
         ]
         rows_servicios = []
         for v in ventas_s:
@@ -351,7 +397,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 l_t, l_n,
                 v.cliente_nombre or (v.cliente.nombre if v.cliente else "Cliente General"),
                 v.servicio_nombre or (v.servicio.nombre if v.servicio else 'Sin Servicio'),
-                float(v.total)
+                float(v.precio), float(v.descuento), float(v.impuesto), float(v.total)
             ])
 
         sheets_data = [
@@ -428,8 +474,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
         headers_productos = [
             'Fecha/Hora', 'Tipo Comprobante Simple', 'Comprobante Simple',
             'Tipo Comprobante', 'Comprobante', 'Cliente', 'Estado',
-            'Producto', 'Código de Producto', 'Cantidad', 'Precio Unitario', 
-            'Descuento Unit.', 'Total Línea', 'Subtotal Venta', 'Impuesto Venta', 'Total Venta'
+            'Producto', 'Código de Producto', 'Cantidad', 'Precio Unitario (S/.)', 
+            'Subtotal (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
         ]
         rows_productos = []
         for d in detalles:
@@ -443,8 +489,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 "COMPROBANTE SIMPLE", v.numero_comprobante_simple or "",
                 l_t, l_n, cliente_nombre, v.get_estado_display(),
                 d.producto.nombre, d.producto.codigo, float(d.cantidad),
-                float(d.precio_venta), float(d.descuento), float(d.subtotal),
-                float(v.subtotal), float(v.impuesto), float(v.total)
+                float(d.precio_venta), float(d.cantidad) * float(d.precio_venta),
+                float(d.descuento), float(v.impuesto), 
+                (float(d.cantidad) * float(d.precio_venta)) - float(d.descuento) + float(v.impuesto)
             ])
 
         # Hoja 3: Detalle de Venta de Servicios (Kardex Global)
@@ -455,7 +502,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
         headers_servicios = [
             'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
-            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Estado', 'Servicio', 'Total'
+            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Estado', 'Servicio',
+            'Precio Serv. (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
         ]
         rows_servicios = []
         for v in ventas_s:
@@ -468,7 +516,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 "COMPROBANTE SIMPLE", v.numero_comprobante_simple or "",
                 l_t, l_n, cliente_nombre, v.get_estado_display(),
                 v.servicio_nombre or (v.servicio.nombre if v.servicio else 'Sin Servicio'),
-                float(v.total)
+                float(v.precio), float(v.descuento), float(v.impuesto), float(v.total)
             ])
 
         period_label = get_period_label(periodo, anio)

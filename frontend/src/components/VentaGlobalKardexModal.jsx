@@ -166,7 +166,9 @@ const VentaGlobalKardexModal = ({ visible, onClose }) => {
                       <th>Código</th>
                       <th style={{ textAlign: 'right' }}>Cantidad</th>
                       <th style={{ textAlign: 'right' }}>P. Unitario</th>
+                      <th style={{ textAlign: 'right' }}>Subtotal</th>
                       <th style={{ textAlign: 'right' }}>Descuento</th>
+                       <th style={{ textAlign: 'right' }}>Impuesto</th>
                       <th style={{ textAlign: 'right' }}>Total Venta</th>
                     </tr>
                   </thead>
@@ -185,8 +187,10 @@ const VentaGlobalKardexModal = ({ visible, onClose }) => {
                         <td style={{ color: 'var(--text-secondary)' }}>{p.producto_codigo}</td>
                         <td style={{ textAlign: 'right', fontWeight: 700, fontSize: '13px' }}>{p.cantidad}</td>
                         <td style={{ textAlign: 'right' }}>S/. {Number(p.precio_unitario).toFixed(2)}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 600 }}>S/. {Number(p.cantidad * p.precio_unitario).toFixed(2)}</td>
                         <td style={{ textAlign: 'right', color: 'var(--color-danger)' }}>-S/. {Number(p.descuento || 0).toFixed(2)}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>S/. {Number(p.total).toFixed(2)}</td>
+                         <td style={{ textAlign: 'right' }}>S/. {Number(p.impuesto || 0).toFixed(2)}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>S/. {( (p.cantidad * p.precio_unitario) - (p.descuento || 0) + (Number(p.impuesto) || 0) ).toFixed(2)}</td>
                       </tr>
                     ))}
                     {historyProductos.length === 0 && (

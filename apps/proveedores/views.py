@@ -116,11 +116,13 @@ class ProveedorViewSet(viewsets.ModelViewSet):
         from apps.compras.models import DetalleCompra
         detalles_qs = DetalleCompra.objects.filter(compra__proveedor=proveedor).select_related('producto', 'compra').order_by('-compra__creado_en')
         
-        headers_prod = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra', 'Descuento', 'Total']
+        headers_prod = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)']
         rows_prod = []
         for d in detalles_qs:
             c = d.compra
             comp_num = c.numero_comprobante or f"#{c.id}"
+            # El total es el subtotal (neto) + impuesto del comprobante
+            total_fila = float(d.subtotal) + float(c.impuesto)
             rows_prod.append([
                 timezone.localtime(c.creado_en).strftime("%d/%m/%Y %H:%M:%S"),
                 c.tipo_comprobante or '',
@@ -130,7 +132,8 @@ class ProveedorViewSet(viewsets.ModelViewSet):
                 float(d.cantidad),
                 float(d.precio_compra),
                 float(d.descuento),
-                float(d.subtotal)
+                float(c.impuesto),
+                total_fila
             ])
 
         sheets_data = [
@@ -195,9 +198,14 @@ class ProveedorViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
-        headers = ['ID', 'Nombre', 'Documento (RUC/DNI)', 'Categoría', 'Contrato', 'Contacto', 'Email', 'Teléfono', 'Días de Crédito', 'Límite Crédito (S/.)', 'Estado', 'Última Modificación']
+        from django.db.models import Sum
+        headers = ['ID', 'Nombre', 'Documento (RUC/DNI)', 'Categoría', 'Contrato', 'Contacto', 'Email', 'Teléfono', 'Días de Crédito', 'Límite Crédito (S/.)', 'Estado', 'Recurrencia', 'Total Comprado (S/.)', 'Última Modificación']
         rows = []
         for obj in queryset:
+            # Calcular métricas adicionales
+            recurrencia = obj.compras.count()
+            total_comprado = obj.compras.aggregate(total_sum=Sum('total'))['total_sum'] or 0.0
+
             rows.append([
                 obj.id,
                 obj.nombre,
@@ -210,6 +218,8 @@ class ProveedorViewSet(viewsets.ModelViewSet):
                 obj.dias_credito or 0,
                 float(obj.limite_credito) if obj.limite_credito else 0.0,
                 'Activo' if obj.activo else 'Inactivo',
+                recurrencia,
+                float(total_comprado),
                 timezone.localtime(obj.actualizado_en).strftime('%d/%m/%Y %H:%M:%S') if obj.actualizado_en else ''
             ])
 
@@ -273,12 +283,14 @@ class MovimientoProveedorViewSet(viewsets.ReadOnlyModelViewSet):
             ])
 
         # Preparar filas Hoja 2
-        headers_prod = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Proveedor', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra', 'Descuento', 'Total']
+        headers_prod = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Proveedor', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)']
         rows_prod = []
         for d in detalles_qs:
             c = d.compra
             prov_nombre = c.proveedor_nombre or (c.proveedor.nombre if c.proveedor else 'N/A')
             comp_num = c.numero_comprobante or f"#{c.id}"
+            # El total es el subtotal (neto) + impuesto del comprobante
+            total_fila = float(d.subtotal) + float(c.impuesto)
             rows_prod.append([
                 timezone.localtime(c.creado_en).strftime("%d/%m/%Y %H:%M:%S"),
                 c.tipo_comprobante or '',
@@ -289,7 +301,8 @@ class MovimientoProveedorViewSet(viewsets.ReadOnlyModelViewSet):
                 float(d.cantidad),
                 float(d.precio_compra),
                 float(d.descuento),
-                float(d.subtotal)
+                float(c.impuesto),
+                total_fila
             ])
 
         period_label = get_period_label(periodo, anio)

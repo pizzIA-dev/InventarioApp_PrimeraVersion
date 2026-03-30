@@ -159,8 +159,8 @@ class CapitalViewSet(viewsets.ModelViewSet):
         movimientos = capital.movimientos.all()
 
         headers = [
-            'Fecha', 'Campo Modificado', 'V. Inicial Ant.', 'V. Inicial Nvo.', 
-            'V. Actual Ant.', 'V. Actual Nvo.', 'Valor Anterior (Ref)', 'Valor Nuevo (Ref)', 'Notas'
+            'Fecha', 'Campo Modificado', 'V. Inicial Ant. (S/.)', 'V. Inicial Nvo. (S/.)', 
+            'V. Actual Ant. (S/.)', 'V. Actual Nvo. (S/.)', 'Valor Anterior (Ref)', 'Valor Nuevo (Ref)', 'Notas'
         ]
         rows = []
         for m in movimientos:
@@ -200,7 +200,7 @@ class CapitalViewSet(viewsets.ModelViewSet):
 
         headers = [
             'ID', 'Fecha de Registro', 'Nombre', 'Tipo', 'Categoría',
-            'Valor Inicial', 'Valor Actual', 'Última Actualización'
+            'Valor Inicial (S/.)', 'Valor Actual (S/.)', 'Última Actualización'
         ]
         rows = []
         for c in queryset:
@@ -240,8 +240,8 @@ class CapitalViewSet(viewsets.ModelViewSet):
 
         headers = [
             'Fecha', 'Capital', 'Tipo', 'Categoría',
-            'Campo Modificado', 'V. Inicial Ant.', 'V. Inicial Nvo.', 
-            'V. Actual Ant.', 'V. Actual Nvo.', 'Notas'
+            'Campo Modificado', 'V. Inicial Ant. (S/.)', 'V. Inicial Nvo. (S/.)', 
+            'V. Actual Ant. (S/.)', 'V. Actual Nvo. (S/.)', 'Notas'
         ]
         rows = []
         for m in movimientos_qs:
