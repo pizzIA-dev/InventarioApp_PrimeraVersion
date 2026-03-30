@@ -40,7 +40,7 @@ function Ventas() {
   const [ventasServiciosPage, setVentasServiciosPage] = useState(1);
   const [filterServicio, setFilterServicio] = useState('ALL');
   const [servicios, setServicios] = useState([]);
-  const [ventaConfirmDialog, setVentaConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
+  const [ventaConfirmDialog, setVentaConfirmDialog] = useState({ visible: false, id: null, nombre: '', estado: '' });
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedVentaForDetail, setSelectedVentaForDetail] = useState(null);
   const [isFormalizing, setIsFormalizing] = useState(false);
@@ -117,7 +117,7 @@ function Ventas() {
     notas: '',
   });
   const [errors, setErrors] = useState({});
-  const [confirmDialog, setConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
+  const [confirmDialog, setConfirmDialog] = useState({ visible: false, id: null, nombre: '', estado: '' });
   const [formData, setFormData] = useState({
     cliente: '',
     cliente_nombre: '',
@@ -575,13 +575,13 @@ function Ventas() {
   };
 
   const handleDeleteClick = (venta) => {
-    setConfirmDialog({ visible: true, id: venta.id, nombre: venta.numero_comprobante || `Venta #${venta.id}` });
+    setConfirmDialog({ visible: true, id: venta.id, nombre: venta.numero_comprobante || `Venta #${venta.id}`, estado: venta.estado });
   };
 
   const handleDeleteConfirm = async () => {
     try {
       await ventasAPI.delete(confirmDialog.id);
-      setConfirmDialog({ visible: false, id: null, nombre: '' });
+      setConfirmDialog({ visible: false, id: null, nombre: '', estado: '' });
       fetchVentas();
     } catch (error) {
       console.error('Error deleting venta:', error);
@@ -695,13 +695,13 @@ function Ventas() {
   };
 
   const handleDeleteVentaClick = (venta) => {
-    setVentaConfirmDialog({ visible: true, id: venta.id, nombre: venta.servicio_nombre || 'Venta de Servicio' });
+    setVentaConfirmDialog({ visible: true, id: venta.id, nombre: venta.servicio_nombre || 'Venta de Servicio', estado: venta.estado });
   };
 
   const handleDeleteVentaConfirm = async () => {
     try {
       await serviciosAPI.deleteVenta(ventaConfirmDialog.id);
-      setVentaConfirmDialog({ visible: false, id: null, nombre: '' });
+      setVentaConfirmDialog({ visible: false, id: null, nombre: '', estado: '' });
       fetchVentasServicios();
     } catch (error) {
       console.error('Error deleting venta de servicio:', error);
@@ -2063,6 +2063,30 @@ function Ventas() {
           </div>
         </div>
       )}
+
+      {/* Diálogos de Confirmación de Eliminación */}
+      <ConfirmDialog
+        visible={confirmDialog.visible || ventaConfirmDialog.visible}
+        title="Confirmar Eliminación"
+        message={
+          confirmDialog.visible 
+            ? (confirmDialog.estado === 'CONFIRMADA' 
+                ? `Esta venta está CONFIRMADA. Al eliminarla, el stock de los productos se reintegrará automáticamente al inventario. ¿Deseas eliminar la venta ${confirmDialog.nombre}?`
+                : confirmDialog.estado === 'CANCELADA'
+                ? `Esta venta ya fue CANCELADA. Al eliminarla se borrará el registro permanentemente. ¿Deseas eliminar la venta ${confirmDialog.nombre}?`
+                : `Esta venta es un BORRADOR y no ha afectado el inventario. Al eliminarla se perderá permanentemente. ¿Deseas eliminar la venta ${confirmDialog.nombre}?`)
+            : (ventaConfirmDialog.estado === 'TERMINADO'
+                ? `Este servicio está TERMINADO. Al eliminarlo se borrará el registro permanentemente. ¿Deseas eliminar el servicio ${ventaConfirmDialog.nombre}?`
+                : `Al eliminar este servicio se perderá permanentemente. ¿Deseas eliminar el servicio ${ventaConfirmDialog.nombre}?`)
+        }
+        onConfirm={confirmDialog.visible ? handleDeleteConfirm : handleDeleteVentaConfirm}
+        onCancel={() => {
+          if (confirmDialog.visible) setConfirmDialog({ visible: false, id: null, nombre: '', estado: '' });
+          if (ventaConfirmDialog.visible) setVentaConfirmDialog({ visible: false, id: null, nombre: '', estado: '' });
+        }}
+        confirmText="Sí, eliminar"
+        danger={true}
+      />
     </div>
   );
 }
