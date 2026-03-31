@@ -10,6 +10,7 @@ import ServicioVentaFormModal from '../ventas/ServicioVentaFormModal';
 import ClienteFormModal from '../ClienteFormModal';
 import ProductFormModal from '../ProductFormModal';
 import FiadoHistorialModal from './FiadoHistorialModal';
+import FiadoDetailModal from './FiadoDetailModal';
 import ExportDropdown from '../ExportDropdown';
 
 function FiadosOperaciones() {
@@ -27,6 +28,10 @@ function FiadosOperaciones() {
   // Historial Kardex Modal
   const [historialModalVisible, setHistorialModalVisible] = useState(false);
   const [fiadoForHistorial, setFiadoForHistorial] = useState(null);
+  
+  // Detail Modal
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [fiadoForDetail, setFiadoForDetail] = useState(null);
   
   // Modals
   const [formModalVisible, setFormModalVisible] = useState(false);
@@ -517,6 +522,10 @@ function FiadosOperaciones() {
                   <td>{getEstadoBadge(fiado.estado)}</td>
                    <td>
                     <div style={{ display: 'flex', gap: '8px' }}>
+                      <button className="btn btn-secondary" onClick={() => { setFiadoForDetail(fiado); setDetailModalVisible(true); }} title="Ver Detalle de Productos/Servicios">
+                        <EyeOutlined />
+                      </button>
+
                       <button className="btn btn-secondary" onClick={() => { setFiadoForHistorial(fiado); setHistorialModalVisible(true); }} title="Ver Historial (Kardex)">
                         <HistoryOutlined />
                       </button>
@@ -566,6 +575,12 @@ function FiadosOperaciones() {
           </table>
         </div>
       </div>
+
+      <FiadoDetailModal 
+        visible={detailModalVisible}
+        onClose={() => { setDetailModalVisible(false); setFiadoForDetail(null); }}
+        fiado={fiadoForDetail}
+      />
 
       <FiadoHistorialModal 
         visible={historialModalVisible}
