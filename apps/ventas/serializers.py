@@ -39,7 +39,15 @@ class DetalleVentaCreateSerializer(serializers.ModelSerializer):
 
 
 class VentaSerializer(serializers.ModelSerializer):
-    cliente_nombre = serializers.CharField(source='cliente.nombre', read_only=True)
+    # Returns the stored cliente_nombre from the model (e.g. 'Cliente General - jose pablo')
+    # Falls back to the FK client name if not set.
+    # This allows the edit modal to extract the alias via the 'Cliente General - ' prefix.
+    cliente_nombre = serializers.SerializerMethodField()
+
+    def get_cliente_nombre(self, obj):
+        if obj.cliente_nombre:
+            return obj.cliente_nombre
+        return obj.cliente.nombre if obj.cliente else 'Sin Cliente'
     cliente_documento = serializers.CharField(source='cliente.numero_documento', read_only=True)
     detalle = DetalleVentaSerializer(source='detalleventa_set', many=True, read_only=True)
     

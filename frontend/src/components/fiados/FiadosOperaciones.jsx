@@ -184,8 +184,7 @@ function FiadosOperaciones() {
           const saleData = {
             fromFiado: fiado.id,
             cliente: cg ? String(cg.id) : '',
-            cliente_nombre: cg ? cg.nombre : '',
-            cliente_alias: fiado.cliente_nombre,
+            cliente_nombre: fiado.cliente_nombre || (cg ? cg.nombre : ''),
             tipo_comprobante: 'SIMPLE',
             estado: 'CONFIRMADA',
             descuento: 0,
@@ -208,8 +207,7 @@ function FiadosOperaciones() {
             const saleData = {
               fromFiado: fiado.id,
               cliente: cg ? String(cg.id) : '',
-              cliente_nombre: cg ? cg.nombre : '',
-              cliente_alias: fiado.cliente_nombre,
+              cliente_nombre: fiado.cliente_nombre || (cg ? cg.nombre : ''),
               servicio: String(srv.servicio),
               servicio_nombre: srv.servicio_nombre,
               precio: Number(fiado.total),
@@ -242,8 +240,7 @@ function FiadosOperaciones() {
        setInitialVentaData({
           fromFiado: fiado.id,
           cliente: cg ? String(cg.id) : '',
-          cliente_nombre: cg ? cg.nombre : '',
-          cliente_alias: fiado.cliente_nombre,
+          cliente_nombre: fiado.cliente_nombre || (cg ? cg.nombre : ''),
           tipo_comprobante: 'SIMPLE',
           estado: 'CONFIRMADA',
           descuento: 0,
@@ -264,8 +261,7 @@ function FiadosOperaciones() {
           setInitialVentaData({
              fromFiado: fiado.id,
              cliente: cg ? String(cg.id) : '',
-             cliente_nombre: cg ? cg.nombre : '',
-             cliente_alias: fiado.cliente_nombre,
+             cliente_nombre: fiado.cliente_nombre || (cg ? cg.nombre : ''),
              servicio: String(srv.servicio),
              servicio_nombre: srv.servicio_nombre,
              precio: Number(fiado.total),

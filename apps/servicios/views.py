@@ -267,9 +267,6 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
                 fiado.estado = 'LIQUIDADO'
                 fiado.venta_servicio_ref = serializer.instance
                 fiado.save()
-                
-                serializer.instance.estado = 'TERMINADO'
-                serializer.instance.save()
             except Exception as e:
                 print(f"Error al vincular fiado: {e}")
                 

@@ -31,7 +31,6 @@ const MovimientoTable = ({
               <th>Método de Pago</th>
               <th style={{ textAlign: 'right' }}>Monto</th>
               <th>Acciones</th>
-              <th>Fecha de Últ. Mod.</th>
             </tr>
           </thead>
           <tbody>
@@ -83,14 +82,12 @@ const MovimientoTable = ({
                     </button>
                   </div>
                 </td>
-                <td style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                  {t.actualizado_en ? new Date(t.actualizado_en).toLocaleString('es-PE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
-                </td>
+
               </tr>
             ))}
             {totalItems === 0 && (
               <tr>
-                <td colSpan="8" style={{ textAlign: 'center', color: '#aaa', padding: '40px' }}>
+                <td colSpan="7" style={{ textAlign: 'center', color: '#aaa', padding: '40px' }}>
                   No hay {activeTab === 'INGRESO' ? 'ingresos no operativos' : 'gastos'} registrados que coincidan con los filtros.
                 </td>
               </tr>

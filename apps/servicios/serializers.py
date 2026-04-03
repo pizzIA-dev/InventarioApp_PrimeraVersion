@@ -39,7 +39,12 @@ class ServicioCreateSerializer(serializers.ModelSerializer):
 
 class VentaServicioSerializer(serializers.ModelSerializer):
     servicio_nombre = serializers.CharField(source='servicio.nombre', read_only=True)
-    cliente_nombre = serializers.CharField(source='cliente.nombre', read_only=True)
+    cliente_nombre = serializers.SerializerMethodField()
+
+    def get_cliente_nombre(self, obj):
+        if obj.cliente_nombre:
+            return obj.cliente_nombre
+        return obj.cliente.nombre if obj.cliente else 'Sin Cliente'
     
     class Meta:
         model = VentaServicio

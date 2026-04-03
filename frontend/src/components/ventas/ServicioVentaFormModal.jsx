@@ -53,7 +53,11 @@ function ServicioVentaFormModal({
             estado: initialData.estado || 'PENDIENTE',
             notas: initialData.notas || ''
         });
-        setClienteAlias(initialData.cliente_alias || '');
+        const nombreRaw = initialData.cliente_nombre || '';
+        const aliasExtracted = nombreRaw.startsWith('Cliente General - ')
+          ? nombreRaw.slice('Cliente General - '.length)
+          : (nombreRaw === 'Cliente General' ? '' : nombreRaw);
+        setClienteAlias(aliasExtracted);
         
         // If it's a new sale from Fiado (no ID yet), we fetch the number
         if (!initialData.id || (!initialData.numero_comprobante && !initialData.numero_comprobante_simple)) {
@@ -127,10 +131,18 @@ function ServicioVentaFormModal({
       return;
     }
 
+    // Build final cliente_nombre: use 'Cliente General - alias' format for consistency
+    const isClienteGeneral = clientes.find(
+      c => String(c.id) === String(formData.cliente)
+    )?.numero_documento === '00000000';
+    const finalClienteNombre = isClienteGeneral && clienteAlias.trim()
+      ? `Cliente General - ${clienteAlias.trim()}`
+      : formData.cliente_nombre;
+
     onSave({
       ...formData,
       impuesto: impuesto,
-      cliente_alias: clienteAlias,
+      cliente_nombre: finalClienteNombre,
       total: total
     });
   };
@@ -220,7 +232,7 @@ function ServicioVentaFormModal({
                   actionLabel="➕ Crear Nuevo Cliente"
                 />
                 {/* Alias input for Cliente General */}
-                {formData.cliente_nombre === 'Cliente General' && (
+                {clientes.find(c => String(c.id) === String(formData.cliente))?.numero_documento === '00000000' && (
                   <div style={{ marginTop: '8px' }}>
                     <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
                       Alias <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>(Nombre y Apellidos — opcional)</span>
@@ -245,7 +257,7 @@ function ServicioVentaFormModal({
                   name="precio"
                   className={`form-input${errors.precio ? ' input-error' : ''}`}
                   value={formData.precio}
-                  onChange={(e) => setFormData(prev => ({ ...prev, precio: parseFloat(e.target.value) || 0 }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, precio: e.target.value }))}
                   onFocus={(e) => e.target.select()}
                   min="0"
                   step="0.01"
@@ -259,7 +271,7 @@ function ServicioVentaFormModal({
                   name="descuento"
                   className="form-input"
                   value={formData.descuento}
-                  onChange={(e) => setFormData(prev => ({ ...prev, descuento: parseFloat(e.target.value) || 0 }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, descuento: e.target.value }))}
                   onFocus={(e) => e.target.select()}
                   min="0"
                   step="0.01"

@@ -77,7 +77,11 @@ function VentaFormModal({
           impuesto: Number(initialData.impuesto || 0),
           notas: initialData.notas || ''
         });
-        setClienteAlias(initialData.cliente_alias || '');
+        const nombreRaw = initialData.cliente_nombre || '';
+        const aliasExtracted = nombreRaw.startsWith('Cliente General - ')
+          ? nombreRaw.slice('Cliente General - '.length)
+          : (nombreRaw === 'Cliente General' ? '' : nombreRaw);
+        setClienteAlias(aliasExtracted);
         
         // If it's a new sale from Fiado (no ID yet), we fetch the number
         if (!initialData.id || (!initialData.numero_comprobante && !initialData.numero_comprobante_simple)) {
@@ -199,10 +203,18 @@ function VentaFormModal({
       return;
     }
 
+    // Build final cliente_nombre: use 'Cliente General - alias' format for consistency with the system
+    const isClienteGeneral = clientes.find(
+      c => String(c.id) === String(formData.cliente)
+    )?.numero_documento === '00000000';
+    const finalClienteNombre = isClienteGeneral && clienteAlias.trim()
+      ? `Cliente General - ${clienteAlias.trim()}`
+      : formData.cliente_nombre;
+
     onSave({
       ...formData,
       impuesto: impuesto,
-      cliente_alias: clienteAlias,
+      cliente_nombre: finalClienteNombre,
       total: total
     });
   };
@@ -266,7 +278,7 @@ function VentaFormModal({
                   actionLabel="➕ Crear Nuevo Cliente"
                   error={errors.cliente}
                 />
-                {formData.cliente_nombre === 'Cliente General' && (
+                {clientes.find(c => String(c.id) === String(formData.cliente))?.numero_documento === '00000000' && (
                   <div style={{ marginTop: '8px' }}>
                     <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
                       Alias <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>(Nombre y Apellidos — opcional)</span>
@@ -356,7 +368,7 @@ function VentaFormModal({
                       className={`form-input${errors[`cantidad_${index}`] ? ' input-error' : ''}`}
                       placeholder="Cant."
                       value={item.cantidad}
-                      onChange={(e) => updateDetalle(index, 'cantidad', parseFloat(e.target.value) || 0)}
+                      onChange={(e) => updateDetalle(index, 'cantidad', e.target.value)}
                       onFocus={(e) => e.target.select()}
                       style={{ width: '90px' }}
                       min="0.01"
@@ -376,7 +388,7 @@ function VentaFormModal({
                       className="form-input"
                       placeholder="Desc."
                       value={item.descuento}
-                      onChange={(e) => updateDetalle(index, 'descuento', parseFloat(e.target.value) || 0)}
+                      onChange={(e) => updateDetalle(index, 'descuento', e.target.value)}
                       onFocus={(e) => e.target.select()}
                       style={{ width: '100px' }}
                       min="0"

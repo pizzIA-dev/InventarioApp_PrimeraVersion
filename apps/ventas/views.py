@@ -52,10 +52,6 @@ class VentaViewSet(viewsets.ModelViewSet):
                 fiado.venta_ref = serializer.instance
                 fiado.save()
                 
-                # Automáticamente confirmar la venta si viene de un fiado que ya está pagado
-                serializer.instance.estado = 'CONFIRMADA'
-                serializer.instance.save()
-                
             except Exception as e:
                 print(f"Error al vincular fiado: {e}")
                 
