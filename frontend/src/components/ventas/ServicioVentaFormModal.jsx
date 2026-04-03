@@ -72,7 +72,7 @@ function ServicioVentaFormModal({
             precio: 0,
             descuento: 0,
             impuesto: 0,
-            fecha_programada: new Date().toISOString().substring(0, 16),
+            fecha_programada: '',
             tipo_comprobante: 'SIMPLE',
             numero_comprobante: '',
             numero_comprobante_simple: '',
@@ -141,6 +141,7 @@ function ServicioVentaFormModal({
 
     onSave({
       ...formData,
+      fecha_programada: formData.fecha_programada === '' ? null : formData.fecha_programada,
       impuesto: impuesto,
       cliente_nombre: finalClienteNombre,
       total: total

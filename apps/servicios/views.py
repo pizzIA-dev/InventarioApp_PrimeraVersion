@@ -385,7 +385,7 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
 
         headers = [
             'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
-            'Tipo Comprobante', 'Comprobante', 'Cliente',
+            'Tipo Comprobante', 'Comprobante', 'Cliente', 'F. Programada',
             'Servicio', 'Precio Serv. (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
         ]
         rows = []
@@ -402,6 +402,7 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
                 l_tipo,
                 l_num,
                 comp_cliente,
+                timezone.localtime(obj.fecha_programada).strftime("%d/%m/%Y %H:%M:%S") if obj.fecha_programada else "-",
                 obj.servicio_nombre or (obj.servicio.nombre if obj.servicio else 'Sin Servicio'),
                 float(obj.precio),
                 float(obj.descuento),
@@ -454,7 +455,7 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
         # Sheet 2: Detalle de Venta de Servicio
         headers_detalle = [
             'Fecha/Hora', 'Tipo Comprobante Simple', 'Comprobante Simple',
-            'Tipo Comprobante', 'Comprobante', 'Cliente',
+            'Tipo Comprobante', 'Comprobante', 'Cliente', 'F. Programada',
             'Servicio', 'Precio Serv. (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
         ]
         
@@ -468,6 +469,7 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
                 l_tipo,
                 l_num,
                 comp_cliente,
+                timezone.localtime(venta.fecha_programada).strftime("%d/%m/%Y %H:%M:%S") if venta.fecha_programada else "-",
                 venta.servicio_nombre or (venta.servicio.nombre if venta.servicio else 'Sin Servicio'),
                 float(venta.precio),
                 float(venta.descuento),
@@ -541,7 +543,7 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
         # Sheet 2: Detalle de Venta de Servicios Global
         headers_detalle = [
             'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
-            'Tipo Comprobante', 'Comprobante', 'Cliente', 'Servicio', 
+            'Tipo Comprobante', 'Comprobante', 'Cliente', 'F. Programada', 'Servicio', 
             'Precio Serv. (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
         ]
         
@@ -559,6 +561,7 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
                 l_tipo,
                 l_num,
                 comp_cliente,
+                timezone.localtime(v.fecha_programada).strftime("%d/%m/%Y %H:%M:%S") if v.fecha_programada else "-",
                 v.servicio_nombre or (v.servicio.nombre if v.servicio else 'Sin Servicio'),
                 float(v.precio),
                 float(v.descuento),

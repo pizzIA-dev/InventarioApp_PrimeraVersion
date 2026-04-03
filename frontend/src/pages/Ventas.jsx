@@ -759,7 +759,8 @@ function Ventas() {
     const newVentaErrors = {};
     if (!ventaData.servicio) newVentaErrors.servicio = 'Debes seleccionar un servicio';
     if (!ventaData.precio || Number(ventaData.precio) <= 0) newVentaErrors.precio = 'El precio debe ser mayor a 0';
-    if (!ventaData.fecha_programada) newVentaErrors.fecha_programada = 'La fecha programada es obligatoria';
+    // fecha_programada is now optional
+    // if (!ventaData.fecha_programada) newVentaErrors.fecha_programada = 'La fecha programada es obligatoria';
     
     if (Object.keys(newVentaErrors).length > 0) {
       setVentaErrors(newVentaErrors);
@@ -1190,6 +1191,7 @@ function Ventas() {
                   <th style={{ width: '120px' }}>Comprobante</th>
                   <th>Servicio</th>
                   <th>Cliente</th>
+                  <th>F. Programada</th>
                   <th>Estado</th>
                   <th style={{ textAlign: 'right' }}>Total</th>
                   <th style={{ width: '120px' }}>Acciones</th>
@@ -1213,6 +1215,14 @@ function Ventas() {
                     </td>
                     <td>{venta.servicio_nombre || venta.servicio}</td>
                     <td>{venta.cliente_nombre || 'Cliente General'}</td>
+                    <td>
+                      {venta.fecha_programada ? (
+                        <div>
+                          <div style={{ fontWeight: '500' }}>{new Date(venta.fecha_programada).toLocaleDateString()}</div>
+                          <div style={{ fontSize: '10px', color: '#8c8c8c' }}>{new Date(venta.fecha_programada).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                        </div>
+                      ) : '-'}
+                    </td>
                     <td>
                       <span className={`badge ${
                         venta.estado === 'TERMINADO' ? 'badge-success' :
@@ -1247,7 +1257,7 @@ function Ventas() {
                   );
                 })}
                  {filteredVentasServicios.length === 0 && (
-                    <tr><td colSpan="7" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay servicios registrados que coincidan con los filtros</td></tr>
+                    <tr><td colSpan="8" style={{ textAlign: 'center', color: '#aaa', padding: '32px' }}>No hay servicios registrados que coincidan con los filtros</td></tr>
                  )}
               </tbody>
             </table>
