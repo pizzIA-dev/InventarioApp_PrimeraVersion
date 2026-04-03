@@ -61,7 +61,17 @@ class Cliente(models.Model):
 
     def save(self, *args, **kwargs):
         is_new = self.pk is None
-        if not is_new:
+        if is_new:
+            super().save(*args, **kwargs)
+            from django.utils import timezone
+            now_str = timezone.localtime().strftime("%d/%m/%Y a las %H:%M:%S")
+            MovimientoEstadoCliente.objects.create(
+                cliente=self,
+                estado_anterior='—',
+                estado_nuevo='Activo',
+                notas=f'Cliente registrado en el sistema el {now_str}'
+            )
+        else:
             try:
                 old_instance = Cliente.objects.get(pk=self.pk)
                 if old_instance.activo != self.activo:
@@ -75,7 +85,7 @@ class Cliente(models.Model):
                     )
             except Cliente.DoesNotExist:
                 pass
-        super().save(*args, **kwargs)
+            super().save(*args, **kwargs)
 
 
 class MovimientoEstadoCliente(models.Model):

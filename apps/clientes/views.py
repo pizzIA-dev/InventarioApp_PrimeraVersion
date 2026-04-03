@@ -335,15 +335,17 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
         # Hoja 1: Historial de Estados
         estados = cliente.movimientos_estado.all().order_by('-fecha')
-        headers_estados = ['Fecha', 'Estado Anterior', 'Estado Nuevo', 'Notas']
-        rows_estados = [
-            [
+        headers_estados = ['Fecha', 'Tipo de Evento', 'Estado Anterior', 'Estado Nuevo', 'Notas']
+        rows_estados = []
+        for e in estados:
+            es_creacion = e.estado_anterior == '—'
+            rows_estados.append([
                 timezone.localtime(e.fecha).strftime("%d/%m/%Y %H:%M:%S"),
-                e.estado_anterior,
+                'CREACIÓN' if es_creacion else 'CAMBIO DE ESTADO',
+                'Nuevo cliente' if es_creacion else e.estado_anterior,
                 e.estado_nuevo,
                 e.notas
-            ] for e in estados
-        ]
+            ])
 
         # Hoja 2: Detalle de Venta de Productos
         detalles = DetalleVenta.objects.filter(venta__cliente=cliente).select_related('producto', 'venta').order_by('-venta__creado_en')

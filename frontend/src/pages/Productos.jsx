@@ -57,29 +57,27 @@ function Productos() {
   };
 
   useEffect(() => {
-    fetchProductos();
-    fetchCategorias();
+    fetchData();
   }, []);
 
-  const fetchCategorias = async () => {
+  // async-parallel: ambas peticiones se ejecutan en paralelo con Promise.all
+  const fetchData = async () => {
     try {
-      const response = await categoriasAPI.getAll();
-      setCategorias(response.data.results || response.data);
+      const [productosRes, categoriasRes] = await Promise.all([
+        productosAPI.getAll(),
+        categoriasAPI.getAll(),
+      ]);
+      setProductos(productosRes.data.results || productosRes.data);
+      setCategorias(categoriasRes.data.results || categoriasRes.data);
     } catch (error) {
-      console.error('Error fetching categorias:', error);
-    }
-  };
-
-  const fetchProductos = async () => {
-    try {
-      const response = await productosAPI.getAll();
-      setProductos(response.data.results || response.data);
-    } catch (error) {
-      console.error('Error fetching productos:', error);
+      console.error('Error fetching productos data:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  // Alias para compatibilidad con los callbacks onSave de los modales
+  const fetchProductos = fetchData;
 
   const openModal = (mode, producto = null) => {
     setModalMode(mode);
@@ -528,7 +526,7 @@ function Productos() {
             </div>
 
             {/* Pagination controls */}
-            {!loadingHistory && historyTotalPages > 1 && (
+            {(!loadingHistory && historyTotalPages > 1) ? (
               <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', borderTop: '1px solid #e2e8f0' }}>
                 <button
                   className="btn btn-secondary"
@@ -550,7 +548,7 @@ function Productos() {
                   Siguiente
                 </button>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       )}

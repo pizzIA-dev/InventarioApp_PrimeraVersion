@@ -142,7 +142,6 @@ export const serviciosAPI = {
   exportar: (params) => api.get('/servicios/exportar/', { params, responseType: 'blob' }),
   exportarVentas: (params) => api.get('/servicios/ventas/exportar/', { params, responseType: 'blob' }),
   exportarHistorialVenta: (id) => api.get(`/servicios/ventas/${id}/exportar_historial/`, { responseType: 'blob' }),
-  getHistoryEstadosVenta: (id, params) => api.get(`/servicios/ventas/${id}/history_estados/`, { params }),
   getHistoryDetalleVenta: (id) => api.get(`/servicios/ventas/${id}/history_detalle/`),
   exportarHistorialGlobalVentas: (params) => api.get(`/servicios/ventas/exportar_historial_global/`, { params, responseType: 'blob' }),
   getKardex: (id, params) => api.get(`/servicios/${id}/kardex/`, { params }),

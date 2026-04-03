@@ -176,7 +176,7 @@ class VentaKardexSerializer(serializers.ModelSerializer):
     tipo_comprobante_simple = serializers.SerializerMethodField()
     numero_comprobante_simple = serializers.CharField(source='venta.numero_comprobante_simple', read_only=True)
     tipo_comprobante = serializers.SerializerMethodField()
-    comprobante = serializers.CharField(source='venta.numero_comprobante', read_only=True)
+    comprobante = serializers.SerializerMethodField()
     cliente = serializers.SerializerMethodField()
     producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)
     producto_codigo = serializers.CharField(source='producto.codigo', read_only=True)
@@ -199,6 +199,13 @@ class VentaKardexSerializer(serializers.ModelSerializer):
     def get_tipo_comprobante(self, obj):
         tipo = obj.venta.tipo_comprobante
         return tipo if tipo and tipo != 'SIMPLE' else ""
+
+    def get_comprobante(self, obj):
+        """Retorna el número de comprobante SOLO si es boleta o factura (no SIMPLE)."""
+        tipo = obj.venta.tipo_comprobante
+        if tipo and tipo != 'SIMPLE':
+            return obj.venta.numero_comprobante or ""
+        return ""
 
     def get_cliente(self, obj):
         return obj.venta.cliente_nombre or (obj.venta.cliente.nombre if obj.venta.cliente else "Cliente General")

@@ -262,7 +262,7 @@ function Ventas() {
     if (modalMode === 'create' || modalMode === 'edit') {
       if (calcularIgv) {
         const subtotal = formData.detalle.reduce((sum, d) => {
-          return sum + (Number(d.cantidad || 0) * Number(d.precio_venta || 0) - Number(d.descuento || 0));
+          return sum + Number(d.subtotal || 0);
         }, 0) - Number(formData.descuento || 0);
         const newImpuesto = Number((subtotal * 0.18).toFixed(2));
         if (formData.impuesto !== newImpuesto) {
@@ -294,12 +294,30 @@ function Ventas() {
   }, [ventaData.precio, ventaData.descuento, modalMode, calcularIgvServicio]);
 
   useEffect(() => {
-    fetchVentas();
-    fetchProductos();
-    fetchClientes();
-    fetchVentasServicios();
-    fetchServicios();
+    fetchData();
   }, []);
+
+  // async-parallel: los 5 fetches iniciales se ejecutan en paralelo
+  const fetchData = async () => {
+    try {
+      const [ventasRes, productosRes, clientesRes, ventasServiciosRes, serviciosRes] = await Promise.all([
+        ventasAPI.getAll(),
+        productosAPI.getAll(),
+        clientesAPI.getAll(),
+        serviciosAPI.getVentas(),
+        serviciosAPI.getAll(),
+      ]);
+      setVentas(ventasRes.data.results || ventasRes.data);
+      setProductos(productosRes.data.results || productosRes.data);
+      setClientes(clientesRes.data.results || clientesRes.data);
+      setVentasServicios(ventasServiciosRes.data.results || ventasServiciosRes.data);
+      setServicios(serviciosRes.data.results || serviciosRes.data);
+    } catch (error) {
+      console.error('Error fetching ventas data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchVentas = async () => {
     try {
@@ -394,6 +412,7 @@ function Ventas() {
             cantidad: Number(d.cantidad || 1),
             precio_venta: Number(d.precio_venta || 0),
             descuento: Number(d.descuento || 0),
+            subtotal: (Number(d.cantidad || 1) * Number(d.precio_venta || 0)) - Number(d.descuento || 0),
           })),
         });
       } catch (err) {
@@ -418,6 +437,7 @@ function Ventas() {
             cantidad: Number(d.cantidad || 1),
             precio_venta: Number(d.precio_venta || 0),
             descuento: Number(d.descuento || 0),
+            subtotal: (Number(d.cantidad || 1) * Number(d.precio_venta || 0)) - Number(d.descuento || 0),
           })),
         });
       }
@@ -435,19 +455,27 @@ function Ventas() {
   const addProducto = () => {
     setFormData(prev => ({
       ...prev,
-      detalle: [...prev.detalle, { producto: '', cantidad: 1, precio_venta: 0, descuento: 0 }]
+      detalle: [...prev.detalle, { producto: '', cantidad: 1, precio_venta: 0, descuento: 0, subtotal: 0 }]
     }));
   };
 
   const updateDetalle = (index, field, value) => {
     const newDetalle = [...formData.detalle];
-    newDetalle[index] = { ...newDetalle[index], [field]: value };
+    const item = { ...newDetalle[index], [field]: value };
     if (field === 'producto') {
       const prod = productos.find(p => p.id === parseInt(value));
       if (prod) {
-        newDetalle[index].precio_venta = Number(prod.precio_venta || 0);
+        item.precio_venta = Number(prod.precio_venta || 0);
       }
+      item.subtotal = (Number(item.cantidad || 0) * Number(item.precio_venta || 0)) - Number(item.descuento || 0);
+    } else if (field === 'cantidad' || field === 'descuento') {
+      item.subtotal = (Number(item.cantidad || 0) * Number(item.precio_venta || 0)) - Number(item.descuento || 0);
+    } else if (field === 'subtotal') {
+      const numericVal = parseFloat(value) || 0;
+      const bruto = Number(item.cantidad || 0) * Number(item.precio_venta || 0);
+      item.descuento = Math.max(0, Number((bruto - numericVal).toFixed(2)));
     }
+    newDetalle[index] = item;
     setFormData(prev => ({ ...prev, detalle: newDetalle }));
   };
 
@@ -606,10 +634,7 @@ function Ventas() {
 
   const calcularTotal = () => {
     const subtotal = formData.detalle.reduce((sum, d) => {
-      const cantidad = Number(d.cantidad || 0);
-      const precio = Number(d.precio_venta || 0);
-      const desc = Number(d.descuento || 0);
-      return sum + (cantidad * precio - desc);
+      return sum + Number(d.subtotal || 0);
     }, 0);
     return subtotal - Number(formData.descuento || 0) + Number(formData.impuesto || 0);
   };
@@ -1080,7 +1105,7 @@ function Ventas() {
                 <th style={{ width: '110px' }}>Fecha</th>
                 <th style={{ width: '120px' }}>Comprobante</th>
                 <th>Cliente</th>
-                <th>Producto</th>
+                <th style={{ textAlign: 'center' }}>Producto</th>
                 <th>Estado</th>
                 <th style={{ textAlign: 'right' }}>Total</th>
                 <th style={{ width: '120px' }}>Acciones</th>
@@ -1104,12 +1129,12 @@ function Ventas() {
                   <td style={{ textAlign: "center" }}>
                     <button 
                       className="btn btn-secondary" 
-                      style={{ padding: "4px 8px", fontSize: "12px", display: "flex", alignItems: "center", gap: "4px" }}
+                      style={{ padding: "6px 12px", fontSize: "13px", display: "flex", alignItems: "center", gap: "6px", margin: "0 auto" }}
                       onClick={() => openDetailModal(venta)}
-                      title="Ver Detalle"
+                      title="Ver Detalle de Productos"
                     >
                       <OrderedListOutlined />
-                      <span>Productos</span>
+                      <span>Ver Detalle</span>
                     </button>
                   </td>
                   <td>
@@ -1563,9 +1588,9 @@ function Ventas() {
                      <div style={{ display: 'flex', gap: '8px', marginBottom: '4px', padding: '0 2px', fontWeight: 600, fontSize: '12px', color: '#666' }}>
                       <div style={{ flex: 2, minWidth: 0 }}>Producto</div>
                       <div style={{ width: '90px' }}>Cantidad</div>
-                      <div style={{ width: '110px' }}>P. Unitario</div>
+                      <div style={{ width: '110px' }}>P. Unit. (fijo)</div>
                       <div style={{ width: '100px' }}>Descuento</div>
-                      <div style={{ width: '90px' }}>Subtotal</div>
+                      <div style={{ width: '100px' }}>Subtotal</div>
                       <div style={{ width: '36px' }}></div>
                     </div>
                   )}
@@ -1605,14 +1630,12 @@ function Ventas() {
                         />
                         <input
                           type="number"
-                          className={`form-input${errors[`precio_${index}`] ? ' input-error' : ''}`}
+                          className="form-input"
                           placeholder="Precio"
                           value={item.precio_venta}
-                          onChange={(e) => updateDetalle(index, 'precio_venta', parseFloat(e.target.value) || 0)}
-                          onFocus={(e) => e.target.select()}
-                          style={{ width: '110px' }}
-                          min="0"
-                          step="0.01"
+                          readOnly
+                          style={{ width: '110px', opacity: 0.7, cursor: 'not-allowed', background: 'var(--bg-table-header)' }}
+                          tabIndex={-1}
                         />
                         <input
                           type="number"
@@ -1626,18 +1649,15 @@ function Ventas() {
                           step="0.01"
                         />
                         <input
-                          type="text"
+                          type="number"
                           className="form-input"
-                          readOnly
-                          value={`S/. ${((Number(item.cantidad || 0) * Number(item.precio_venta || 0)) - Number(item.descuento || 0)).toFixed(2)}`}
-                          style={{ 
-                            width: '90px', 
-                            fontSize: '12px', 
-                            background: 'var(--bg-input)', 
-                            color: 'var(--text-primary)', 
-                            fontWeight: 'bold',
-                            border: '1px solid var(--border-input)'
-                          }} 
+                          placeholder="Subtotal"
+                          value={item.subtotal}
+                          onChange={(e) => updateDetalle(index, 'subtotal', e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                          style={{ width: '100px', fontWeight: 'bold', color: 'var(--accent)' }}
+                          min="0"
+                          step="0.01"
                         />
                         <button type="button" className="btn btn-danger" onClick={() => removeDetalle(index)} style={{ flexShrink: 0 }}>
                           <DeleteOutlined />

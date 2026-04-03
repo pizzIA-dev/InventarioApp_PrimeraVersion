@@ -257,22 +257,33 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
                     </thead>
                     <tbody>
                       {historyEstados.length > 0 ? (
-                        historyEstados.map((mov) => (
-                          <tr key={mov.id}>
-                            <td style={{ padding: '12px 16px', fontSize: '13px' }}>
-                              {new Date(mov.fecha).toLocaleDateString() + ' ' + new Date(mov.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                            </td>
-                            <td style={{ padding: '12px 16px' }}>
-                              <span className="badge" style={{ background: 'var(--bg-secondary-btn)', color: 'var(--text-secondary)' }}>{mov.estado_anterior}</span>
-                            </td>
-                            <td style={{ padding: '12px 16px' }}>
-                              <span className={`badge ${mov.estado_nuevo === 'Activo' ? 'badge-success' : 'badge-danger'}`}>
-                                {mov.estado_nuevo}
-                              </span>
-                            </td>
-                            <td style={{ padding: '12px 16px', fontSize: '13px', color: 'var(--text-secondary)' }}>{mov.notas}</td>
-                          </tr>
-                        ))
+                        historyEstados.map((mov) => {
+                          const isCreacion = mov.estado_anterior === '—';
+                          return (
+                            <tr key={mov.id} style={isCreacion ? { background: 'rgba(24,144,255,0.05)' } : {}}>
+                              <td style={{ padding: '12px 16px', fontSize: '13px' }}>
+                                {new Date(mov.fecha).toLocaleDateString() + ' ' + new Date(mov.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                              </td>
+                              <td style={{ padding: '12px 16px' }}>
+                                {isCreacion ? (
+                                  <span className="badge badge-info" style={{ background: 'rgba(24,144,255,0.15)', color: '#1890ff', border: '1px solid rgba(24,144,255,0.4)' }}>
+                                    Nuevo cliente
+                                  </span>
+                                ) : (
+                                  <span className="badge" style={{ background: 'var(--bg-secondary-btn)', color: 'var(--text-secondary)' }}>{mov.estado_anterior}</span>
+                                )}
+                              </td>
+                              <td style={{ padding: '12px 16px' }}>
+                                <span className={`badge ${isCreacion ? 'badge-info' : mov.estado_nuevo === 'Activo' ? 'badge-success' : 'badge-danger'}`}
+                                  style={isCreacion ? { background: 'rgba(24,144,255,0.15)', color: '#1890ff', border: '1px solid rgba(24,144,255,0.4)' } : {}}
+                                >
+                                  {mov.estado_nuevo}
+                                </span>
+                              </td>
+                              <td style={{ padding: '12px 16px', fontSize: '13px', color: isCreacion ? 'var(--text-primary)' : 'var(--text-secondary)', fontStyle: isCreacion ? 'italic' : 'normal' }}>{mov.notas}</td>
+                            </tr>
+                          );
+                        })
                       ) : (
                         <tr>
                           <td colSpan="4" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>

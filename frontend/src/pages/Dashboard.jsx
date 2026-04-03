@@ -19,66 +19,48 @@ function Dashboard() {
   const [productos, setProductos] = useState([]);
   const [servicios, setServicios] = useState([]);
 
+  // async-parallel: carga productos y servicios en paralelo al montar
   useEffect(() => {
-    fetchProductos();
-    fetchServicios();
+    const fetchCatalogos = async () => {
+      try {
+        const [productosRes, serviciosRes] = await Promise.all([
+          productosAPI.getAll(),
+          serviciosAPI.getAll(),
+        ]);
+        setProductos(productosRes.data.results || productosRes.data);
+        setServicios(serviciosRes.data.results || serviciosRes.data);
+      } catch (error) {
+        console.error('Error fetching catalogos:', error);
+      }
+    };
+    fetchCatalogos();
   }, []);
 
+  // async-parallel: carga dashboard y reporte mensual en paralelo cuando cambian los filtros
   useEffect(() => {
-    fetchDashboardData();
-    fetchReporteMensual();
+    const fetchReportes = async () => {
+      setLoading(true);
+      try {
+        const params = {};
+        if (selectedYear) params.anio = selectedYear;
+        if (selectedMonth) params.mes = selectedMonth;
+        if (selectedProducto) params.producto_id = selectedProducto;
+        if (selectedServicio) params.servicio_id = selectedServicio;
+
+        const [dashboardRes, reporteRes] = await Promise.all([
+          reportesAPI.getDashboard(params),
+          reportesAPI.getReporteMensual(params),
+        ]);
+        setDashboardData(dashboardRes.data);
+        setReporteMensual(reporteRes.data);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchReportes();
   }, [selectedYear, selectedMonth, selectedProducto, selectedServicio]);
-
-  const fetchProductos = async () => {
-    try {
-      const response = await productosAPI.getAll();
-      setProductos(response.data.results || response.data);
-    } catch (error) {
-      console.error('Error fetching productos:', error);
-    }
-  };
-
-  const fetchServicios = async () => {
-    try {
-      const response = await serviciosAPI.getAll();
-      setServicios(response.data.results || response.data);
-    } catch (error) {
-      console.error('Error fetching servicios:', error);
-    }
-  };
-
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    try {
-      const params = {};
-      if (selectedYear) params.anio = selectedYear;
-      if (selectedMonth) params.mes = selectedMonth;
-      if (selectedProducto) params.producto_id = selectedProducto;
-      if (selectedServicio) params.servicio_id = selectedServicio;
-      
-      const response = await reportesAPI.getDashboard(params);
-      setDashboardData(response.data);
-    } catch (error) {
-      console.error('Error fetching dashboard:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchReporteMensual = async () => {
-    try {
-      const params = {};
-      if (selectedYear) params.anio = selectedYear;
-      if (selectedMonth) params.mes = selectedMonth;
-      if (selectedProducto) params.producto_id = selectedProducto;
-      if (selectedServicio) params.servicio_id = selectedServicio;
-      
-      const response = await reportesAPI.getReporteMensual(params);
-      setReporteMensual(response.data);
-    } catch (error) {
-      console.error('Error fetching reporte mensual:', error);
-    }
-  };
 
   if (loading) {
     return (

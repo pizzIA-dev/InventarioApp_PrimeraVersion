@@ -46,6 +46,7 @@ const CompraFormModal = ({
               cantidad: Number(d.cantidad || 1),
               precio_compra: Number(d.precio_compra || 0),
               descuento: Number(d.descuento || 0),
+              subtotal: (Number(d.cantidad || 1) * Number(d.precio_compra || 0)) - Number(d.descuento || 0),
             }))
         });
       } else {
@@ -75,22 +76,32 @@ const CompraFormModal = ({
 
   const handleDetalleChange = (index, field, value) => {
     const newDetalle = [...formData.detalle];
-    newDetalle[index] = { ...newDetalle[index], [field]: value };
+    const item = { ...newDetalle[index], [field]: value };
     
     // Auto-update price if product changed
     if (field === 'producto') {
       const prod = productos.find(p => p.id === parseInt(value));
       if (prod) {
-        newDetalle[index].precio_compra = Number(prod.precio_compra || 0);
+        item.precio_compra = Number(prod.precio_compra || 0);
       }
+      item.subtotal = (Number(item.cantidad || 0) * Number(item.precio_compra || 0)) - Number(item.descuento || 0);
+    } else if (field === 'cantidad' || field === 'descuento') {
+      // Descuento or cantidad changed → recalculate subtotal
+      item.subtotal = (Number(item.cantidad || 0) * Number(item.precio_compra || 0)) - Number(item.descuento || 0);
+    } else if (field === 'subtotal') {
+      // Subtotal edited directly → back-calculate descuento
+      const numericVal = parseFloat(value) || 0;
+      const bruto = Number(item.cantidad || 0) * Number(item.precio_compra || 0);
+      item.descuento = Math.max(0, Number((bruto - numericVal).toFixed(2)));
     }
+    newDetalle[index] = item;
     setFormData(prev => ({ ...prev, detalle: newDetalle }));
   };
 
   const addProducto = () => {
     setFormData(prev => ({
       ...prev,
-      detalle: [...prev.detalle, { producto: '', cantidad: 1, precio_compra: 0, descuento: 0 }]
+      detalle: [...prev.detalle, { producto: '', cantidad: 1, precio_compra: 0, descuento: 0, subtotal: 0 }]
     }));
   };
 
@@ -102,11 +113,7 @@ const CompraFormModal = ({
   };
 
   const calcularSubtotalFila = (item) => {
-    const cant = Number(item.cantidad || 0);
-    const prec = Number(item.precio_compra || 0);
-    const desc = Number(item.descuento || 0);
-    const total = (cant * prec) - desc;
-    return Math.max(0, total);
+    return Number(item.subtotal || 0);
   };
 
   const calcularTotal = () => {
@@ -244,7 +251,7 @@ const CompraFormModal = ({
                     <tr>
                       <th>Producto *</th>
                       <th style={{ width: '100px' }}>Cant. *</th>
-                      <th style={{ width: '120px' }}>P. Compra *</th>
+                      <th style={{ width: '120px' }}>P. Compra (fijo)</th>
                       <th style={{ width: '100px' }}>Desc.</th>
                       <th style={{ width: '110px' }}>Subtotal</th>
                       <th style={{ width: '40px' }}></th>
@@ -274,9 +281,10 @@ const CompraFormModal = ({
                           <input 
                             type="number" 
                             className="form-input" 
-                            value={item.precio_compra} 
-                            onChange={(e) => handleDetalleChange(index, 'precio_compra', e.target.value)} 
-                            step="0.01" 
+                            value={item.precio_compra}
+                            readOnly
+                            style={{ opacity: 0.7, cursor: 'not-allowed', background: 'var(--bg-table-header)' }}
+                            tabIndex={-1}
                           />
                         </td>
                         <td>
@@ -288,8 +296,17 @@ const CompraFormModal = ({
                             step="0.01" 
                           />
                         </td>
-                        <td style={{ fontWeight: 600 }}>
-                          S/. {calcularSubtotalFila(item).toFixed(2)}
+                        <td style={{ fontWeight: 600, minWidth: '110px' }}>
+                          <input
+                            type="number"
+                            className="form-input"
+                            value={item.subtotal}
+                            onChange={(e) => handleDetalleChange(index, 'subtotal', e.target.value)}
+                            onFocus={(e) => e.target.select()}
+                            style={{ fontWeight: 'bold', color: 'var(--accent)' }}
+                            min="0"
+                            step="0.01"
+                          />
                         </td>
                         <td>
                           <button 

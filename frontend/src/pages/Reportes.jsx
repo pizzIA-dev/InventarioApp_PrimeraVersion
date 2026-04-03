@@ -4,6 +4,41 @@ import { BarChart, Bar, LineChart, Line, PieChart, Pie, XAxis, YAxis, CartesianG
 
 const COLORS = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2', '#eb2f96', '#52c41a'];
 
+// rendering-hoist-jsx: función pura de render sin dependencias de estado/props
+// Se eleva al nivel de módulo para evitar re-creación en cada render de Reportes
+const renderCustomizedLabel = (props) => {
+  const { cx, cy, midAngle, outerRadius, value, fill, index } = props;
+  if (!value || value <= 0) return null;
+  const RADIAN = Math.PI / 180;
+  const sin = Math.sin(-RADIAN * midAngle);
+  const cos = Math.cos(-RADIAN * midAngle);
+  const sx = cx + (outerRadius + 5) * cos;
+  const sy = cy + (outerRadius + 5) * sin;
+  const mx = cx + (outerRadius + 20) * cos;
+  const verticalSpacing = (index % 2 === 0) ? -14 : 14;
+  const my = cy + (outerRadius + 20) * sin + verticalSpacing;
+  const ex = mx + (cos >= 0 ? 1 : -1) * 22;
+  const ey = my;
+  const textAnchor = cos >= 0 ? 'start' : 'end';
+  return (
+    <g>
+      <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" opacity={0.8} />
+      <circle cx={ex} cy={ey} r={2} fill={fill} stroke="none" opacity={0.8} />
+      <text
+        x={ex + (cos >= 0 ? 1 : -1) * 8}
+        y={ey}
+        dy={4}
+        textAnchor={textAnchor}
+        fill={fill}
+        fontSize={14}
+        fontWeight={500}
+      >
+        {`S/. ${value.toFixed(2)}`}
+      </text>
+    </g>
+  );
+};
+
 function Reportes() {
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState(null);
@@ -80,43 +115,6 @@ function Reportes() {
       console.error('Error exporting reporte detalle:', error);
       alert('Error al descargar el reporte detallado.');
     }
-  };
-
-  const renderCustomizedLabel = (props) => {
-    const { cx, cy, midAngle, outerRadius, value, fill, index } = props;
-    if (!value || value <= 0) return null;
-    const RADIAN = Math.PI / 180;
-    const sin = Math.sin(-RADIAN * midAngle);
-    const cos = Math.cos(-RADIAN * midAngle);
-    
-    const sx = cx + (outerRadius + 5) * cos;
-    const sy = cy + (outerRadius + 5) * sin;
-    
-    const mx = cx + (outerRadius + 20) * cos;
-    const verticalSpacing = (index % 2 === 0) ? -14 : 14;
-    const my = cy + (outerRadius + 20) * sin + verticalSpacing;
-    
-    const ex = mx + (cos >= 0 ? 1 : -1) * 22;
-    const ey = my;
-    const textAnchor = cos >= 0 ? 'start' : 'end';
-
-    return (
-      <g>
-        <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" opacity={0.8} />
-        <circle cx={ex} cy={ey} r={2} fill={fill} stroke="none" opacity={0.8} />
-        <text 
-          x={ex + (cos >= 0 ? 1 : -1) * 8} 
-          y={ey} 
-          dy={4} 
-          textAnchor={textAnchor} 
-          fill={fill} 
-          fontSize={14}
-          fontWeight={500}
-        >
-          {`S/. ${value.toFixed(2)}`}
-        </text>
-      </g>
-    );
   };
 
   // Pre-mapeo de datos para gráficos horizontales (evita errores en formatters de Recharts)

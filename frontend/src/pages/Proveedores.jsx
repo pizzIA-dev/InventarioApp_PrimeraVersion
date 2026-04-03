@@ -582,7 +582,7 @@ function Proveedores() {
                       </table>
                   </div>
                   
-                  {!loadingHistory && historyTotalPages > 1 && (
+                  {(!loadingHistory && historyTotalPages > 1) ? (
                     <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', borderTop: '1px solid var(--border-color)' }}>
                       <button 
                         className="btn btn-secondary" 
@@ -604,7 +604,7 @@ function Proveedores() {
                         Siguiente
                       </button>
                     </div>
-                  )}
+                  ) : null}
                 </>
               )}
 
@@ -661,7 +661,7 @@ function Proveedores() {
                       </table>
                   </div>
                   
-                  {!loadingProductos && productosTotalPages > 1 && (
+                  {(!loadingProductos && productosTotalPages > 1) ? (
                     <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', borderTop: '1px solid var(--border-color)' }}>
                       <button 
                         className="btn btn-secondary" 
@@ -683,7 +683,7 @@ function Proveedores() {
                         Siguiente
                       </button>
                     </div>
-                  )}
+                  ) : null}
                 </>
               )}
 

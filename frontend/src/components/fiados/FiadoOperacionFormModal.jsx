@@ -70,11 +70,14 @@ function FiadoOperacionFormModal({ visible, clientes, initialData, onClose, onSa
   }, [visible, initialData]);
 
   useEffect(() => {
+    // async-parallel: productos y servicios se cargan en paralelo
     const fetchItems = async () => {
       try {
-        const resP = await productosAPI.getAll();
+        const [resP, resS] = await Promise.all([
+          productosAPI.getAll(),
+          serviciosAPI.getAll(),
+        ]);
         setProductos(resP.data.results || resP.data);
-        const resS = await serviciosAPI.getAll();
         setServicios((resS.data.results || resS.data).filter(s => s.activo));
       } catch (error) {
         console.error('Error fetching items:', error);

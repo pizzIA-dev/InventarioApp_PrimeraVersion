@@ -126,11 +126,28 @@ function Compras() {
   }, [proveedores, productos, pendingSelection, nestedModalIndex]);
 
   useEffect(() => {
-    fetchCompras();
-    fetchProveedores();
-    fetchProductos();
+    fetchData();
   }, []);
 
+  // async-parallel: las 3 peticiones iniciales se ejecutan en paralelo
+  const fetchData = async () => {
+    try {
+      const [comprasRes, proveedoresRes, productosRes] = await Promise.all([
+        comprasAPI.getAll(),
+        proveedoresAPI.getAll(),
+        productosAPI.getAll(),
+      ]);
+      setCompras(comprasRes.data.results || comprasRes.data);
+      setProveedores(proveedoresRes.data.results || proveedoresRes.data);
+      setProductos(productosRes.data.results || productosRes.data);
+    } catch (error) {
+      console.error('Error fetching compras data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Aliases para compatibilidad con callbacks individuales (onSave de modales, etc.)
   const fetchCompras = async () => {
     try {
       const response = await comprasAPI.getAll();
@@ -182,10 +199,11 @@ function Compras() {
           impuesto: Number(full.impuesto || 0),
           notas: full.notas || '',
           detalle: (full.detalle || []).map(d => ({
-            producto: d.producto,
+            producto: String(d.producto),
             cantidad: Number(d.cantidad || 1),
             precio_compra: Number(d.precio_compra || 0),
             descuento: Number(d.descuento || 0),
+            subtotal: (Number(d.cantidad || 1) * Number(d.precio_compra || 0)) - Number(d.descuento || 0),
           })),
         });
       } catch {
@@ -345,19 +363,27 @@ function Compras() {
   const addProducto = () => {
     setFormData(prev => ({
       ...prev,
-      detalle: [...prev.detalle, { producto: '', cantidad: 1, precio_compra: 0, descuento: 0 }]
+      detalle: [...prev.detalle, { producto: '', cantidad: 1, precio_compra: 0, descuento: 0, subtotal: 0 }]
     }));
   };
 
   const updateDetalle = (index, field, value) => {
     const newDetalle = [...formData.detalle];
-    newDetalle[index] = { ...newDetalle[index], [field]: value };
+    const item = { ...newDetalle[index], [field]: value };
     if (field === 'producto') {
       const prod = productos.find(p => p.id === parseInt(value));
       if (prod) {
-        newDetalle[index].precio_compra = Number(prod.precio_compra || 0);
+        item.precio_compra = Number(prod.precio_compra || 0);
       }
+      item.subtotal = (Number(item.cantidad || 0) * Number(item.precio_compra || 0)) - Number(item.descuento || 0);
+    } else if (field === 'cantidad' || field === 'descuento') {
+      item.subtotal = (Number(item.cantidad || 0) * Number(item.precio_compra || 0)) - Number(item.descuento || 0);
+    } else if (field === 'subtotal') {
+      const numericVal = parseFloat(value) || 0;
+      const bruto = Number(item.cantidad || 0) * Number(item.precio_compra || 0);
+      item.descuento = Math.max(0, Number((bruto - numericVal).toFixed(2)));
     }
+    newDetalle[index] = item;
     setFormData(prev => ({ ...prev, detalle: newDetalle }));
   };
 
@@ -521,11 +547,7 @@ function Compras() {
 
   const calcularTotal = () => {
     const subtotal = formData.detalle.reduce((sum, d) => {
-      const cant = Number(d.cantidad || 0);
-      const prec = Number(d.precio_compra || 0);
-      const desc = Number(d.descuento || 0);
-      const base = (cant * prec) - desc;
-      return sum + Math.max(0, base);
+      return sum + Number(d.subtotal || 0);
     }, 0);
     return Number(subtotal) + Number(formData.impuesto || 0);
   };
@@ -723,7 +745,7 @@ function Compras() {
                 <th style={{ width: '100px' }}>Fecha</th>
                 <th>Comprobante</th>
                 <th>Proveedor</th>
-                <th>Productos</th>
+                <th style={{ textAlign: 'center' }}>Productos</th>
                 <th style={{ width: '100px', textAlign: 'center' }}>Archivo</th>
                 <th>Estado</th>
                 <th>Total</th>
@@ -960,9 +982,9 @@ function Compras() {
                     <div style={{ display: 'flex', gap: '8px', marginBottom: '4px', fontWeight: 600, fontSize: '11px', color: '#666', paddingRight: '44px' }}>
                       <div style={{ flex: '1.5', minWidth: 0 }}>Producto</div>
                       <div style={{ width: '70px' }}>Cant.</div>
-                      <div style={{ width: '90px' }}>P. Compra</div>
+                      <div style={{ width: '110px' }}>P. Compra (fijo)</div>
                       <div style={{ width: '90px' }}>Descuento</div>
-                      <div style={{ width: '90px' }}>Subtotal</div>
+                      <div style={{ width: '100px' }}>Subtotal</div>
                     </div>
                   )}
 
@@ -1001,14 +1023,12 @@ function Compras() {
                         />
                         <input
                           type="number"
-                          className={`form-input${errors[`precio_${index}`] ? ' input-error' : ''}`}
+                          className="form-input"
                           placeholder="Precio"
                           value={item.precio_compra}
-                          onChange={(e) => updateDetalle(index, 'precio_compra', parseFloat(e.target.value) || 0)}
-                          onFocus={(e) => e.target.select()}
-                          style={{ width: '90px', fontSize: '13px' }}
-                          min="0"
-                          step="0.01"
+                          readOnly
+                          style={{ width: '110px', opacity: 0.7, cursor: 'not-allowed', background: 'var(--bg-table-header)' }}
+                          tabIndex={-1}
                         />
                         <input
                           type="number"
@@ -1017,23 +1037,20 @@ function Compras() {
                           value={item.descuento}
                           onChange={(e) => updateDetalle(index, 'descuento', parseFloat(e.target.value) || 0)}
                           onFocus={(e) => e.target.select()}
-                          style={{ width: '90px', fontSize: '13px' }}
+                          style={{ width: '90px' }}
                           min="0"
                           step="0.01"
                         />
                         <input
-                          type="text"
+                          type="number"
                           className="form-input"
-                          readOnly
-                          value={`S/. ${((Number(item.cantidad || 0) * Number(item.precio_compra || 0)) - Number(item.descuento || 0)).toFixed(2)}`}
-                          style={{ 
-                            width: '90px', 
-                            fontSize: '12px', 
-                            background: 'var(--bg-input)', 
-                            color: 'var(--text-primary)', 
-                            fontWeight: 'bold',
-                            border: '1px solid var(--border-input)'
-                          }} 
+                          placeholder="Subtotal"
+                          value={item.subtotal}
+                          onChange={(e) => updateDetalle(index, 'subtotal', e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                          style={{ width: '100px', fontWeight: 'bold', color: 'var(--accent)' }}
+                          min="0"
+                          step="0.01"
                         />
                         <button type="button" className="btn btn-danger" onClick={() => removeDetalle(index)} style={{ flexShrink: 0, padding: '4px 8px' }}>
                           <DeleteOutlined />
@@ -1401,7 +1418,7 @@ function Compras() {
                     </div>
                   )}
 
-                  {!loadingHistory && historyTotalPages > 1 && (
+                  {(!loadingHistory && historyTotalPages > 1) ? (
                     <div style={{ marginTop: '20px' }}>
                       <Pagination 
                         currentPage={historyPage}
@@ -1412,7 +1429,7 @@ function Compras() {
                         itemName="registros"
                       />
                     </div>
-                  )}
+                  ) : null}
                 </>
               )}
             </div>
