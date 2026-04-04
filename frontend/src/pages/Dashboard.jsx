@@ -164,7 +164,7 @@ function Dashboard() {
       </div>
 
       {/* Tarjetas de estadísticas */}
-      <div className="grid grid-3" style={{ marginBottom: '24px' }}>
+      <div className="grid grid-4" style={{ marginBottom: '24px' }}>
         <div className="stat-card">
           <div className="stat-label">Ingresos del Periodo</div>
           <div className="stat-value">
@@ -172,6 +172,16 @@ function Dashboard() {
           </div>
           <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.85)', marginTop: '8px' }}>
             {dashboardData?.ventas?.cantidad_ventas || 0} venta de producto / {dashboardData?.servicios?.cantidad_servicios || 0} de servicio
+          </div>
+        </div>
+
+        <div className="stat-card orange">
+          <div className="stat-label">Compras del Periodo</div>
+          <div className="stat-value">
+            S/. {Number(dashboardData?.compras?.total_mes || 0).toFixed(2)}
+          </div>
+          <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.85)', marginTop: '8px' }}>
+            {dashboardData?.compras?.cantidad_compras || 0} compras a proveedores
           </div>
         </div>
 
@@ -185,7 +195,7 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="stat-card orange">
+        <div className="stat-card blue">
           <div className="stat-label">Clientes Totales</div>
           <div className="stat-value">
             {dashboardData?.clientes?.total || 0}
@@ -214,7 +224,10 @@ function Dashboard() {
                   contentStyle={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--bg-table-header)', color: 'var(--text-primary)', borderRadius: '8px' }}
                   itemStyle={{ color: 'var(--text-primary)' }}
                   labelStyle={{ color: 'var(--text-secondary)' }}
-                  formatter={(value) => [`S/. ${Number(value).toFixed(2)}`, 'Monto']} 
+                  formatter={(value, name) => [
+                    `S/. ${Number(value).toFixed(2)}`, 
+                    name.includes('Ingresos') ? 'Ingreso' : 'Compra'
+                  ]}
                 />
                 <Legend />
                 <Bar dataKey="ingresos" fill="#1890ff" name="Ingresos (Prod + Serv)" />
@@ -239,7 +252,7 @@ function Dashboard() {
                   contentStyle={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--bg-table-header)', color: 'var(--text-primary)', borderRadius: '8px' }}
                   itemStyle={{ color: 'var(--text-primary)' }}
                   labelStyle={{ color: 'var(--text-secondary)' }}
-                  formatter={(value) => [`S/. ${Number(value).toFixed(2)}`, 'Monto']} 
+                  formatter={(value) => [`S/. ${Number(value).toFixed(2)}`, 'Balance']} 
                 />
                 <Legend />
                 <Line type="monotone" dataKey="balance" stroke="#52c41a" name="Balance" />

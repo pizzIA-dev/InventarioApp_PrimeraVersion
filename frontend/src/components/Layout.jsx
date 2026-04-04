@@ -49,22 +49,22 @@ function Layout() {
     <div className="layout">
       {/* Mobile Header */}
       <div className="mobile-header">
-        <div className="mobile-header-title">Inventario y Balance</div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button 
-            className="mobile-menu-btn"
-            onClick={toggleTheme}
-            style={{ fontSize: '18px' }}
-          >
-            {isDark ? <BulbFilled style={{ color: '#1b9cfc' }} /> : <BulbOutlined />}
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <button 
             className="mobile-menu-btn"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             <MenuOutlined />
           </button>
+          <div className="mobile-header-title" style={{ fontSize: '16px' }}>Inventario</div>
         </div>
+        <button 
+          className="mobile-menu-btn"
+          onClick={toggleTheme}
+          style={{ fontSize: '18px' }}
+        >
+          {isDark ? <BulbFilled style={{ color: '#1b9cfc' }} /> : <BulbOutlined />}
+        </button>
       </div>
 
       {/* Mobile Overlay */}
@@ -115,7 +115,7 @@ function Layout() {
           </button>
           
           <button 
-            className="btn btn-secondary"
+            className="btn btn-secondary collapse-btn-desktop"
             onClick={() => setCollapsed(!collapsed)}
             style={{ width: '100%', justifyContent: collapsed ? 'center' : 'flex-start' }}
           >
