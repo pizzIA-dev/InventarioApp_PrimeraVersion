@@ -5,7 +5,7 @@ from django.core.validators import MinValueValidator
 class Categoria(models.Model):
     """Categoría de productos"""
     empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='categorias_producto', null=True)
-    nombre = models.CharField(max_length=100)
+    nombre = models.CharField(max_length=100, db_index=True)
     descripcion = models.TextField(blank=True, null=True)
     activo = models.BooleanField(default=True)
     creado_en = models.DateTimeField(auto_now_add=True)
@@ -34,7 +34,7 @@ class Producto(models.Model):
     
     empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='productos', null=True)
     codigo = models.CharField(max_length=50)
-    nombre = models.CharField(max_length=200)
+    nombre = models.CharField(max_length=200, db_index=True)
     descripcion = models.TextField(blank=True, null=True)
     categoria = models.ForeignKey(
         Categoria, 

@@ -30,7 +30,7 @@ class Venta(models.Model):
     comprobante_archivo = models.FileField(upload_to='comprobantes/ventas/', null=True, blank=True)
     
     # Estado
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='BORRADOR')
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='BORRADOR', db_index=True)
     
     # Totales
     subtotal = models.DecimalField(
@@ -60,7 +60,7 @@ class Venta(models.Model):
     
     # Control
     notas = models.TextField(blank=True, null=True)
-    creado_en = models.DateTimeField(auto_now_add=True)
+    creado_en = models.DateTimeField(auto_now_add=True, db_index=True)
     actualizado_en = models.DateTimeField(auto_now=True)
     
     class Meta:

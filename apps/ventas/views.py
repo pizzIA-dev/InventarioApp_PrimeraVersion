@@ -19,7 +19,7 @@ from .serializers import (
 
 
 class VentaViewSet(viewsets.ModelViewSet):
-    queryset = Venta.objects.all().select_related('cliente')
+    queryset = Venta.objects.all().select_related('cliente').prefetch_related('detalleventa_set', 'detalleventa_set__producto')
     filter_backends = [filters.OrderingFilter, DjangoFilterBackend]
     filterset_fields = ['estado', 'cliente']
     ordering_fields = ['-creado_en']

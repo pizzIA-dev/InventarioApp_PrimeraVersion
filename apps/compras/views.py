@@ -19,7 +19,7 @@ from .serializers import (
 
 
 class CompraViewSet(viewsets.ModelViewSet):
-    queryset = Compra.objects.all().select_related('proveedor')
+    queryset = Compra.objects.all().select_related('proveedor').prefetch_related('detallecompra_set', 'detallecompra_set__producto')
     filter_backends = [filters.OrderingFilter, DjangoFilterBackend]
     filterset_fields = ['estado', 'tipo_compra', 'proveedor']
     ordering_fields = ['-creado_en']

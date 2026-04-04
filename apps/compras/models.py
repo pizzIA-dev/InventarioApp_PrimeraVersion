@@ -25,7 +25,7 @@ class Compra(models.Model):
         related_name='compras'
     )
     proveedor_nombre = models.CharField(max_length=200, blank=True, null=True)
-    tipo_compra = models.CharField(max_length=20, choices=TIPO_COMPRA_CHOICES, default='PROVEEDOR')
+    tipo_compra = models.CharField(max_length=20, choices=TIPO_COMPRA_CHOICES, default='PROVEEDOR', db_index=True)
     
     # Documento
     numero_comprobante = models.CharField(max_length=50, blank=True, null=True)
@@ -33,7 +33,7 @@ class Compra(models.Model):
     comprobante_archivo = models.FileField(upload_to='comprobantes/compras/', null=True, blank=True)
     
     # Estado
-    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='BORRADOR')
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='BORRADOR', db_index=True)
     
     # Totales
     subtotal = models.DecimalField(
@@ -57,7 +57,7 @@ class Compra(models.Model):
     
     # Control
     notas = models.TextField(blank=True, null=True)
-    creado_en = models.DateTimeField(auto_now_add=True)
+    creado_en = models.DateTimeField(auto_now_add=True, db_index=True)
     actualizado_en = models.DateTimeField(auto_now=True)
     
     class Meta:
