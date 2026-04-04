@@ -5,6 +5,7 @@ import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import ProveedorFormModal from '../components/ProveedorFormModal';
+import LoadingScreen from '../components/LoadingScreen';
 
 function Proveedores() {
   const [loading, setLoading] = useState(true);
@@ -248,6 +249,10 @@ function Proveedores() {
   const handleFilterEstadoChange = (val) => { setFilterEstado(val); setProveedoresPage(1); };
   const handleFilterTipoChange = (val) => { setFilterTipo(val); setProveedoresPage(1); };
   const handleFilterContratoChange = (val) => { setFilterContrato(val); setProveedoresPage(1); };
+
+  if (loading) {
+    return <LoadingScreen message="OBTENIENDO PROVEEDORES..." />;
+  }
 
   return (
     <div>

@@ -12,6 +12,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import ServicioHistoryModal from '../components/ServicioHistoryModal';
+import LoadingScreen from '../components/LoadingScreen';
 import { message } from 'antd';
 
 const DURATION_UNITS = {
@@ -380,6 +381,10 @@ function Servicios() {
 
   const handleSearchChange = (val) => { setSearchTerm(val); setServiciosPage(1); };
   const handleFilterActivoChange = (val) => { setFilterActivo(val); setServiciosPage(1); };
+
+  if (loading) {
+    return <LoadingScreen message="OBTENIENDO SERVICIOS..." />;
+  }
 
   return (
     <div>

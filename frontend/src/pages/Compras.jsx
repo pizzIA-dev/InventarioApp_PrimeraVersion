@@ -9,6 +9,9 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import ProductFormModal from '../components/ProductFormModal';
 import ProveedorFormModal from '../components/ProveedorFormModal';
+import GlobalKardexModal from '../components/compras/GlobalKardexModal';
+import CompraHistoryModal from '../components/compras/CompraHistoryModal';
+import LoadingScreen from '../components/LoadingScreen';
 import SearchableSelect from '../components/SearchableSelect';
 
 function Compras() {
@@ -639,6 +642,10 @@ function Compras() {
   const handleFilterFechaInicio = (val) => { setFilterFechaInicio(val); setComprasPage(1); };
   const handleFilterFechaFin = (val) => { setFilterFechaFin(val); setComprasPage(1); };
   const handleFilterEstado = (val) => { setFilterEstado(val); setComprasPage(1); };
+
+  if (loading) {
+    return <LoadingScreen message="OBTENIENDO COMPRAS..." />;
+  }
 
   return (
     <div>

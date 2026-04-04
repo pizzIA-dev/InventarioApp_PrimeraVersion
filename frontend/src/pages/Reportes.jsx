@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { reportesAPI } from '../services/api';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList } from 'recharts';
+import LoadingScreen from '../components/LoadingScreen';
 
 const COLORS = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2', '#eb2f96', '#52c41a'];
 
@@ -158,6 +159,10 @@ function Reportes() {
     formatted_label: `S/. ${Number(item.total).toFixed(2)}`
   })) || [];
 
+  if (loading) {
+    return <LoadingScreen message="GENERANDO REPORTES Y ESTADÍSTICAS..." />;
+  }
+
   return (
     <div className="reportes-container">
       <div className="page-header">
@@ -224,9 +229,7 @@ function Reportes() {
         </div>
       </div>
 
-      {loading ? (
-        <div className="spinner" style={{ margin: '40px auto' }}></div>
-      ) : balance && (
+      {balance && (
         <>
           {/* Tarjetas de Balance */}
           <div className="grid grid-4" style={{ marginBottom: '24px' }}>

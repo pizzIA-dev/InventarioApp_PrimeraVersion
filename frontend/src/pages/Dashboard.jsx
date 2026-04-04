@@ -4,6 +4,7 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import LoadingScreen from '../components/LoadingScreen';
 
 const COLORS = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2'];
 
@@ -63,12 +64,7 @@ function Dashboard() {
   }, [selectedYear, selectedMonth, selectedProducto, selectedServicio]);
 
   if (loading) {
-    return (
-      <div className="page-header">
-        <h1 className="page-title">Dashboard</h1>
-        <div className="spinner" style={{ margin: '40px auto' }}></div>
-      </div>
-    );
+    return <LoadingScreen message="ACTUALIZANDO DASHBOARD..." />;
   }
 
   return (

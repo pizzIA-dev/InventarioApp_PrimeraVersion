@@ -1,0 +1,117 @@
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh; /* Takes up substantial space without taking whole window if inside a module */
+  width: 100%;
+  padding: 40px;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  animation: initialReveal 0.4s ease-out forwards; /* Much faster reveal so it shows immediately */
+}
+
+.neon-pizza-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.neon-pizza-logo {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  /* Remove black background natively using CSS */
+  mix-blend-mode: screen; 
+  /* Neon glow and progressive pulse effect */
+  animation: neonPulseContinuous 1.2s ease-in-out infinite alternate;
+  animation-delay: 0.4s; /* Starts pulsing right after reveal */
+}
+
+.loading-text {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  color: #1b9cfc; /* Neon cyan/blue to match the pizza logo normally */
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(27, 156, 252, 0.5);
+  animation: textPulse 1.2s ease-in-out infinite alternate;
+  animation-delay: 0.4s;
+}
+
+/* Animations */
+
+/* 1. Initial Lighting Up */
+@keyframes initialReveal {
+  0% {
+    opacity: 0;
+    filter: brightness(0.2) drop-shadow(0 0 0px rgba(0, 240, 255, 0));
+  }
+  50% {
+    opacity: 0.5;
+    filter: brightness(0.6) drop-shadow(0 0 5px rgba(0, 240, 255, 0.2));
+  }
+  100% {
+    opacity: 1;
+    filter: brightness(1) drop-shadow(0 0 15px rgba(0, 240, 255, 0.6));
+  }
+}
+
+/* 2. Continuous Cyber Pulse for the logo */
+@keyframes neonPulseContinuous {
+  0% {
+    filter: brightness(1) drop-shadow(0 0 10px rgba(0, 200, 255, 0.5));
+    transform: scale(1);
+  }
+  100% {
+    filter: brightness(1.3) drop-shadow(0 0 25px rgba(0, 240, 255, 0.9));
+    transform: scale(1.03); /* Subtle heartbeat scale */
+  }
+}
+
+/* 3. Text breathing */
+@keyframes textPulse {
+  0% {
+    opacity: 0.7;
+    text-shadow: 0 0 5px rgba(27, 156, 252, 0.3);
+  }
+  100% {
+    opacity: 1;
+    text-shadow: 0 0 15px rgba(27, 156, 252, 0.8), 0 0 30px rgba(27, 156, 252, 0.4);
+  }
+}
+
+/* Dark mode overrides (mix-blend-mode screen inherently works best on dark mode) */
+[data-theme="light"] .neon-pizza-logo {
+  /* In light mode, screen might make the neon too faint or white out.
+     We switch to darken/multiply or just rely on transparency if the image is suitable, 
+     but since it has a black background, screen on white will just turn the whole box white!
+     Wait! If it has a black background, `screen` on white background turns black to white, making a white square!
+     We should invert it for light mode, or use brightness/contrast tricks. */
+  filter: invert(1) hue-rotate(180deg) brightness(1.2);
+  mix-blend-mode: multiply; /* Removes white background after inversion! */
+  animation: neonPulseContinuousLight 2s ease-in-out infinite alternate;
+}
+
+[data-theme="light"] .loading-text {
+  color: #0b5c9e; /* Darker blue for visibility on light mode */
+  text-shadow: none;
+}
+
+@keyframes neonPulseContinuousLight {
+  0% {
+    filter: invert(1) hue-rotate(180deg) brightness(1);
+    transform: scale(1);
+  }
+  100% {
+    filter: invert(1) hue-rotate(180deg) brightness(1.3) drop-shadow(0 0 5px rgba(0,100,255,0.3));
+    transform: scale(1.03);
+  }
+}

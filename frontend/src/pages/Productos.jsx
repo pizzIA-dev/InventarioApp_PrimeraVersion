@@ -5,6 +5,7 @@ import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import ProductFormModal from '../components/ProductFormModal';
+import LoadingScreen from '../components/LoadingScreen';
 
 function Productos() {
   const [loading, setLoading] = useState(true);
@@ -225,6 +226,10 @@ function Productos() {
   const handleFilterEstadoChange = (val) => { setFilterEstado(val); setProductsPage(1); };
   const handleFilterCategoriaChange = (val) => { setFilterCategoria(val); setProductsPage(1); };
   const handleFilterStockChange = (val) => { setFilterStock(val); setProductsPage(1); };
+
+  if (loading) {
+    return <LoadingScreen message="CARGANDO PRODUCTOS..." />;
+  }
 
   return (
     <div>

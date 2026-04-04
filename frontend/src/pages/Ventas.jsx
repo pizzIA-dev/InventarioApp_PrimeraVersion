@@ -15,6 +15,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import ClienteFormModal from '../components/ClienteFormModal';
 import VentaHistoryModal from '../components/VentaHistoryModal';
 import VentaGlobalKardexModal from '../components/VentaGlobalKardexModal';
+import LoadingScreen from '../components/LoadingScreen';
 
 function Ventas() {
   const [loading, setLoading] = useState(true);
@@ -927,7 +928,12 @@ function Ventas() {
   );
 
   const handleSearchChange = (val) => { setSearchTerm(val); setVentasPage(1); setVentasServiciosPage(1); };
-  const handleFilterEstadoChange = (val) => { setFilterEstado(val); setVentasPage(1); setVentasServiciosPage(1); };
+  const handleFilterEstadoChange = (val) => { setFilterEstado(val); setVentasPage(1); };
+
+  if (loading) {
+    return <LoadingScreen message="CARGANDO VENTAS..." />;
+  }
+
   const handleFilterFechaInicio = (val) => { setFilterFechaInicio(val); setVentasPage(1); setVentasServiciosPage(1); };
   const handleFilterFechaFin = (val) => { setFilterFechaFin(val); setVentasPage(1); setVentasServiciosPage(1); };
 

@@ -4,6 +4,8 @@ import { PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, EditOutlined, DeleteO
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
+import CategoryManagerModal from '../components/transacciones/CategoryManagerModal';
+import LoadingScreen from '../components/LoadingScreen';
 import { message } from 'antd';
 
 function Transacciones() {

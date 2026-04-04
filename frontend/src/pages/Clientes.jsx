@@ -7,6 +7,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import ClienteFormModal from '../components/ClienteFormModal';
 import ClienteHistoryModal from '../components/ClienteHistoryModal';
+import LoadingScreen from '../components/LoadingScreen';
 
 function Clientes() {
   const [loading, setLoading] = useState(true);
@@ -150,6 +151,10 @@ function Clientes() {
   const handleFilterTipoChange = (val) => { setFilterTipo(val); setClientesPage(1); };
   const handleSearchContactoChange = (val) => { setSearchContacto(val); setClientesPage(1); };
   const handleFilterEstadoChange = (val) => { setFilterEstado(val); setClientesPage(1); };
+
+  if (loading) {
+    return <LoadingScreen message="CARGANDO CLIENTES..." />;
+  }
 
   return (
     <div>
