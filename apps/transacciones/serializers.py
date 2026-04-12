@@ -49,14 +49,40 @@ class TransaccionCreateSerializer(serializers.ModelSerializer):
 
 
 class MovimientoCategoriaSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.SerializerMethodField()
+    usuario_rol = serializers.SerializerMethodField()
+
     class Meta:
         model = MovimientoCategoria
         fields = '__all__'
-        read_only_fields = ['id', 'fecha']
+        read_only_fields = ['id', 'usuario', 'usuario_nombre', 'usuario_rol', 'fecha']
 
+
+    def get_usuario_nombre(self, obj):
+        if obj.usuario:
+            return getattr(obj.usuario, "get_full_name", lambda: "")() or obj.usuario.username
+        return "Sistema"
+
+    def get_usuario_rol(self, obj):
+        if obj.usuario and hasattr(obj.usuario, "perfil"):
+            return obj.usuario.perfil.get_rol_display()
+        return "-"
 
 class HistorialTransaccionSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.SerializerMethodField()
+    usuario_rol = serializers.SerializerMethodField()
+
     class Meta:
         model = HistorialTransaccion
         fields = '__all__'
-        read_only_fields = ['id', 'fecha']
+        read_only_fields = ['id', 'usuario', 'usuario_nombre', 'usuario_rol', 'fecha']
+
+    def get_usuario_nombre(self, obj):
+        if obj.usuario:
+            return getattr(obj.usuario, "get_full_name", lambda: "")() or obj.usuario.username
+        return "Sistema"
+
+    def get_usuario_rol(self, obj):
+        if obj.usuario and hasattr(obj.usuario, "perfil"):
+            return obj.usuario.perfil.get_rol_display()
+        return "-"

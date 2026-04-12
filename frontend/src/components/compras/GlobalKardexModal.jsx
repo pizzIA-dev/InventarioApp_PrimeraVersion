@@ -141,11 +141,12 @@ const GlobalKardexModal = ({
                       <th style={{ width: '80px', textAlign: 'right' }}>Imp.</th>
                       <th style={{ width: '110px', textAlign: 'right' }}>Total Sugerido</th>
                       <th style={{ width: '90px', textAlign: 'center' }}>Estado</th>
+                      <th style={{ textAlign: 'left' }}>Responsable</th>
                     </tr>
                   </thead>
                   <tbody>
                     {kardexData.length === 0 ? (
-                      <tr><td colSpan="11" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No se encontraron registros en el historial global.</td></tr>
+                      <tr><td colSpan="12" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No se encontraron registros en el historial global.</td></tr>
                     ) : (
                       kardexData.map((p, i) => (
                         <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
@@ -168,12 +169,15 @@ const GlobalKardexModal = ({
                           <td style={{ textAlign: 'right', color: 'var(--color-danger)' }}>-S/. {Number(p.descuento || 0).toFixed(2)}</td>
                           <td style={{ textAlign: 'right' }}>S/. {Number(p.impuesto || 0).toFixed(2)}</td>
                           <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>
-                            S/. {( (p.cantidad * p.precio_compra) - (Number(p.descuento) || 0) + (Number(p.impuesto) || 0) ).toFixed(2)}
+                            S/. {Number(p.total).toFixed(2)}
                           </td>
                           <td style={{ textAlign: 'center' }}>
                             <span className={`badge ${p.estado === 'CONFIRMADA' ? 'badge-success' : 'badge-danger'}`} style={{ fontSize: '10px' }}>
                               {p.estado}
                             </span>
+                          </td>
+                          <td style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            {p.usuario_nombre ? `${p.usuario_nombre} (${p.usuario_rol || '-'})` : 'Sistema'}
                           </td>
                         </tr>
                       ))

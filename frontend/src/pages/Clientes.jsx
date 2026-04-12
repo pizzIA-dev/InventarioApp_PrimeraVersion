@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { clientesAPI } from '../services/api';
 import { PlusOutlined, EditOutlined, DeleteOutlined, HistoryOutlined } from '@ant-design/icons';
 import { message } from 'antd';
@@ -8,8 +8,10 @@ import ExportDropdown from '../components/ExportDropdown';
 import ClienteFormModal from '../components/ClienteFormModal';
 import ClienteHistoryModal from '../components/ClienteHistoryModal';
 import LoadingScreen from '../components/LoadingScreen';
+import { AuthContext } from '../context/AuthContext';
 
 function Clientes() {
+  const { isVendedor } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [clientes, setClientes] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -94,16 +96,19 @@ function Clientes() {
       const params = { periodo };
       if (anio) params.anio = anio;
       const response = await clientesAPI.exportar(params);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `clientes_${periodo}${anio ? '_' + anio : ''}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error al exportar clientes:', error);
-      alert('Error al exportar datos.');
+      alert('Error al exportar datos de clientes.');
     }
   };
 
@@ -173,8 +178,12 @@ function Clientes() {
           <p className="page-subtitle">Gestión de clientes y recurrencia de compras</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
-          <ExportDropdown onExport={handleExportar} label="Exportar Clientes" />
+          {!isVendedor && (
+            <>
+              <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
+              <ExportDropdown onExport={handleExportar} label="Exportar Clientes" />
+            </>
+          )}
           <button className="btn btn-primary" onClick={() => openModal('create')}>
             <PlusOutlined /> Nuevo Cliente
           </button>
@@ -295,9 +304,11 @@ function Clientes() {
                     <button className="btn btn-secondary" onClick={() => openHistory(cliente)} title="Historial / Kardex">
                       <HistoryOutlined />
                     </button>
-                    <button className="btn btn-danger" onClick={() => handleDeleteClick(cliente)} title="Eliminar">
-                      <DeleteOutlined />
-                    </button>
+                    {!isVendedor && (
+                      <button className="btn btn-danger" onClick={() => handleDeleteClick(cliente)} title="Desactivar">
+                        <DeleteOutlined />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

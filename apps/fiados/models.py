@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
@@ -203,6 +204,7 @@ class DetalleFiadoServicio(models.Model):
 
 
 class HistorialFiado(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     """Registro de abonos y cambios de cada Fiado o acciones de cliente"""
     fiado = models.ForeignKey(Fiado, on_delete=models.CASCADE, related_name='historial', null=True, blank=True)
     cliente = models.ForeignKey(ClienteFiado, on_delete=models.CASCADE, related_name='historial_directo', null=True, blank=True)
@@ -213,6 +215,14 @@ class HistorialFiado(models.Model):
     estado_nuevo = models.CharField(max_length=20)
     notas = models.TextField(blank=True, null=True)
 
+
+    def save(self, *args, **kwargs):
+        if getattr(self, "usuario_id", None) is None:
+            from apps.core.middleware import get_current_user
+            user = get_current_user()
+            if user and user.is_authenticated:
+                self.usuario = user
+        super().save(*args, **kwargs)
     class Meta:
         ordering = ['-fecha']
 

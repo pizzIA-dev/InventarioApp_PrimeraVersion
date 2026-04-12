@@ -143,7 +143,7 @@ class CompraViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
         # Configuración de cabeceras
-        headers = ['ID', 'Fecha', 'Comprobante', 'Proveedor', 'Tipo', 'Estado', 'Subtotal (S/.)', 'Impuesto (S/.)', 'Descuento (S/.)', 'Total (S/.)']
+        headers = ['ID', 'Fecha', 'Comprobante', 'Proveedor', 'Tipo', 'Estado', 'Subtotal (S/.)', 'Impuesto (S/.)', 'Descuento (S/.)', 'Total (S/.)', 'Responsable']
         rows = []
         
         for obj in queryset:
@@ -162,7 +162,8 @@ class CompraViewSet(viewsets.ModelViewSet):
                 subtotal_bruto,
                 float(obj.impuesto),
                 float(total_descuento),
-                float(obj.total)
+                float(obj.total),
+                (f"{obj.usuario.get_full_name() or obj.usuario.username} ({obj.usuario.perfil.get_rol_display() if hasattr(obj.usuario, 'perfil') else '-'})") if obj.usuario else "Sistema"
             ])
 
         period_label = get_period_label(periodo, anio)
@@ -286,19 +287,20 @@ class CompraViewSet(viewsets.ModelViewSet):
 
         # Sheet 1: Estados
         estados = compra.movimientos_estado.all().order_by('-fecha')
-        headers_estados = ['Fecha', 'Estado Anterior', 'Estado Nuevo', 'Notas']
+        headers_estados = ['Fecha', 'Estado Anterior', 'Estado Nuevo', 'Notas', 'Responsable']
         rows_estados = [
             [
                 timezone.localtime(e.fecha).strftime("%d/%m/%Y %H:%M:%S"),
                 e.estado_anterior,
                 e.estado_nuevo,
-                e.notas
+                e.notas,
+                (f"{e.usuario.get_full_name() or e.usuario.username} ({e.usuario.perfil.get_rol_display() if hasattr(e.usuario, 'perfil') else '-'})") if e.usuario else "Sistema"
             ] for e in estados
         ]
 
         # Sheet 2: Productos
         detalles = compra.detallecompra_set.all().select_related('producto').order_by('id')
-        headers_productos = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Proveedor', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)']
+        headers_productos = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Proveedor', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)', 'Responsable']
         
         comp_fecha = timezone.localtime(compra.creado_en).strftime("%d/%m/%Y %H:%M:%S")
         comp_tipo = compra.tipo_comprobante or ''
@@ -318,7 +320,8 @@ class CompraViewSet(viewsets.ModelViewSet):
                 float(d.precio_compra),
                 float(d.descuento),
                 comp_impuesto,
-                (float(d.cantidad) * float(d.precio_compra)) - float(d.descuento) + comp_impuesto
+                (float(d.cantidad) * float(d.precio_compra)) - float(d.descuento) + comp_impuesto,
+                (f"{compra.usuario.get_full_name() or compra.usuario.username} ({compra.usuario.perfil.get_rol_display() if hasattr(compra.usuario, 'perfil') else '-'})") if compra.usuario else "Sistema"
             ] for d in detalles
         ]
 
@@ -378,7 +381,7 @@ class CompraViewSet(viewsets.ModelViewSet):
             estados_qs = estados_qs.filter(fecha__date__lte=fecha_hasta)
             detalles_qs = detalles_qs.filter(compra__creado_en__date__lte=fecha_hasta)
 
-        headers_estados = ['Fecha', 'Comprobante', 'Proveedor', 'Estado Anterior', 'Estado Nuevo', 'Notas']
+        headers_estados = ['Fecha', 'Comprobante', 'Proveedor', 'Estado Anterior', 'Estado Nuevo', 'Notas', 'Responsable']
         rows_estados = []
         for e in estados_qs:
             c = e.compra
@@ -390,10 +393,11 @@ class CompraViewSet(viewsets.ModelViewSet):
                 comp_prov,
                 e.estado_anterior,
                 e.estado_nuevo,
-                e.notas
+                e.notas,
+                (f"{e.usuario.get_full_name() or e.usuario.username} ({e.usuario.perfil.get_rol_display() if hasattr(e.usuario, 'perfil') else '-'})") if e.usuario else "Sistema"
             ])
 
-        headers_productos = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Proveedor', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)']
+        headers_productos = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Proveedor', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)', 'Responsable']
         rows_productos = []
         for d in detalles_qs:
             c = d.compra
@@ -411,7 +415,8 @@ class CompraViewSet(viewsets.ModelViewSet):
                 float(d.precio_compra),
                 float(d.descuento),
                 comp_impuesto,
-                (float(d.cantidad) * float(d.precio_compra)) - float(d.descuento) + comp_impuesto
+                (float(d.cantidad) * float(d.precio_compra)) - float(d.descuento) + comp_impuesto,
+                (f"{c.usuario.get_full_name() or c.usuario.username} ({c.usuario.perfil.get_rol_display() if hasattr(c.usuario, 'perfil') else '-'})") if c.usuario else "Sistema"
             ])
 
         period_label = get_period_label(periodo, anio)

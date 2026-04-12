@@ -1177,6 +1177,7 @@ function Transacciones() {
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>V. Nuevo (S/.)</th>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Descripción</th>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Notas</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Responsable</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1208,6 +1209,9 @@ function Transacciones() {
 
                           <td style={{ padding: '7px 10px', fontSize: '11px', color: 'var(--text-secondary)' }}>{mov.descripcion || ''}</td>
                           <td style={{ padding: '7px 10px', fontSize: '11px', color: 'var(--text-secondary)' }}>{mov.notas || '-'}</td>
+                          <td style={{ padding: '7px 10px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                             {mov.usuario_nombre ? `${mov.usuario_nombre} (${mov.usuario_rol || '-'})` : 'Sistema'}
+                          </td>
                         </tr>
                       );
                     })}
@@ -1317,6 +1321,7 @@ function Transacciones() {
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>V. Nuevo (S/.)</th>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Descripción</th>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Notas</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Responsable</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1347,6 +1352,9 @@ function Transacciones() {
                           </td>
                           <td style={{ padding: '7px 10px', fontSize: '11px', color: 'var(--text-secondary)' }}>{mov.descripcion || ''}</td>
                           <td style={{ padding: '7px 10px', fontSize: '11px', color: 'var(--text-secondary)' }}>{mov.notas || '-'}</td>
+                          <td style={{ padding: '7px 10px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                             {mov.usuario_nombre ? `${mov.usuario_nombre} (${mov.usuario_rol || '-'})` : 'Sistema'}
+                          </td>
                         </tr>
                       );
                     })}

@@ -109,7 +109,7 @@ class ClienteFiadoViewSet(viewsets.ModelViewSet):
         headers = [
             'ID', 'Nombre', 'Documento', 'Tel/Celular', 'Dirección', 
             'Total Deuda (S/.)', 'Saldo Pendiente (S/.)', 'Próxima Fecha Límite', 
-            'Estado', 'Última Modificación'
+            'Estado', 'Última Modificación', 'Responsable'
         ]
         
         rows = []
@@ -118,6 +118,10 @@ class ClienteFiadoViewSet(viewsets.ModelViewSet):
             proxima_fecha = obj.proxima_fecha_limite.strftime('%d/%m/%Y') if obj.proxima_fecha_limite else '-'
             estado = 'Activo' if obj.activo else 'Inactivo'
             
+            # Get latest administrative movement to find the responsible user
+            last_mov = HistorialFiado.objects.filter(cliente=obj, fiado__isnull=True).order_by('-fecha').first()
+            usuario_str = f"{last_mov.usuario.get_full_name() or last_mov.usuario.username} ({last_mov.usuario.perfil.get_rol_display() if hasattr(last_mov.usuario, 'perfil') else '-'})" if last_mov and last_mov.usuario else "Sistema"
+
             rows.append([
                 str(obj.id).zfill(6),
                 obj.nombre,
@@ -128,7 +132,8 @@ class ClienteFiadoViewSet(viewsets.ModelViewSet):
                 float(obj.saldo_pendiente_total or 0),
                 proxima_fecha,
                 estado,
-                fecha_modificacion
+                fecha_modificacion,
+                usuario_str
             ])
 
         period_label = get_period_label(periodo, anio)
@@ -217,7 +222,7 @@ class ClienteFiadoViewSet(viewsets.ModelViewSet):
         headers = [
             'ID Fiado', 'Tipo Operación', 'Fecha Movimiento', 'Fecha Límite',
             'Total Deuda (S/.)', 'Abono Realizado (S/.)', 'Saldo Pendiente (S/.)', 
-            'Estado', 'Notas'
+            'Estado', 'Notas', 'Responsable'
         ]
         
         rows = []
@@ -231,7 +236,8 @@ class ClienteFiadoViewSet(viewsets.ModelViewSet):
                 float(h.abono),
                 float(h.saldo_restante),
                 h.estado_nuevo,
-                h.notes or ''
+                h.notes or '',
+                f"{h.usuario.get_full_name() or h.usuario.username} ({h.usuario.perfil.get_rol_display() if hasattr(h.usuario, 'perfil') else '-'})" if hasattr(h, 'usuario') and h.usuario else "Sistema"
             ])
 
         return create_excel_response(
@@ -428,7 +434,7 @@ class FiadoViewSet(viewsets.ModelViewSet):
         headers = [
             'Fecha Movimiento', 'Fecha Límite', 'Total Deuda (S/.)', 
             'Abono Registrado (S/.)', 'Saldo Pendiente (S/.)', 
-            'Estado Resultante', 'Notas'
+            'Estado Resultante', 'Notas', 'Responsable'
         ]
         
         rows = []
@@ -440,7 +446,8 @@ class FiadoViewSet(viewsets.ModelViewSet):
                 float(h.abono),
                 float(h.saldo_restante),
                 h.estado_nuevo,
-                h.notas or ''
+                h.notas or '',
+                f"{h.usuario.get_full_name() or h.usuario.username} ({h.usuario.perfil.get_rol_display() if hasattr(h.usuario, 'perfil') else '-'})" if hasattr(h, 'usuario') and h.usuario else "Sistema"
             ])
 
         return create_excel_response(
@@ -469,7 +476,7 @@ class FiadoViewSet(viewsets.ModelViewSet):
         headers = [
             'ID', 'Fecha Ingreso', 'Cliente Fiado', 'Tipo', 
             'Total Deuda (S/.)', 'Saldo Pendiente (S/.)', 
-            'Fecha Límite', 'Estado', 'Última Modificación'
+            'Fecha Límite', 'Estado', 'Última Modificación', 'Responsable'
         ]
         
         rows = []
@@ -478,6 +485,10 @@ class FiadoViewSet(viewsets.ModelViewSet):
             fecha_modificacion = obj.actualizado_en.strftime('%d/%m/%Y %H:%M') if obj.actualizado_en else ''
             fecha_limite = obj.fecha_limite.strftime('%d/%m/%Y') if obj.fecha_limite else '-'
             
+            # Get latest activity for this specific fiado
+            last_mov = obj.historial.order_by('-fecha').first()
+            usuario_str = f"{last_mov.usuario.get_full_name() or last_mov.usuario.username} ({last_mov.usuario.perfil.get_rol_display() if hasattr(last_mov.usuario, 'perfil') else '-'})" if last_mov and last_mov.usuario else "Sistema"
+
             rows.append([
                 str(obj.id).zfill(6),
                 fecha_ingreso,
@@ -487,7 +498,8 @@ class FiadoViewSet(viewsets.ModelViewSet):
                 float(obj.saldo_pendiente),
                 fecha_limite,
                 obj.get_estado_display(),
-                fecha_modificacion
+                fecha_modificacion,
+                usuario_str
             ])
 
         period_label = get_period_label(periodo, anio)
@@ -518,7 +530,7 @@ class FiadoViewSet(viewsets.ModelViewSet):
         headers = [
             'Fecha Movimiento', 'ID Fiado', 'Cliente', 'Tipo Fiado', 
             'Fecha Límite Fiado', 'Total Deuda (S/.)', 'Abono Realizado (S/.)', 
-            'Saldo Pendiente (S/.)', 'Nuevo Estado', 'Notas'
+            'Saldo Pendiente (S/.)', 'Nuevo Estado', 'Notas', 'Responsable'
         ]
         
         rows = []
@@ -549,7 +561,8 @@ class FiadoViewSet(viewsets.ModelViewSet):
                 float(h.abono),
                 float(h.saldo_restante) if h.saldo_restante is not None else 0,
                 h.estado_nuevo,
-                h.notas or ''
+                h.notas or '',
+                f"{h.usuario.get_full_name() or h.usuario.username} ({h.usuario.perfil.get_rol_display() if hasattr(h.usuario, 'perfil') else '-'})" if hasattr(h, 'usuario') and h.usuario else "Sistema"
             ])
 
         period_label = get_period_label(periodo, anio)

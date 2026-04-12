@@ -57,11 +57,13 @@ class ProductoCreateSerializer(serializers.ModelSerializer):
 class MovimientoStockSerializer(serializers.ModelSerializer):
     producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)
     producto_codigo = serializers.CharField(source='producto.codigo', read_only=True)
+    usuario_nombre = serializers.SerializerMethodField()
+    usuario_rol = serializers.SerializerMethodField()
     
     class Meta:
         model = MovimientoStock
         fields = [
-            'id', 'producto', 'producto_nombre', 'producto_codigo',
+            'id', 'usuario', 'usuario_nombre', 'usuario_rol', 'producto', 'producto_nombre', 'producto_codigo',
             'tipo', 'origen', 'cantidad', 'stock_anterior', 'stock_nuevo',
             'precio_unitario', 'precio_compra_anterior', 'precio_compra_nuevo', 
             'precio_venta_anterior', 'precio_venta_nuevo', 'referencia', 'notas',
@@ -69,6 +71,16 @@ class MovimientoStockSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['stock_anterior', 'stock_nuevo', 'fecha']
     
+    def get_usuario_nombre(self, obj):
+        if obj.usuario:
+            return getattr(obj.usuario, 'get_full_name', lambda: '')() or obj.usuario.username
+        return 'Sistema'
+
+    def get_usuario_rol(self, obj):
+        if obj.usuario and hasattr(obj.usuario, 'perfil'):
+            return obj.usuario.perfil.get_rol_display()
+        return '-'
+
     def validate(self, data):
         producto = data.get('producto')
         tipo = data.get('tipo')

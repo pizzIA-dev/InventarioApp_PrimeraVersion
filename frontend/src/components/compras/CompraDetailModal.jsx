@@ -30,6 +30,7 @@ const CompraDetailModal = ({ visible, compra, onClose }) => {
             <div>
               <p><strong>Fecha Registro:</strong> {new Date(compra.creado_en).toLocaleString()}</p>
               <p><strong>Comprobante:</strong> {compra.tipo_comprobante} {compra.numero_comprobante}</p>
+              <p><strong>Responsable:</strong> {compra.usuario_nombre ? `${compra.usuario_nombre} (${compra.usuario_rol || '-'})` : 'Sistema'}</p>
             </div>
           </div>
 

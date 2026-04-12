@@ -174,10 +174,23 @@ class VentaUpdateSerializer(serializers.ModelSerializer):
         return instance
 
 class MovimientoEstadoVentaSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.SerializerMethodField()
+    usuario_rol = serializers.SerializerMethodField()
+
     class Meta:
         model = MovimientoEstadoVenta
-        fields = ['id', 'estado_anterior', 'estado_nuevo', 'fecha', 'notas']
+        fields = ['id', 'usuario', 'usuario_nombre', 'usuario_rol', 'estado_anterior', 'estado_nuevo', 'fecha', 'notas']
 
+
+    def get_usuario_nombre(self, obj):
+        if obj.usuario:
+            return getattr(obj.usuario, "get_full_name", lambda: "")() or obj.usuario.username
+        return "Sistema"
+
+    def get_usuario_rol(self, obj):
+        if obj.usuario and hasattr(obj.usuario, "perfil"):
+            return obj.usuario.perfil.get_rol_display()
+        return "-"
 
 class VentaKardexSerializer(serializers.ModelSerializer):
     fecha = serializers.DateTimeField(source='venta.creado_en', read_only=True)
@@ -192,13 +205,16 @@ class VentaKardexSerializer(serializers.ModelSerializer):
     subtotal_bruto = serializers.SerializerMethodField()
     impuesto = serializers.DecimalField(source='venta.impuesto', max_digits=12, decimal_places=2, read_only=True)
     total = serializers.SerializerMethodField()
+    usuario_nombre = serializers.SerializerMethodField()
+    usuario_rol = serializers.SerializerMethodField()
 
     class Meta:
         model = DetalleVenta
         fields = [
             'fecha', 'tipo_comprobante_simple', 'numero_comprobante_simple', 
             'tipo_comprobante', 'comprobante', 'cliente',
-            'producto_nombre', 'producto_codigo', 'cantidad', 'precio_unitario', 'subtotal_bruto', 'descuento', 'impuesto', 'total'
+            'producto_nombre', 'producto_codigo', 'cantidad', 'precio_unitario', 'subtotal_bruto', 'descuento', 'impuesto', 'total',
+            'usuario_nombre', 'usuario_rol'
         ]
 
     def get_tipo_comprobante_simple(self, obj):
@@ -225,3 +241,13 @@ class VentaKardexSerializer(serializers.ModelSerializer):
         # Total = (Cant * P.Unit) - Desc + Impuesto
         bruto = float(obj.cantidad) * float(obj.precio_venta)
         return bruto - float(obj.descuento) + float(obj.venta.impuesto)
+
+    def get_usuario_nombre(self, obj):
+        if obj.venta.usuario:
+            return getattr(obj.venta.usuario, "get_full_name", lambda: "")() or obj.venta.usuario.username
+        return "Sistema"
+
+    def get_usuario_rol(self, obj):
+        if obj.venta.usuario and hasattr(obj.venta.usuario, "perfil"):
+            return obj.venta.usuario.perfil.get_rol_display()
+        return "-"

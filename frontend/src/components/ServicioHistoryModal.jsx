@@ -3,8 +3,10 @@ import { HistoryOutlined, CalendarOutlined, DownloadOutlined, CloseOutlined } fr
 import { serviciosAPI } from '../services/api';
 import Pagination from './Pagination';
 import { message } from 'antd';
+import { AuthContext } from '../context/AuthContext';
 
 const ServicioHistoryModal = ({ visible, onClose, servicio }) => {
+  const { isVendedor } = React.useContext(AuthContext);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -76,9 +78,11 @@ const ServicioHistoryModal = ({ visible, onClose, servicio }) => {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <button className="btn btn-secondary" onClick={handleExport} style={{ padding: '4px 12px', fontSize: '12px' }}>
-              Exportar Excel
-            </button>
+            {!isVendedor && (
+              <button className="btn btn-secondary" onClick={handleExport} style={{ padding: '4px 12px', fontSize: '12px' }}>
+                Exportar Excel
+              </button>
+            )}
             <button className="modal-close" onClick={onClose}>×</button>
           </div>
         </div>
@@ -112,12 +116,9 @@ const ServicioHistoryModal = ({ visible, onClose, servicio }) => {
                     <tr>
                       <th style={{ whiteSpace: 'nowrap' }}>Fecha</th>
                       <th style={{ whiteSpace: 'nowrap' }}>Tipo</th>
-                      <th style={{ textAlign: 'right' }}>Costo Ant.</th>
-                      <th style={{ textAlign: 'right' }}>Costo Nuevo</th>
-                      <th style={{ textAlign: 'right' }}>Precio Ant.</th>
-                      <th style={{ textAlign: 'right' }}>Precio Nuevo</th>
                       <th style={{ textAlign: 'center' }}>Estado</th>
                       <th>Notas</th>
+                      <th style={{ whiteSpace: 'nowrap' }}>Responsable</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -129,12 +130,16 @@ const ServicioHistoryModal = ({ visible, onClose, servicio }) => {
                         <td style={{ fontWeight: 600 }}>
                           {h.tipo === 'CREACION' ? 'Creación' : h.tipo === 'AJUSTE' ? 'Ajuste' : 'Cambio Estado'}
                         </td>
-                        <td style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>
-                          {h.costo_anterior !== null ? `S/. ${Number(h.costo_anterior).toFixed(2)}` : '-'}
-                        </td>
-                        <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                          S/. {Number(h.costo_nuevo).toFixed(2)}
-                        </td>
+                        {!isVendedor && (
+                          <td style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>
+                            {h.costo_anterior !== null ? `S/. ${Number(h.costo_anterior).toFixed(2)}` : '-'}
+                          </td>
+                        )}
+                        {!isVendedor && (
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                            S/. {Number(h.costo_nuevo).toFixed(2)}
+                          </td>
+                        )}
                         <td style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>
                           {h.precio_anterior !== null ? `S/. ${Number(h.precio_anterior).toFixed(2)}` : '-'}
                         </td>
@@ -154,7 +159,14 @@ const ServicioHistoryModal = ({ visible, onClose, servicio }) => {
                           )}
                           {(h.activo_nuevo === null || h.activo_nuevo === undefined) && '-'}
                         </td>
-                        <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{h.notas}</td>
+                        <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
+                          {isVendedor && h.notas && (h.notas.toLowerCase().includes('costo') || h.notas.toLowerCase().includes('compra')) 
+                            ? 'Cambio de precio' 
+                            : h.notas}
+                        </td>
+                        <td style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                           {h.usuario_nombre && h.usuario_rol ? `${h.usuario_nombre} (${h.usuario_rol})` : 'Sistema'}
+                        </td>
                       </tr>
                     )) : (
                       <tr>

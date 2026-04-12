@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { serviciosAPI } from '../services/api';
 import { 
   PlusOutlined, 
@@ -14,6 +14,7 @@ import ExportDropdown from '../components/ExportDropdown';
 import ServicioHistoryModal from '../components/ServicioHistoryModal';
 import LoadingScreen from '../components/LoadingScreen';
 import { message } from 'antd';
+import { AuthContext } from '../context/AuthContext';
 
 const DURATION_UNITS = {
   minutos: { label: 'Minutos', multiplier: 1 },
@@ -71,6 +72,7 @@ const decodeDuration = (totalMinutes) => {
 };
 
 function Servicios() {
+  const { isVendedor } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [servicios, setServicios] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -413,8 +415,12 @@ function Servicios() {
           <p className="page-subtitle">Gestión de servicios y ventas de servicios</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <ExportDropdown onExport={handleExportGlobalHistory} label="Diario de Movimientos" />
-          <ExportDropdown onExport={handleExportar} />
+          {!isVendedor && (
+            <>
+              <ExportDropdown onExport={handleExportGlobalHistory} label="Diario de Movimientos" />
+              <ExportDropdown onExport={handleExportar} />
+            </>
+          )}
           <button className="btn btn-primary" onClick={() => openModal('create')}>
             <PlusOutlined /> Nuevo Servicio
           </button>
@@ -512,9 +518,11 @@ function Servicios() {
                     <button className="btn btn-secondary" onClick={() => openModal('edit', servicio)}>
                       <EditOutlined />
                     </button>
-                    <button className="btn btn-danger" onClick={() => handleDeleteClick(servicio)}>
-                      <DeleteOutlined />
-                    </button>
+                    {!isVendedor && (
+                      <button className="btn btn-danger" onClick={() => handleDeleteClick(servicio)}>
+                        <DeleteOutlined />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -851,15 +859,18 @@ function Servicios() {
                             >
                               <EditOutlined style={{ fontSize: '14px' }} />
                             </button>
-                            <button
-                              className="btn btn-danger"
-                              onClick={() => handleDeleteCat(cat)}
-                              style={{ padding: '4px 8px', opacity: (cat.servicios_count > 0) ? 0.5 : 1 }}
-                              title={(cat.servicios_count > 0) ? "No se puede eliminar (tiene servicios)" : "Eliminar"}
-                              disabled={cat.servicios_count > 0}
-                            >
-                              <DeleteOutlined style={{ fontSize: '14px' }} />
-                            </button>
+                            {!isVendedor && (
+                              <button 
+                                type="button"
+                                className="btn btn-danger"
+                                onClick={() => handleDeleteCat(cat)}
+                                style={{ padding: '4px 8px', opacity: (cat.servicios_count > 0) ? 0.5 : 1 }}
+                                title={(cat.servicios_count > 0) ? "No se puede eliminar (tiene servicios)" : "Eliminar"}
+                                disabled={cat.servicios_count > 0}
+                              >
+                                <DeleteOutlined style={{ fontSize: '14px' }} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>

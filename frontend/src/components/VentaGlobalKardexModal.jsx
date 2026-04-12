@@ -169,7 +169,8 @@ const VentaGlobalKardexModal = ({ visible, onClose }) => {
                       <th style={{ textAlign: 'right' }}>Subtotal</th>
                       <th style={{ textAlign: 'right' }}>Descuento</th>
                        <th style={{ textAlign: 'right' }}>Impuesto</th>
-                      <th style={{ textAlign: 'right' }}>Total Venta</th>
+                       <th style={{ textAlign: 'right' }}>Total Venta</th>
+                       <th style={{ whiteSpace: 'nowrap' }}>Responsable</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -190,8 +191,11 @@ const VentaGlobalKardexModal = ({ visible, onClose }) => {
                         <td style={{ textAlign: 'right', fontWeight: 600 }}>S/. {Number(p.cantidad * p.precio_unitario).toFixed(2)}</td>
                         <td style={{ textAlign: 'right', color: 'var(--color-danger)' }}>-S/. {Number(p.descuento || 0).toFixed(2)}</td>
                          <td style={{ textAlign: 'right' }}>S/. {Number(p.impuesto || 0).toFixed(2)}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>S/. {( (p.cantidad * p.precio_unitario) - (p.descuento || 0) + (Number(p.impuesto) || 0) ).toFixed(2)}</td>
-                      </tr>
+                         <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>S/. {( (p.cantidad * p.precio_unitario) - (p.descuento || 0) + (Number(p.impuesto) || 0) ).toFixed(2)}</td>
+                         <td style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+                            {p.usuario_nombre ? `${p.usuario_nombre} (${p.usuario_rol || '-'})` : 'Sistema'}
+                         </td>
+                       </tr>
                     ))}
                     {historyProductos.length === 0 && (
                       <tr>

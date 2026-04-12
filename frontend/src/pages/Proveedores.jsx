@@ -533,6 +533,7 @@ function Proveedores() {
                             <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Detalle</th>
                             <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Estado</th>
                             <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Contrato</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Responsable</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -572,6 +573,9 @@ function Proveedores() {
                                     <span style={{ color: mov.contrato_nuevo ? '#52c41a' : '#faad14', fontWeight: 'bold', fontSize: '11px' }}>
                                       {mov.contrato_nuevo ? 'Sí' : 'No'}
                                     </span>
+                                  </td>
+                                  <td style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                    {mov.usuario_nombre ? `${mov.usuario_nombre} (${mov.usuario_rol || '-'})` : 'Sistema'}
                                   </td>
                                 </tr>
                               );
@@ -631,6 +635,7 @@ function Proveedores() {
                             <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Descuento</th>
                             <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Impuesto</th>
                             <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Total</th>
+                            <th style={{ whiteSpace: 'nowrap' }}>Responsable</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -653,6 +658,9 @@ function Proveedores() {
                                 <td style={{ textAlign: 'right', color: '#ff4d4f', whiteSpace: 'nowrap' }}>-S/. {Number(p.descuento || 0).toFixed(2)}</td>
                                 <td style={{ textAlign: 'right', color: 'var(--primary-color)', whiteSpace: 'nowrap' }}>+S/. {Number(p.impuesto || 0).toFixed(2)}</td>
                                 <td style={{ textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>S/. {Number(p.total).toFixed(2)}</td>
+                                <td style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                  {p.usuario_nombre ? `${p.usuario_nombre} (${p.usuario_rol || '-'})` : 'Sistema'}
+                                </td>
                               </tr>
                             ))
                           ) : (

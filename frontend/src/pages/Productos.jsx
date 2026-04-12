@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { productosAPI, categoriasAPI } from '../services/api';
 import { PlusOutlined, EditOutlined, DeleteOutlined, HistoryOutlined } from '@ant-design/icons';
 import Pagination from '../components/Pagination';
@@ -6,8 +6,10 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import ProductFormModal from '../components/ProductFormModal';
 import LoadingScreen from '../components/LoadingScreen';
+import { AuthContext } from '../context/AuthContext';
 
 function Productos() {
+  const { isVendedor } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -248,8 +250,12 @@ function Productos() {
           <p style={{ margin: '4px 0 0', color: 'var(--text-muted, #94a3b8)' }}>Gestión de productos en stock</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <ExportDropdown onExport={handleExportDiario} label="Diario de Movimientos" />
-          <ExportDropdown onExport={handleExportar} label="Exportar Productos" />
+          {!isVendedor && (
+            <>
+              <ExportDropdown onExport={handleExportDiario} label="Diario de Movimientos" />
+              <ExportDropdown onExport={handleExportar} label="Exportar Productos" />
+            </>
+          )}
           <button className="btn btn-primary" onClick={() => openModal('create')}>
             <PlusOutlined style={{ marginRight: '8px' }} /> Nuevo Producto
           </button>
@@ -331,9 +337,9 @@ function Productos() {
                 <th>Nombre</th>
                 <th>Categoría</th>
                 <th>Stock</th>
-                <th>P. Compra</th>
+                {!isVendedor && <th>P. Compra</th>}
                 <th>P. Venta</th>
-                <th>Margen</th>
+                {!isVendedor && <th>Margen</th>}
                 <th>Estado</th>
                 <th>Acciones</th>
               </tr>
@@ -349,24 +355,27 @@ function Productos() {
                       {producto.stock_actual} {producto.unidad_medida}
                     </span>
                   </td>
-                  <td>S/. {Number(producto.precio_compra || 0).toFixed(2)}</td>
+                  {!isVendedor && <td>S/. {Number(producto.precio_compra || 0).toFixed(2)}</td>}
                   <td>S/. {Number(producto.precio_venta || 0).toFixed(2)}</td>
-                  <td>{Number(producto.margen_ganancia || 0).toFixed(2)}%</td>
+                  {!isVendedor && <td>{Number(producto.margen_ganancia || 0).toFixed(2)}%</td>}
                   <td>
                     <span className={`badge ${producto.activo ? 'badge-success' : 'badge-danger'}`}>
                       {producto.activo ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
                   <td>
+                    {/* Ocultar columna P. Compra y Margen para Vendedor — solo mostrar el dato públicamente visible */}
                     <button className="btn btn-secondary" onClick={() => handleViewHistory(producto)} title="Ver Historial" style={{ marginRight: '8px' }}>
                       <HistoryOutlined />
                     </button>
                     <button className="btn btn-secondary" onClick={() => openModal('edit', producto)}>
                       <EditOutlined />
                     </button>
-                    <button className="btn btn-danger" onClick={() => handleDeleteClick(producto)}>
-                      <DeleteOutlined />
-                    </button>
+                    {!isVendedor && (
+                      <button className="btn btn-danger" onClick={() => handleDeleteClick(producto)}>
+                        <DeleteOutlined />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -468,14 +477,15 @@ function Productos() {
                         <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Tipo</th>
                         <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Origen</th>
                         <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>Cambio stock</th>
-                        <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>P. Compra Ant.</th>
-                        <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>P. Compra Nvo.</th>
+                        {!isVendedor && <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>P. Compra Ant.</th>}
+                        {!isVendedor && <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>P. Compra Nvo.</th>}
                         <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>P. Venta Ant.</th>
                         <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>P. Venta Nvo.</th>
                         <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', color: '#888', whiteSpace: 'nowrap' }}>Stock Ant.</th>
                         <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>Stock Nvo.</th>
                         <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Estado</th>
                         <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Notas</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Responsable</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -497,12 +507,16 @@ function Productos() {
                                 {isEntrada ? '+' : '-'}{Number(mov.cantidad)}
                               </span>
                             </td>
-                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', color: '#888', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
-                              {mov.precio_compra_anterior ? `S/. ${Number(mov.precio_compra_anterior).toFixed(2)}` : '-'}
-                            </td>
-                            <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                              {mov.precio_compra_nuevo ? `S/. ${Number(mov.precio_compra_nuevo).toFixed(2)}` : '-'}
-                            </td>
+                            {!isVendedor && (
+                              <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', color: '#888', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
+                                {mov.precio_compra_anterior ? `S/. ${Number(mov.precio_compra_anterior).toFixed(2)}` : '-'}
+                              </td>
+                            )}
+                            {!isVendedor && (
+                              <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                                {mov.precio_compra_nuevo ? `S/. ${Number(mov.precio_compra_nuevo).toFixed(2)}` : '-'}
+                              </td>
+                            )}
                             <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', color: '#888', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
                               {mov.precio_venta_anterior ? `S/. ${Number(mov.precio_venta_anterior).toFixed(2)}` : '-'}
                             </td>
@@ -520,7 +534,14 @@ function Productos() {
                               )}
                               {(mov.activo_nuevo === null || mov.activo_nuevo === undefined) && '-'}
                             </td>
-                            <td style={{ padding: '7px 10px', fontSize: '11px', color: 'var(--text-secondary)' }}>{mov.notas}</td>
+                            <td style={{ padding: '7px 10px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                              {isVendedor && mov.notas && (mov.notas.toLowerCase().includes('costo') || mov.notas.toLowerCase().includes('compra')) 
+                                ? 'Cambio de precio' 
+                                : mov.notas}
+                            </td>
+                            <td style={{ padding: '7px 10px', fontSize: '11px', color: '#888' }}>
+                              {mov.usuario_nombre && mov.usuario_rol ? `${mov.usuario_nombre} (${mov.usuario_rol})` : 'Sistema'}
+                            </td>
                           </tr>
                         );
                       })}

@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { fiadosAPI } from '../../services/api';
 import { message } from 'antd';
 import Pagination from '../Pagination';
+import { AuthContext } from '../../context/AuthContext';
 
 function FiadoHistorialModal({ visible, onClose, fiado }) {
+  const { isVendedor } = useContext(AuthContext);
   const [loading, setLoading] = useState(false);
   const [historial, setHistorial] = useState([]);
   const [fechaDesde, setFechaDesde] = useState('');
@@ -96,9 +98,11 @@ function FiadoHistorialModal({ visible, onClose, fiado }) {
             Historial: {fiado.cliente_nombre} (#{String(fiado.id).padStart(6, '0')})
           </h3>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {!isVendedor && (
             <button className="btn btn-secondary" onClick={handleExportar} style={{ padding: '4px 12px', fontSize: '12px' }}>
               Exportar Excel
             </button>
+          )}
             <button className="modal-close" onClick={onClose} style={{ position: 'relative', top: -2, right: 0, fontSize: '20px' }}>×</button>
           </div>
         </div>
@@ -148,16 +152,17 @@ function FiadoHistorialModal({ visible, onClose, fiado }) {
                   <th style={{ padding: '10px 16px', textAlign: 'center', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Fecha Límite</th>
                   <th style={{ padding: '10px 16px', textAlign: 'center', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Estado</th>
                   <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Notas</th>
+                  <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Responsable</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-secondary)' }}>Cargando historial...</td>
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-secondary)' }}>Cargando historial...</td>
                   </tr>
                 ) : historial.length === 0 ? (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-secondary)' }}>
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-secondary)' }}>
                       No se encontraron movimientos.
                     </td>
                   </tr>
@@ -189,6 +194,9 @@ function FiadoHistorialModal({ visible, onClose, fiado }) {
                       </td>
                       <td style={{ padding: '10px 16px', fontSize: '11px', color: 'var(--text-secondary)' }}>
                         {h.notes || h.notas || '-'}
+                      </td>
+                      <td style={{ padding: '10px 16px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                         {h.usuario_nombre && h.usuario_rol ? `${h.usuario_nombre} (${h.usuario_rol})` : 'Sistema'}
                       </td>
                     </tr>
                   ))

@@ -135,7 +135,7 @@ const CompraHistoryModal = ({
                 cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px'
               }}
             >
-              <OrderedListOutlined /> Kardex de Productos
+              <OrderedListOutlined /> Detalle de Compra de Productos
             </button>
           </div>
 
@@ -144,31 +144,37 @@ const CompraHistoryModal = ({
           ) : (
             <>
               <div className="table-responsive" style={{ maxHeight: '48vh', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
-                <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
+                <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', minWidth: '1300px' }}>
                   <thead>
                     {activeTab === 'estados' ? (
                       <tr>
                         <th style={{ whiteSpace: 'nowrap', textAlign: 'left' }}>Fecha</th>
                         <th style={{ textAlign: 'left' }}>Estado Anterior</th>
                         <th style={{ textAlign: 'left' }}>Estado Nuevo</th>
-                        <th style={{ textAlign: 'left' }}>Notas / Auditoría</th>
+                        <th style={{ textAlign: 'left' }}>Notas</th>
+                        <th style={{ textAlign: 'left' }}>Responsable</th>
                       </tr>
                     ) : (
                       <tr>
                         <th style={{ whiteSpace: 'nowrap', textAlign: 'left' }}>Fecha</th>
+                        <th style={{ textAlign: 'left' }}>Tipo de comprobante</th>
+                        <th style={{ textAlign: 'left' }}>Comprobante</th>
+                        <th style={{ textAlign: 'left' }}>Proveedor</th>
                         <th style={{ textAlign: 'left' }}>Producto</th>
-                        <th style={{ textAlign: 'left' }}>Código</th>
-                        <th style={{ textAlign: 'right' }}>Cant.</th>
-                        <th style={{ textAlign: 'right' }}>P. Compra</th>
-                        <th style={{ textAlign: 'right' }}>Subtotal</th>
-                        <th style={{ textAlign: 'center' }}>Estado</th>
+                        <th style={{ textAlign: 'left' }}>Código de Producto</th>
+                        <th style={{ textAlign: 'right' }}>Cantidad</th>
+                        <th style={{ textAlign: 'right' }}>Precio de compra</th>
+                        <th style={{ textAlign: 'right' }}>Descuento</th>
+                        <th style={{ textAlign: 'right' }}>Impuesto</th>
+                        <th style={{ textAlign: 'right' }}>Total</th>
+                        <th style={{ textAlign: 'left' }}>Responsable</th>
                       </tr>
                     )}
                   </thead>
                   <tbody>
                     {activeTab === 'estados' ? (
                         historyData.length === 0 ? (
-                            <tr><td colSpan="4" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay movimientos registrados.</td></tr>
+                            <tr><td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay movimientos registrados.</td></tr>
                         ) : (
                         historyData.map((h, i) => (
                             <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
@@ -185,33 +191,39 @@ const CompraHistoryModal = ({
                                 </td>
                                 <td>
                                     <span className={`badge ${
-                                        ['CONFIRMADA', 'COMPLETADA'].includes(h.nuevo_estado) ? 'badge-success' :
-                                        ['CANCELADA', 'ANULADA'].includes(h.nuevo_estado) ? 'badge-danger' : 'badge-warning'
+                                        ['CONFIRMADA', 'COMPLETADA'].includes(h.estado_nuevo) ? 'badge-success' :
+                                        ['CANCELADA', 'ANULADA'].includes(h.estado_nuevo) ? 'badge-danger' : 'badge-warning'
                                     }`} style={{ fontSize: '10px' }}>
-                                        {h.nuevo_estado}
+                                        {h.estado_nuevo}
                                     </span>
                                 </td>
                                 <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{h.notas || 'Sin registro adicional'}</td>
+                                <td style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                   {h.usuario_nombre ? `${h.usuario_nombre} (${h.usuario_rol || '-'})` : 'Sistema'}
+                                </td>
                             </tr>
                         )))
                     ) : (
                         kardexData.length === 0 ? (
-                            <tr><td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay productos registrados en esta compra.</td></tr>
+                            <tr><td colSpan="12" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay productos registrados en esta compra.</td></tr>
                         ) : (
                         kardexData.map((p, i) => (
                             <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                 <td style={{ whiteSpace: 'nowrap' }}>
                                   {new Date(p.fecha).toLocaleDateString()} {new Date(p.fecha).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </td>
+                                <td>{p.tipo_comprobante}</td>
+                                <td>{p.numero_comprobante}</td>
+                                <td>{p.proveedor_nombre}</td>
                                 <td style={{ fontWeight: 600 }}>{p.producto_nombre || `ID: ${p.producto}`}</td>
                                 <td style={{ color: 'var(--text-secondary)' }}>{p.producto_codigo || 'S/C'}</td>
                                 <td style={{ textAlign: 'right', fontWeight: 600 }}>{p.cantidad}</td>
                                 <td style={{ textAlign: 'right' }}>S/. {Number(p.precio_compra).toFixed(2)}</td>
-                                <td style={{ textAlign: 'right', fontWeight: 600 }}>S/. {(p.cantidad * p.precio_compra).toFixed(2)}</td>
-                                <td style={{ textAlign: 'center' }}>
-                                    <span className={`badge ${p.estado === 'CONFIRMADA' ? 'badge-success' : 'badge-danger'}`} style={{ fontSize: '10px' }}>
-                                        {p.estado}
-                                    </span>
+                                <td style={{ textAlign: 'right', color: 'var(--color-danger)' }}>-S/. {Number(p.descuento).toFixed(2)}</td>
+                                <td style={{ textAlign: 'right' }}>S/. {Number(p.impuesto || 0).toFixed(2)}</td>
+                                <td style={{ textAlign: 'right', fontWeight: 700 }}>S/. {Number(p.total).toFixed(2)}</td>
+                                <td style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                   {p.usuario_nombre ? `${p.usuario_nombre} (${p.usuario_rol || '-'})` : 'Sistema'}
                                 </td>
                             </tr>
                         )))

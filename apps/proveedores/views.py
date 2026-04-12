@@ -100,7 +100,7 @@ class ProveedorViewSet(viewsets.ModelViewSet):
         
         # Hoja 1: Modificaciones de Estado
         movimientos = proveedor.movimientos.all().order_by('-fecha')
-        headers_mod = ['Fecha', 'Acción', 'Detalle', 'Estado', 'Contrato']
+        headers_mod = ['Fecha', 'Acción', 'Detalle', 'Estado', 'Contrato', 'Responsable']
         rows_mod = []
         for mov in movimientos:
             fecha_str = timezone.localtime(mov.fecha).strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
@@ -109,14 +109,15 @@ class ProveedorViewSet(viewsets.ModelViewSet):
                 mov.tipo,
                 mov.descripcion,
                 'Activo' if mov.activo_nuevo else 'Inactivo',
-                'Sí' if mov.contrato_nuevo else 'No'
+                'Sí' if mov.contrato_nuevo else 'No',
+                f"{mov.usuario.get_full_name() or mov.usuario.username} ({mov.usuario.perfil.get_rol_display() if hasattr(mov.usuario, 'perfil') else '-'})" if hasattr(mov, 'usuario') and mov.usuario else "Sistema"
             ])
 
         # Hoja 2: Detalle de Productos (Compras)
         from apps.compras.models import DetalleCompra
         detalles_qs = DetalleCompra.objects.filter(compra__proveedor=proveedor).select_related('producto', 'compra').order_by('-compra__creado_en')
         
-        headers_prod = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)']
+        headers_prod = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)', 'Responsable']
         rows_prod = []
         for d in detalles_qs:
             c = d.compra
@@ -133,7 +134,8 @@ class ProveedorViewSet(viewsets.ModelViewSet):
                 float(d.precio_compra),
                 float(d.descuento),
                 float(c.impuesto),
-                total_fila
+                total_fila,
+                f"{c.usuario.get_full_name() or c.usuario.username} ({c.usuario.perfil.get_rol_display() if hasattr(c.usuario, 'perfil') else '-'})" if hasattr(c, 'usuario') and c.usuario else "Sistema"
             ])
 
         sheets_data = [
@@ -199,12 +201,16 @@ class ProveedorViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
         from django.db.models import Sum
-        headers = ['ID', 'Nombre', 'Documento (RUC/DNI)', 'Categoría', 'Contrato', 'Contacto', 'Email', 'Teléfono', 'Días de Crédito', 'Límite Crédito (S/.)', 'Estado', 'Recurrencia', 'Total Comprado (S/.)', 'Última Modificación']
+        headers = ['ID', 'Nombre', 'Documento (RUC/DNI)', 'Categoría', 'Contrato', 'Contacto', 'Email', 'Teléfono', 'Días de Crédito', 'Límite Crédito (S/.)', 'Estado', 'Recurrencia', 'Total Comprado (S/.)', 'Última Modificación', 'Responsable']
         rows = []
         for obj in queryset:
             # Calcular métricas adicionales
             recurrencia = obj.compras.count()
             total_comprado = obj.compras.aggregate(total_sum=Sum('total'))['total_sum'] or 0.0
+
+            # Get latest movement to find the responsible user
+            last_mov = obj.movimientos.order_by('-fecha').first()
+            usuario_str = f"{last_mov.usuario.get_full_name() or last_mov.usuario.username} ({last_mov.usuario.perfil.get_rol_display() if hasattr(last_mov.usuario, 'perfil') else '-'})" if last_mov and last_mov.usuario else "Sistema"
 
             rows.append([
                 obj.id,
@@ -220,7 +226,8 @@ class ProveedorViewSet(viewsets.ModelViewSet):
                 'Activo' if obj.activo else 'Inactivo',
                 recurrencia,
                 float(total_comprado),
-                timezone.localtime(obj.actualizado_en).strftime('%d/%m/%Y %H:%M:%S') if obj.actualizado_en else ''
+                timezone.localtime(obj.actualizado_en).strftime('%d/%m/%Y %H:%M:%S') if obj.actualizado_en else '',
+                usuario_str
             ])
 
         period_label = get_period_label(periodo, anio)
@@ -268,7 +275,7 @@ class MovimientoProveedorViewSet(viewsets.ReadOnlyModelViewSet):
             detalles_qs = detalles_qs.filter(compra__creado_en__date__gte=date_from, compra__creado_en__date__lte=date_to)
 
         # Preparar filas Hoja 1
-        headers_mod = ['Fecha', 'ID Proveedor', 'Proveedor', 'Acción', 'Detalle', 'Estado', 'Contrato']
+        headers_mod = ['Fecha', 'ID Proveedor', 'Proveedor', 'Acción', 'Detalle', 'Estado', 'Contrato', 'Responsable']
         rows_mod = []
         for mov in movimientos_qs:
             fecha_str = timezone.localtime(mov.fecha).strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
@@ -279,11 +286,12 @@ class MovimientoProveedorViewSet(viewsets.ReadOnlyModelViewSet):
                 mov.tipo,
                 mov.descripcion,
                 'Activo' if mov.activo_nuevo else 'Inactivo',
-                'Sí' if mov.contrato_nuevo else 'No'
+                'Sí' if mov.contrato_nuevo else 'No',
+                f"{mov.usuario.get_full_name() or mov.usuario.username} ({mov.usuario.perfil.get_rol_display() if hasattr(mov.usuario, 'perfil') else '-'})" if hasattr(mov, 'usuario') and mov.usuario else "Sistema"
             ])
 
         # Preparar filas Hoja 2
-        headers_prod = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Proveedor', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)']
+        headers_prod = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Proveedor', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)', 'Responsable']
         rows_prod = []
         for d in detalles_qs:
             c = d.compra
@@ -302,7 +310,8 @@ class MovimientoProveedorViewSet(viewsets.ReadOnlyModelViewSet):
                 float(d.precio_compra),
                 float(d.descuento),
                 float(c.impuesto),
-                total_fila
+                total_fila,
+                f"{c.usuario.get_full_name() or c.usuario.username} ({c.usuario.perfil.get_rol_display() if hasattr(c.usuario, 'perfil') else '-'})" if hasattr(c, 'usuario') and c.usuario else "Sistema"
             ])
 
         period_label = get_period_label(periodo, anio)

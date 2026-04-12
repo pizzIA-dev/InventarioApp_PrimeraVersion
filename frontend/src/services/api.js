@@ -1,11 +1,38 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
+
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Opcionalmente redirigir al login
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user_data');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Productos
 export const productosAPI = {
@@ -203,6 +230,14 @@ export const fiadosAPI = {
   exportarHistorialFiado: (id) => api.get(`/fiados/fiados/${id}/exportar_historial/`, { responseType: 'blob' }),
   exportar: (params) => api.get('/fiados/fiados/exportar/', { params, responseType: 'blob' }),
   exportarHistorialGlobal: (params) => api.get('/fiados/fiados/exportar_historial_global/', { params, responseType: 'blob' }),
+};
+
+// Gestión de Usuarios (solo Gerente)
+export const usuariosAPI = {
+  listar: () => api.get('/auth/usuarios/'),
+  crear: (data) => api.post('/auth/usuarios/crear/', data),
+  toggle: (id) => api.patch(`/auth/usuarios/${id}/toggle/`),
+  cambiarPassword: (id, data) => api.put(`/auth/usuarios/${id}/password/`, data),
 };
 
 export default api;

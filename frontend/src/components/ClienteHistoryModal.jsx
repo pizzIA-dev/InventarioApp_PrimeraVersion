@@ -147,15 +147,18 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
       if (fechaHasta) params.fecha_hasta = fechaHasta;
       
       const response = await clientesAPI.exportarHistorial(cliente.id, params);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `kardex_cliente_${cliente.id}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error exporting history:', error);
+      message.error('Error al exportar el historial del cliente.');
     }
   };
 
@@ -253,6 +256,7 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
                         <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px' }}>Estado Anterior</th>
                         <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px' }}>Estado Nuevo</th>
                         <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px' }}>Notas</th>
+                        <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px' }}>Responsable</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -281,6 +285,9 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
                                 </span>
                               </td>
                               <td style={{ padding: '12px 16px', fontSize: '13px', color: isCreacion ? 'var(--text-primary)' : 'var(--text-secondary)', fontStyle: isCreacion ? 'italic' : 'normal' }}>{mov.notas}</td>
+                              <td style={{ padding: '12px 16px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                {mov.usuario_nombre ? `${mov.usuario_nombre} (${mov.usuario_rol || '-'})` : 'Sistema'}
+                              </td>
                             </tr>
                           );
                         })
@@ -313,6 +320,7 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
                         <th style={{ padding: '10px 12px', textAlign: 'right' }}>Desc.</th>
                         <th style={{ padding: '10px 12px', textAlign: 'right' }}>Impuesto</th>
                         <th style={{ padding: '10px 12px', textAlign: 'right' }}>Total</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left' }}>Responsable</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -340,6 +348,9 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
                             <td style={{ padding: '10px 12px', textAlign: 'right' }}>S/. {Number(record.impuesto || 0).toFixed(2)}</td>
                             <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 'bold', color: 'var(--accent)' }}>
                               S/. { ( (record.cantidad ? (record.cantidad * record.precio_unitario) : Number(record.precio_servicio)) - (record.descuento || 0) + (Number(record.impuesto) || 0) ).toFixed(2) }
+                            </td>
+                            <td style={{ padding: '10px 12px', fontSize: '10px', color: 'var(--text-secondary)' }}>
+                               {record.usuario_nombre ? `${record.usuario_nombre} (${record.usuario_rol || '-'})` : 'Sistema'}
                             </td>
                           </tr>
                         ))
@@ -369,6 +380,7 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
                         <th style={{ padding: '10px 12px', textAlign: 'right' }}>Descuento</th>
                         <th style={{ padding: '10px 12px', textAlign: 'right' }}>Impuesto</th>
                         <th style={{ padding: '10px 12px', textAlign: 'right' }}>Total</th>
+                        <th style={{ padding: '10px 12px', textAlign: 'left' }}>Responsable</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -391,6 +403,9 @@ const ClienteHistoryModal = ({ visible, cliente, onClose }) => {
                             <td style={{ padding: '10px 12px', textAlign: 'right' }}>S/. {Number(record.impuesto || 0).toFixed(2)}</td>
                             <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 'bold', color: 'var(--accent)' }}>
                               S/. { ( (record.cantidad ? (record.cantidad * record.precio_unitario) : Number(record.precio_servicio)) - (record.descuento || 0) + (Number(record.impuesto) || 0) ).toFixed(2) }
+                            </td>
+                            <td style={{ padding: '10px 12px', fontSize: '10px', color: 'var(--text-secondary)' }}>
+                               {record.usuario_nombre ? `${record.usuario_nombre} (${record.usuario_rol || '-'})` : 'Sistema'}
                             </td>
                           </tr>
                         ))

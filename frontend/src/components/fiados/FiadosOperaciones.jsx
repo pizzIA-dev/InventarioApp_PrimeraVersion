@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { fiadosAPI, ventasAPI, serviciosAPI, productosAPI, clientesAPI } from '../../services/api';
 import { PlusOutlined, EditOutlined, DollarOutlined, EyeOutlined, CheckCircleOutlined, DeleteOutlined, CloseOutlined, HistoryOutlined } from '@ant-design/icons';
 import { message } from 'antd';
@@ -12,8 +12,10 @@ import ProductFormModal from '../ProductFormModal';
 import FiadoHistorialModal from './FiadoHistorialModal';
 import FiadoDetailModal from './FiadoDetailModal';
 import ExportDropdown from '../ExportDropdown';
+import { AuthContext } from '../../context/AuthContext';
 
 function FiadosOperaciones() {
+  const { isVendedor } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [fiados, setFiados] = useState([]);
   const [clientes, setClientes] = useState([]);
@@ -400,14 +402,18 @@ function FiadosOperaciones() {
           <p style={{ margin: '4px 0 0', color: 'var(--text-muted, #94a3b8)' }}>Gestión interna de cuentas por cobrar y cliente fiados</p>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <ExportDropdown 
-            label="Exportar Historial Global"
-            onExport={handleExportHistorialGlobal}
-          />
-          <ExportDropdown 
-            label="Exportar Fiados"
-            onExport={handleExportFiados}
-          />
+          {!isVendedor && (
+            <>
+              <ExportDropdown 
+                label="Exportar Historial Global"
+                onExport={handleExportHistorialGlobal}
+              />
+              <ExportDropdown 
+                label="Exportar Fiados"
+                onExport={handleExportFiados}
+              />
+            </>
+          )}
           <button className="btn btn-primary" onClick={() => openFormModal()} style={{ borderRadius: '8px', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <PlusOutlined /> Nuevo Fiado
           </button>
@@ -542,7 +548,7 @@ function FiadosOperaciones() {
                         </button>
                       )}
 
-                      {(!fiado.venta_ref && !fiado.venta_servicio_ref) && (
+                      {!isVendedor && (!fiado.venta_ref && !fiado.venta_servicio_ref) && (
                         <button className="btn btn-danger" onClick={() => handleDeleteClick(fiado)} title="Eliminar Operación">
                           <DeleteOutlined />
                         </button>

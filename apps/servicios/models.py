@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.core.validators import MinValueValidator
 from apps.clientes.models import Cliente
@@ -118,6 +119,7 @@ class Servicio(models.Model):
 
 
 class MovimientoServicio(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     """Registro de movimientos y cambios en los servicios"""
     TIPO_MOVIMIENTO_CHOICES = [
         ('CREACION', 'Creación'),
@@ -141,6 +143,14 @@ class MovimientoServicio(models.Model):
     
     notas = models.TextField(blank=True, null=True)
 
+
+    def save(self, *args, **kwargs):
+        if getattr(self, "usuario_id", None) is None:
+            from apps.core.middleware import get_current_user
+            user = get_current_user()
+            if user and user.is_authenticated:
+                self.usuario = user
+        super().save(*args, **kwargs)
     class Meta:
         ordering = ['-fecha']
         verbose_name_plural = "Movimientos de Servicio"
@@ -212,6 +222,7 @@ class VentaServicio(models.Model):
     fecha_completado = models.DateTimeField(blank=True, null=True)
     
     # Control
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE')
     notas = models.TextField(blank=True, null=True)
     creado_en = models.DateTimeField(auto_now_add=True)
@@ -227,6 +238,13 @@ class VentaServicio(models.Model):
         is_new = self.pk is None
         old_estado = None
         
+        # Auditoría de usuario
+        if is_new and getattr(self, "usuario_id", None) is None:
+            from apps.core.middleware import get_current_user
+            user = get_current_user()
+            if user and user.is_authenticated:
+                self.usuario = user
+
         if not is_new:
             try:
                 old_instance = VentaServicio.objects.get(pk=self.pk)
@@ -275,6 +293,7 @@ class VentaServicio(models.Model):
 
 
 class MovimientoEstadoVentaServicio(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     """Historial de cambios de estado de una venta de servicios"""
     venta_servicio = models.ForeignKey(
         VentaServicio, 
@@ -286,6 +305,14 @@ class MovimientoEstadoVentaServicio(models.Model):
     fecha = models.DateTimeField(auto_now_add=True)
     notas = models.TextField(blank=True, null=True)
     
+
+    def save(self, *args, **kwargs):
+        if getattr(self, "usuario_id", None) is None:
+            from apps.core.middleware import get_current_user
+            user = get_current_user()
+            if user and user.is_authenticated:
+                self.usuario = user
+        super().save(*args, **kwargs)
     class Meta:
         ordering = ['-fecha']
         verbose_name_plural = "Movimientos de Estado de Venta de Servicio"

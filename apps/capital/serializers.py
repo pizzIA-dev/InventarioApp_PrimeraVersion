@@ -17,14 +17,27 @@ class TipoCapitalSerializer(serializers.ModelSerializer):
 
 
 class MovimientoCapitalSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.SerializerMethodField()
+    usuario_rol = serializers.SerializerMethodField()
+
     class Meta:
         model = MovimientoCapital
         fields = [
-            'id', 'fecha', 'campo_modificado', 'valor_anterior', 'valor_nuevo', 
+            'id', 'usuario', 'usuario_nombre', 'usuario_rol', 'fecha', 'campo_modificado', 'valor_anterior', 'valor_nuevo', 
             'valor_inicial_ant', 'valor_inicial_nvo', 'valor_actual_ant', 'valor_actual_nvo',
             'notas'
         ]
 
+
+    def get_usuario_nombre(self, obj):
+        if obj.usuario:
+            return getattr(obj.usuario, "get_full_name", lambda: "")() or obj.usuario.username
+        return "Sistema"
+
+    def get_usuario_rol(self, obj):
+        if obj.usuario and hasattr(obj.usuario, "perfil"):
+            return obj.usuario.perfil.get_rol_display()
+        return "-"
 
 class CapitalSerializer(serializers.ModelSerializer):
     tipo_nombre = serializers.CharField(source='tipo.nombre', read_only=True)

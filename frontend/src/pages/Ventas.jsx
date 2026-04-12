@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { ventasAPI, productosAPI, clientesAPI, serviciosAPI } from '../services/api';
 import { 
   PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, 
@@ -16,8 +16,11 @@ import ClienteFormModal from '../components/ClienteFormModal';
 import VentaHistoryModal from '../components/VentaHistoryModal';
 import VentaGlobalKardexModal from '../components/VentaGlobalKardexModal';
 import LoadingScreen from '../components/LoadingScreen';
+import { AuthContext } from '../context/AuthContext';
+
 
 function Ventas() {
+  const { isVendedor } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [ventas, setVentas] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -978,16 +981,24 @@ function Ventas() {
                 <div style={{ display: 'flex', gap: '10px' }}>
           {activeTab === 'PRODUCTOS' ? (
             <>
-              <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
-              <ExportDropdown onExport={handleExportar} label="Exportar Ventas de Productos" />
+              {!isVendedor && (
+                <>
+                  <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
+                  <ExportDropdown onExport={handleExportar} label="Exportar Ventas de Productos" />
+                </>
+              )}
               <button className="btn btn-primary" onClick={() => openModal('create')}>
                 <PlusOutlined /> Nueva Venta
               </button>
             </>
           ) : (
             <>
-              <ExportDropdown onExport={handleExportHistorialGlobalServicios} label="Exportar Historial Global" />
-              <ExportDropdown onExport={handleExportarServicios} label="Exportar Ventas de Servicios" />
+              {!isVendedor && (
+                <>
+                  <ExportDropdown onExport={handleExportHistorialGlobalServicios} label="Exportar Historial Global" />
+                  <ExportDropdown onExport={handleExportarServicios} label="Exportar Ventas de Servicios" />
+                </>
+              )}
               <button className="btn btn-primary" onClick={openVentaModal}>
                 <PlusOutlined /> Nueva Venta de Servicio
               </button>
@@ -1166,9 +1177,11 @@ function Ventas() {
                     <button className="btn btn-secondary" onClick={() => openModal("edit", venta)} title="Editar">
                       <EditOutlined />
                     </button>
-                    <button className="btn btn-danger" onClick={() => handleDeleteClick(venta)} title="Eliminar">
-                      <DeleteOutlined />
-                    </button>
+                    {!isVendedor && (
+                      <button className="btn btn-danger" onClick={() => handleDeleteClick(venta)} title="Eliminar">
+                        <DeleteOutlined />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -1256,7 +1269,9 @@ function Ventas() {
                         {(venta.estado === 'PENDIENTE' || venta.estado === 'EN_PROGRESO') && (
                           <button className="btn btn-warning" onClick={() => handleCancelarServicio(venta.id)} title="Cancelar" style={{ color: 'white' }}><CloseOutlined /></button>
                         )}
-                        <button className="btn btn-danger" onClick={() => handleDeleteVentaClick(venta)} title="Eliminar"><DeleteOutlined /></button>
+                        {!isVendedor && (
+                          <button className="btn btn-danger" onClick={() => handleDeleteVentaClick(venta)} title="Eliminar"><DeleteOutlined /></button>
+                        )}
                       </div>
                     </td>
                   </tr>

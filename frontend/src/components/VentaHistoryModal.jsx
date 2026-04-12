@@ -3,8 +3,10 @@ import { HistoryOutlined, CalendarOutlined, DownloadOutlined, CloseOutlined } fr
 import { ventasAPI, serviciosAPI } from '../services/api';
 import Pagination from './Pagination';
 import { message } from 'antd';
+import { AuthContext } from '../context/AuthContext';
 
 const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
+  const { isVendedor } = React.useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('estados');
   const [historyEstados, setHistoryEstados] = useState([]);
   const [historyProductos, setHistoryProductos] = useState([]);
@@ -123,9 +125,11 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
             </p>
           </div>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <button className="btn btn-secondary" onClick={() => handleExport(venta.id)} style={{ padding: '4px 12px', fontSize: '12px' }}>
-              Exportar Excel
-            </button>
+            {!isVendedor && (
+              <button className="btn btn-secondary" onClick={() => handleExport(venta.id)} style={{ padding: '4px 12px', fontSize: '12px' }}>
+                Exportar Excel
+              </button>
+            )}
             <button className="modal-close" onClick={onClose}>×</button>
           </div>
         </div>
@@ -196,6 +200,7 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
                         <th style={{ whiteSpace: 'nowrap' }}>Estado Anterior</th>
                         <th style={{ whiteSpace: 'nowrap' }}>Estado Nuevo</th>
                         <th>Notas</th>
+                        <th style={{ whiteSpace: 'nowrap' }}>Responsable</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -221,6 +226,9 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
                             }`} style={{ fontSize: '10px' }}>{h.estado_nuevo}</span>
                           </td>
                           <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{h.notas}</td>
+                          <td style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                             {h.usuario_nombre && h.usuario_rol ? `${h.usuario_nombre} (${h.usuario_rol})` : 'Sistema'}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -243,6 +251,7 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
                           <th style={{ textAlign: 'right' }}>Descuento</th>
                           <th style={{ textAlign: 'right' }}>Impuesto</th>
                           <th style={{ textAlign: 'right' }}>Total</th>
+                          <th style={{ whiteSpace: 'nowrap' }}>Responsable</th>
                         </tr>
                       ) : (
                         <tr>
@@ -260,6 +269,7 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
                           <th style={{ textAlign: 'right' }}>Desc.</th>
                            <th style={{ textAlign: 'right' }}>Impuesto</th>
                           <th style={{ textAlign: 'right' }}>Total</th>
+                          <th style={{ whiteSpace: 'nowrap' }}>Responsable</th>
                         </tr>
                       )}
                     </thead>
@@ -280,6 +290,9 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
                             <td style={{ textAlign: 'right', color: 'var(--color-danger)' }}>-S/. {Number(s.descuento || 0).toFixed(2)}</td>
                             <td style={{ textAlign: 'right' }}>S/. {Number(s.impuesto || 0).toFixed(2)}</td>
                             <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>S/. { ( (s.precio || 0) - (s.descuento || 0) + (Number(s.impuesto) || 0) ).toFixed(2) }</td>
+                            <td style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+                               {s.usuario_nombre ? `${s.usuario_nombre} (${s.usuario_rol || '-'})` : 'Sistema'}
+                            </td>
                           </tr>
                         ))
                       ) : (
@@ -300,7 +313,10 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
                             <td style={{ textAlign: 'right', fontWeight: 600 }}>S/. {Number(p.cantidad * p.precio_unitario).toFixed(2)}</td>
                             <td style={{ textAlign: 'right', color: 'var(--color-danger)' }}>-S/. {Number(p.descuento || 0).toFixed(2)}</td>
                              <td style={{ textAlign: 'right' }}>S/. {Number(p.impuesto || 0).toFixed(2)}</td>
-                            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>S/. {( (p.cantidad * p.precio_unitario) - (p.descuento || 0) + (Number(p.impuesto) || 0) ).toFixed(2)}</td>
+                             <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--accent)' }}>S/. {( (p.cantidad * p.precio_unitario) - (p.descuento || 0) + (Number(p.impuesto) || 0) ).toFixed(2)}</td>
+                             <td style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>
+                               {p.usuario_nombre ? `${p.usuario_nombre} (${p.usuario_rol || '-'})` : 'Sistema'}
+                             </td>
                           </tr>
                         ))
                       )}

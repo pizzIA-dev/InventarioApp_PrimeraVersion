@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { productosAPI, categoriasAPI } from '../services/api';
+import { AuthContext } from '../context/AuthContext';
 
 const ProductFormModal = ({ visible, mode = 'create', initialData = null, onClose, onSave }) => {
+  const { isVendedor } = useContext(AuthContext);
   const [formData, setFormData] = useState({
     codigo: '',
     nombre: '',
@@ -232,38 +234,54 @@ const ProductFormModal = ({ visible, mode = 'create', initialData = null, onClos
                   disabled={isSubmitting}
                 />
               </div>
-              <div className="form-group">
-                <label className="form-label">Stock Mínimo</label>
-                <input
-                  type="number"
-                  name="stock_minimo"
-                  className="form-input"
-                  value={formData.stock_minimo}
-                  onChange={handleChange}
-                  onFocus={(e) => e.target.select()}
-                  min="0"
-                  step="0.01"
-                  disabled={isSubmitting}
-                />
-              </div>
+              {!isVendedor && (
+                <div className="form-group">
+                  <label className="form-label">Stock Mínimo</label>
+                  <input
+                    type="number"
+                    name="stock_minimo"
+                    className="form-input"
+                    value={formData.stock_minimo}
+                    onChange={handleChange}
+                    onFocus={(e) => e.target.select()}
+                    min="0"
+                    step="0.01"
+                    disabled={isSubmitting}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="grid grid-3">
-              <div className="form-group">
-                <label className="form-label">Precio de Compra (S/.) *</label>
-                <input
-                  type="number"
-                  name="precio_compra"
-                  className="form-input"
-                  value={formData.precio_compra}
-                  onChange={handleChange}
-                  onFocus={(e) => e.target.select()}
-                  min="0"
-                  step="0.01"
-                  required
-                  disabled={isSubmitting}
-                />
-              </div>
+              {!isVendedor ? (
+                <div className="form-group">
+                  <label className="form-label">Precio de Compra (S/.) *</label>
+                  <input
+                    type="number"
+                    name="precio_compra"
+                    className="form-input"
+                    value={formData.precio_compra}
+                    onChange={handleChange}
+                    onFocus={(e) => e.target.select()}
+                    min="0"
+                    step="0.01"
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label className="form-label" style={{ color: 'var(--text-muted)' }}>Precio de Compra</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value="---"
+                    disabled
+                    style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                    title="Sin acceso: solo el Gerente puede ver el precio de compra"
+                  />
+                </div>
+              )}
               <div className="form-group">
                 <label className="form-label">Precio de Venta (S/.) *</label>
                 <input

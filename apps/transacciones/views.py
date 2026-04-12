@@ -69,10 +69,16 @@ class CategoriaTransaccionViewSet(viewsets.ModelViewSet):
             period_label = f"Hasta {fecha_hasta}"
 
         # Columnas estándar
-        headers = ['Fecha y Hora', 'Categoría', 'Tipo de Evento', 'Campo', 'V. Anterior (S/.)', 'V. Nuevo (S/.)', 'Descripción', 'Notas']
+        headers = ['Fecha y Hora', 'Categoría', 'Tipo de Evento', 'Campo', 'V. Anterior (S/.)', 'V. Nuevo (S/.)', 'Descripción', 'Notas', 'Responsable']
         rows = []
         for obj in queryset:
             tipo_label = obj.get_tipo_movimiento_display() if hasattr(obj, 'get_tipo_movimiento_display') else obj.tipo_movimiento
+            usuario_nombre = "Sistema"
+            if obj.usuario:
+                nom = getattr(obj.usuario, "get_full_name", lambda: "")() or obj.usuario.username
+                rol = obj.usuario.perfil.get_rol_display() if hasattr(obj.usuario, "perfil") else "-"
+                usuario_nombre = f"{nom} ({rol})"
+
             rows.append([
                 obj.fecha.strftime("%d/%m/%Y %H:%M:%S") if obj.fecha else '',
                 instance.nombre,
@@ -81,7 +87,8 @@ class CategoriaTransaccionViewSet(viewsets.ModelViewSet):
                 obj.valor_anterior or '-',
                 obj.valor_nuevo or '-',
                 obj.descripcion or '',
-                obj.notas or ''
+                obj.notas or '',
+                usuario_nombre
             ])
 
         return create_excel_response(
@@ -149,9 +156,15 @@ class TransaccionViewSet(viewsets.ModelViewSet):
             period_label = f"Hasta {fecha_hasta}"
 
         # Columnas estándar
-        headers = ['Fecha y Hora', 'Categoría', 'Tipo de Evento', 'Campo', 'V. Anterior (S/.)', 'V. Nuevo (S/.)', 'Descripción', 'Notas']
+        headers = ['Fecha y Hora', 'Categoría', 'Tipo de Evento', 'Campo', 'V. Anterior (S/.)', 'V. Nuevo (S/.)', 'Descripción', 'Notas', 'Responsable']
         rows = []
         for obj in queryset:
+            usuario_nombre = "Sistema"
+            if obj.usuario:
+                nom = getattr(obj.usuario, "get_full_name", lambda: "")() or obj.usuario.username
+                rol = obj.usuario.perfil.get_rol_display() if hasattr(obj.usuario, "perfil") else "-"
+                usuario_nombre = f"{nom} ({rol})"
+
             rows.append([
                 obj.fecha.strftime("%d/%m/%Y %H:%M:%S") if obj.fecha else '',
                 cat_nombre,
@@ -160,7 +173,8 @@ class TransaccionViewSet(viewsets.ModelViewSet):
                 obj.valor_anterior or '-',
                 obj.valor_nuevo or '-',
                 obj.descripcion or '',
-                obj.notas or ''
+                obj.notas or '',
+                usuario_nombre
             ])
 
         return create_excel_response(
@@ -243,11 +257,12 @@ class TransaccionViewSet(viewsets.ModelViewSet):
 
         period_label = get_period_label(periodo, anio)
 
-        headers = ['ID', 'Fecha de Creación', 'Categoría', 'Descripción', 'Monto (S/.)', 'Método de Pago', 'Referencia', 'Fecha de Últ. Mod.']
+        headers = ['ID', 'Fecha de Creación', 'Categoría', 'Descripción', 'Monto (S/.)', 'Método de Pago', 'Referencia', 'Fecha de Últ. Mod.', 'Responsable']
 
         ingresos = queryset.filter(tipo='INGRESO')
         rows_ingresos = []
         for obj in ingresos:
+            usuario_str = f"{obj.usuario.get_full_name() or obj.usuario.username} ({obj.usuario.perfil.get_rol_display() if hasattr(obj.usuario, 'perfil') else '-'})" if obj.usuario else "Sistema"
             rows_ingresos.append([
                 obj.id,
                 obj.creado_en.strftime("%d/%m/%Y %H:%M:%S") if obj.creado_en else '',
@@ -257,11 +272,13 @@ class TransaccionViewSet(viewsets.ModelViewSet):
                 obj.get_metodo_pago_display(),
                 obj.referencia or '',
                 obj.actualizado_en.strftime("%d/%m/%Y %H:%M:%S") if obj.actualizado_en else '',
+                usuario_str
             ])
 
         egresos = queryset.filter(tipo='EGRESO')
         rows_egresos = []
         for obj in egresos:
+            usuario_str = f"{obj.usuario.get_full_name() or obj.usuario.username} ({obj.usuario.perfil.get_rol_display() if hasattr(obj.usuario, 'perfil') else '-'})" if obj.usuario else "Sistema"
             rows_egresos.append([
                 obj.id,
                 obj.creado_en.strftime("%d/%m/%Y %H:%M:%S") if obj.creado_en else '',
@@ -271,6 +288,7 @@ class TransaccionViewSet(viewsets.ModelViewSet):
                 obj.get_metodo_pago_display(),
                 obj.referencia or '',
                 obj.actualizado_en.strftime("%d/%m/%Y %H:%M:%S") if obj.actualizado_en else '',
+                usuario_str
             ])
 
         sheets = [
@@ -311,11 +329,17 @@ class TransaccionViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(fecha__date__gte=date_from, fecha__date__lte=date_to)
 
-        headers_hist = ['Fecha y Hora', 'Categoría', 'Tipo de Evento', 'Campo', 'V. Anterior (S/.)', 'V. Nuevo (S/.)', 'Descripción', 'Notas']
+        headers_hist = ['Fecha y Hora', 'Categoría', 'Tipo de Evento', 'Campo', 'V. Anterior (S/.)', 'V. Nuevo (S/.)', 'Descripción', 'Notas', 'Responsable']
 
         def build_rows(qs):
             rows = []
             for obj in qs:
+                usuario_nombre = "Sistema"
+                if obj.usuario:
+                    nom = getattr(obj.usuario, "get_full_name", lambda: "")() or obj.usuario.username
+                    rol = obj.usuario.perfil.get_rol_display() if hasattr(obj.usuario, "perfil") else "-"
+                    usuario_nombre = f"{nom} ({rol})"
+
                 rows.append([
                     obj.fecha.strftime("%d/%m/%Y %H:%M:%S") if obj.fecha else '',
                     obj.categoria.nombre if obj.categoria else '-',
@@ -325,6 +349,7 @@ class TransaccionViewSet(viewsets.ModelViewSet):
                     obj.valor_nuevo or '-',
                     obj.descripcion or '',
                     obj.notas or '',
+                    usuario_nombre
                 ])
             return rows
 

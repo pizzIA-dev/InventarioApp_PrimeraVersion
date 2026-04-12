@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.core.validators import MinValueValidator
 
@@ -233,6 +234,7 @@ class Transaccion(models.Model):
 
 
 class HistorialTransaccion(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     """Registro de auditoría individual para una transacción específica"""
     transaccion = models.ForeignKey(
         Transaccion, 
@@ -247,6 +249,14 @@ class HistorialTransaccion(models.Model):
     descripcion = models.TextField(blank=True, null=True)
     notas = models.TextField(blank=True, null=True)
 
+
+    def save(self, *args, **kwargs):
+        if getattr(self, "usuario_id", None) is None:
+            from apps.core.middleware import get_current_user
+            user = get_current_user()
+            if user and user.is_authenticated:
+                self.usuario = user
+        super().save(*args, **kwargs)
     class Meta:
         ordering = ['-fecha']
         verbose_name_plural = "Historial de Transacciones"
@@ -256,6 +266,7 @@ class HistorialTransaccion(models.Model):
 
 
 class MovimientoCategoria(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     """Registro de historial (Kardex) de una categoría"""
     TIPO_MOVIMIENTO_CHOICES = [
         ('TRANSACCION', 'Movimiento Financiero'),
@@ -284,6 +295,14 @@ class MovimientoCategoria(models.Model):
     transaccion_id = models.IntegerField(null=True, blank=True)
     notas = models.TextField(blank=True, null=True)
 
+
+    def save(self, *args, **kwargs):
+        if getattr(self, "usuario_id", None) is None:
+            from apps.core.middleware import get_current_user
+            user = get_current_user()
+            if user and user.is_authenticated:
+                self.usuario = user
+        super().save(*args, **kwargs)
     class Meta:
         ordering = ['-fecha']
         verbose_name_plural = "Movimientos de Categorías"

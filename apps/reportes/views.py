@@ -520,12 +520,12 @@ class ReporteMensualDetalleExportView(APIView):
             venta__estado='CONFIRMADA',
             venta__creado_en__date__gte=inicio_mes,
             venta__creado_en__date__lt=fin_mes
-        ).select_related('producto', 'venta', 'venta__cliente').order_by('venta__creado_en')
+        ).select_related('producto', 'venta', 'venta__cliente', 'venta__usuario').order_by('venta__creado_en')
         
         headers_vp = [
             'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
             'Tipo Comprobante', 'Comprobante', 'Cliente', 'Producto',
-            'Código', 'Cant.', 'P. Unit. (S/.)', 'Subtotal (S/.)', 'Desc. (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
+            'Código', 'Cant.', 'P. Unit. (S/.)', 'Subtotal (S/.)', 'Desc. (S/.)', 'Impuesto (S/.)', 'Total (S/.)', 'Responsable'
         ]
         
         rows_vp = []
@@ -549,7 +549,8 @@ class ReporteMensualDetalleExportView(APIView):
                 float(d.cantidad) * float(d.precio_venta),
                 float(d.descuento),
                 float(v.impuesto),
-                (float(d.cantidad) * float(d.precio_venta)) - float(d.descuento) + float(v.impuesto)
+                (float(d.cantidad) * float(d.precio_venta)) - float(d.descuento) + float(v.impuesto),
+                f"{v.usuario.get_full_name() or v.usuario.username} ({v.usuario.perfil.get_rol_display() if hasattr(v.usuario, 'perfil') else '-'})" if v.usuario else "Sistema"
             ])
 
         # 2. Venta de Servicios
@@ -557,12 +558,12 @@ class ReporteMensualDetalleExportView(APIView):
             estado='TERMINADO',
             creado_en__date__gte=inicio_mes,
             creado_en__date__lt=fin_mes
-        ).select_related('servicio', 'cliente').order_by('creado_en')
+        ).select_related('servicio', 'cliente', 'usuario').order_by('creado_en')
         
         headers_vs = [
             'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
             'Tipo Comprobante', 'Comprobante', 'Cliente', 'Servicio',
-            'Precio Serv. (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
+            'Precio Serv. (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)', 'Responsable'
         ]
         
         rows_vs = []
@@ -582,7 +583,8 @@ class ReporteMensualDetalleExportView(APIView):
                 float(v.precio),
                 float(v.descuento),
                 float(v.impuesto),
-                float(v.total)
+                float(v.total),
+                f"{v.usuario.get_full_name() or v.usuario.username} ({v.usuario.perfil.get_rol_display() if hasattr(v.usuario, 'perfil') else '-'})" if v.usuario else "Sistema"
             ])
 
         # 3. Ingresos no Operativos
@@ -592,7 +594,7 @@ class ReporteMensualDetalleExportView(APIView):
             fecha__date__lt=fin_mes
         ).select_related('categoria').order_by('fecha')
         
-        headers_ingresos = ['ID', 'Fecha de Creación', 'Nombre del Ingreso', 'Descripción', 'Monto (S/.)', 'Método de Pago']
+        headers_ingresos = ['ID', 'Fecha de Creación', 'Nombre del Ingreso', 'Descripción', 'Monto (S/.)', 'Método de Pago', 'Responsable']
         rows_ingresos = []
         for t in ingresos_extra:
             rows_ingresos.append([
@@ -601,7 +603,8 @@ class ReporteMensualDetalleExportView(APIView):
                 t.categoria.nombre if t.categoria else '-',
                 t.descripcion or '',
                 float(t.monto),
-                t.get_metodo_pago_display()
+                t.get_metodo_pago_display(),
+                f"{t.usuario.get_full_name() or t.usuario.username} ({t.usuario.perfil.get_rol_display() if hasattr(t.usuario, 'perfil') else '-'})" if hasattr(t, 'usuario') and t.usuario else "Sistema"
             ])
 
         # 4. Compras
@@ -611,7 +614,7 @@ class ReporteMensualDetalleExportView(APIView):
             compra__creado_en__date__lt=fin_mes
         ).select_related('producto', 'compra', 'compra__proveedor').order_by('compra__creado_en')
         
-        headers_compras = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Proveedor', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)']
+        headers_compras = ['Fecha', 'Tipo de comprobante', 'Comprobante', 'Proveedor', 'Producto', 'Código de Producto', 'Cantidad', 'Precio de compra (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)', 'Responsable']
         rows_compras = []
         for d in detalles_c:
             c = d.compra
@@ -629,7 +632,8 @@ class ReporteMensualDetalleExportView(APIView):
                 float(d.precio_compra),
                 float(d.descuento),
                 comp_impuesto,
-                (float(d.cantidad) * float(d.precio_compra)) - float(d.descuento) + comp_impuesto
+                (float(d.cantidad) * float(d.precio_compra)) - float(d.descuento) + comp_impuesto,
+                f"{c.usuario.get_full_name() or c.usuario.username} ({c.usuario.perfil.get_rol_display() if hasattr(c.usuario, 'perfil') else '-'})" if hasattr(c, 'usuario') and c.usuario else "Sistema"
             ])
 
         # 5. Gastos
@@ -639,7 +643,7 @@ class ReporteMensualDetalleExportView(APIView):
             fecha__date__lt=fin_mes
         ).select_related('categoria').order_by('fecha')
         
-        headers_gastos = ['ID', 'Fecha de Creación', 'Nombre del Gasto', 'Descripción', 'Monto (S/.)', 'Método de Pago']
+        headers_gastos = ['ID', 'Fecha de Creación', 'Nombre del Gasto', 'Descripción', 'Monto (S/.)', 'Método de Pago', 'Responsable']
         rows_gastos = []
         for t in egresos_extra:
             rows_gastos.append([
@@ -648,7 +652,8 @@ class ReporteMensualDetalleExportView(APIView):
                 t.categoria.nombre if t.categoria else '-',
                 t.descripcion or '',
                 float(t.monto),
-                t.get_metodo_pago_display()
+                t.get_metodo_pago_display(),
+                f"{t.usuario.get_full_name() or t.usuario.username} ({t.usuario.perfil.get_rol_display() if hasattr(t.usuario, 'perfil') else '-'})" if hasattr(t, 'usuario') and t.usuario else "Sistema"
             ])
 
         # Variables Auxiliares para rotación

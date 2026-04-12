@@ -160,7 +160,7 @@ class CapitalViewSet(viewsets.ModelViewSet):
 
         headers = [
             'Fecha', 'Campo Modificado', 'V. Inicial Ant. (S/.)', 'V. Inicial Nvo. (S/.)', 
-            'V. Actual Ant. (S/.)', 'V. Actual Nvo. (S/.)', 'Valor Anterior (Ref)', 'Valor Nuevo (Ref)', 'Notas'
+            'V. Actual Ant. (S/.)', 'V. Actual Nvo. (S/.)', 'Valor Anterior (Ref)', 'Valor Nuevo (Ref)', 'Notas', 'Responsable'
         ]
         rows = []
         for m in movimientos:
@@ -174,6 +174,7 @@ class CapitalViewSet(viewsets.ModelViewSet):
                 m.valor_anterior or '-',
                 m.valor_nuevo or '-',
                 m.notas or '',
+                m.usuario.get_full_name() + (f" ({m.usuario.perfil.get_rol_display()})" if hasattr(m.usuario, "perfil") else "") if m.usuario else 'Sistema',
             ])
 
         return create_excel_response(
@@ -200,10 +201,14 @@ class CapitalViewSet(viewsets.ModelViewSet):
 
         headers = [
             'ID', 'Fecha de Registro', 'Nombre', 'Tipo', 'Categoría',
-            'Valor Inicial (S/.)', 'Valor Actual (S/.)', 'Última Actualización'
+            'Valor Inicial (S/.)', 'Valor Actual (S/.)', 'Última Actualización', 'Responsable'
         ]
         rows = []
         for c in queryset:
+            # Get latest movement to find the responsible user
+            last_mov = c.movimientos.order_by('-fecha').first()
+            usuario_str = f"{last_mov.usuario.get_full_name() or last_mov.usuario.username} ({last_mov.usuario.perfil.get_rol_display() if hasattr(last_mov.usuario, 'perfil') else '-'})" if last_mov and last_mov.usuario else "Sistema"
+
             rows.append([
                 c.id,
                 timezone.localtime(c.creado_en).strftime('%d/%m/%Y %H:%M:%S'),
@@ -213,6 +218,7 @@ class CapitalViewSet(viewsets.ModelViewSet):
                 float(c.valor_inicial),
                 float(c.valor_actual),
                 timezone.localtime(c.actualizado_en).strftime('%d/%m/%Y %H:%M:%S'),
+                usuario_str
             ])
 
         period_label = get_period_label(periodo, anio)
@@ -241,7 +247,7 @@ class CapitalViewSet(viewsets.ModelViewSet):
         headers = [
             'Fecha', 'Capital', 'Tipo', 'Categoría',
             'Campo Modificado', 'V. Inicial Ant. (S/.)', 'V. Inicial Nvo. (S/.)', 
-            'V. Actual Ant. (S/.)', 'V. Actual Nvo. (S/.)', 'Notas'
+            'V. Actual Ant. (S/.)', 'V. Actual Nvo. (S/.)', 'Notas', 'Responsable'
         ]
         rows = []
         for m in movimientos_qs:
@@ -256,6 +262,7 @@ class CapitalViewSet(viewsets.ModelViewSet):
                 float(m.valor_actual_ant) if m.valor_actual_ant is not None else '-',
                 float(m.valor_actual_nvo) if m.valor_actual_nvo is not None else '-',
                 m.notas or '',
+                m.usuario.get_full_name() + (f" ({m.usuario.perfil.get_rol_display()})" if hasattr(m.usuario, "perfil") else "") if m.usuario else 'Sistema',
             ])
 
         period_label = get_period_label(periodo, anio)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { fiadosAPI } from '../../services/api';
 import { PlusOutlined, EditOutlined, DeleteOutlined, HistoryOutlined } from '@ant-design/icons';
 import ConfirmDialog from '../ConfirmDialog';
@@ -6,8 +6,10 @@ import FiadoClienteFormModal from './FiadoClienteFormModal';
 import ClienteFiadoHistorialModal from './ClienteFiadoHistorialModal';
 import ExportDropdown from '../ExportDropdown';
 import { message } from 'antd';
+import { AuthContext } from '../../context/AuthContext';
 
 function FiadosClientes() {
+  const { isVendedor } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [clientes, setClientes] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -127,14 +129,18 @@ function FiadosClientes() {
           <p style={{ margin: '4px 0 0', color: 'var(--text-muted, #94a3b8)' }}>Gestión interna de cuentas por cobrar y cliente fiados</p>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <ExportDropdown 
-            label="Exportar Historial Global"
-            onExport={handleExportHistorialGlobal}
-          />
-          <ExportDropdown 
-            label="Exportar Clientes Fiados"
-            onExport={handleExportClientes}
-          />
+          {!isVendedor && (
+            <>
+              <ExportDropdown 
+                label="Exportar Historial Global"
+                onExport={handleExportHistorialGlobal}
+              />
+              <ExportDropdown 
+                label="Exportar Clientes Fiados"
+                onExport={handleExportClientes}
+              />
+            </>
+          )}
           <button className="btn btn-primary" onClick={() => openModal('create')} style={{ borderRadius: '8px', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <PlusOutlined /> Nuevo Cliente
           </button>
@@ -203,9 +209,11 @@ function FiadosClientes() {
                     <button className="btn btn-secondary" onClick={() => openModal('edit', cliente)} title="Editar">
                       <EditOutlined />
                     </button>
-                    <button className="btn btn-danger" onClick={() => handleDeleteClick(cliente)} title="Eliminar/Desactivar">
-                      <DeleteOutlined />
-                    </button>
+                    {!isVendedor && (
+                      <button className="btn btn-danger" onClick={() => handleDeleteClick(cliente)} title="Eliminar/Desactivar">
+                        <DeleteOutlined />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

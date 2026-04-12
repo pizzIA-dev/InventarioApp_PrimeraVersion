@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.core.validators import MinValueValidator
 
@@ -89,6 +90,7 @@ class Cliente(models.Model):
 
 
 class MovimientoEstadoCliente(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     """Historial de cambios de estado de un cliente"""
     cliente = models.ForeignKey(
         Cliente, 
@@ -100,6 +102,14 @@ class MovimientoEstadoCliente(models.Model):
     fecha = models.DateTimeField(auto_now_add=True)
     notas = models.TextField(blank=True, null=True)
     
+
+    def save(self, *args, **kwargs):
+        if getattr(self, "usuario_id", None) is None:
+            from apps.core.middleware import get_current_user
+            user = get_current_user()
+            if user and user.is_authenticated:
+                self.usuario = user
+        super().save(*args, **kwargs)
     class Meta:
         ordering = ['-fecha']
         verbose_name_plural = "Movimientos de Estado de Cliente"

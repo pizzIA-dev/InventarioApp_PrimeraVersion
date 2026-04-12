@@ -11,6 +11,7 @@ import ProductFormModal from '../components/ProductFormModal';
 import ProveedorFormModal from '../components/ProveedorFormModal';
 import GlobalKardexModal from '../components/compras/GlobalKardexModal';
 import CompraHistoryModal from '../components/compras/CompraHistoryModal';
+import CompraDetailModal from '../components/compras/CompraDetailModal';
 import LoadingScreen from '../components/LoadingScreen';
 import SearchableSelect from '../components/SearchableSelect';
 
@@ -560,16 +561,19 @@ function Compras() {
       const params = { periodo };
       if (anio) params.anio = anio;
       const response = await comprasAPI.exportar(params);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `compras_${periodo}${anio ? '_' + anio : ''}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error al exportar compras:', error);
-      alert('Error al exportar datos.');
+      alert('Error al exportar datos de compras.');
     }
   };
 
@@ -595,16 +599,19 @@ function Compras() {
       const params = { periodo };
       if (anio) params.anio = anio;
       const response = await comprasAPI.exportarHistorialGlobal(params);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `historial_global_compras_${periodo}${anio ? '_' + anio : ''}.xlsx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error al exportar historial global:', error);
-      alert('Error al exportar el historial global.');
+      alert('Error al exportar el historial global de compras.');
     }
   };
 
@@ -1150,303 +1157,38 @@ function Compras() {
           setProductModalVisible(false);
         }}
       />
-      {/* Modal de Detalle de Productos */}
-      {detailModalVisible && selectedCompraForDetail && (
-        <div className="modal-overlay" onClick={closeDetailModal} style={{ zIndex: 1001 }}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px' }}>
-            <div className="modal-header">
-              <h3 className="modal-title">Detalle de Compra #{selectedCompraForDetail.id}</h3>
-              <button className="modal-close" onClick={closeDetailModal}>×</button>
-            </div>
-            <div className="modal-body" style={{ padding: '24px' }}>
-              <div className="grid grid-2" style={{ marginBottom: '24px', background: 'var(--bg-body)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                <div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Proveedor</div>
-                  <div style={{ fontWeight: 'bold', fontSize: '16px' }}>{selectedCompraForDetail.proveedor_nombre}</div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{selectedCompraForDetail.tipo_compra}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>Comprobante</div>
-                  <div style={{ fontWeight: 'bold' }}>{selectedCompraForDetail.tipo_comprobante}: {selectedCompraForDetail.numero_comprobante}</div>
-                  <div style={{ fontSize: '13px' }}>Fecha: {new Date(selectedCompraForDetail.creado_en).toLocaleString()}</div>
-                </div>
-              </div>
 
-              <div className="table-container" style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--bg-table-header)' }}>
-                    <tr>
-                      <th style={{ padding: '12px', borderBottom: '2px solid var(--border-color)' }}>Producto</th>
-                      <th style={{ padding: '12px', borderBottom: '2px solid var(--border-color)', textAlign: 'center' }}>Cant.</th>
-                      <th style={{ padding: '12px', borderBottom: '2px solid var(--border-color)', textAlign: 'right' }}>P. Compra</th>
-                      <th style={{ padding: '12px', borderBottom: '2px solid var(--border-color)', textAlign: 'right' }}>Desc.</th>
-                      <th style={{ padding: '12px', borderBottom: '2px solid var(--border-color)', textAlign: 'right' }}>Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedCompraForDetail.detalle?.map((item, idx) => (
-                      <tr key={idx}>
-                        <td style={{ padding: '12px', borderBottom: '1px solid var(--border-color)' }}>
-                          <div style={{ fontWeight: 500 }}>{item.producto_nombre}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Code: {item.producto_codigo}</div>
-                        </td>
-                        <td style={{ padding: '12px', borderBottom: '1px solid var(--border-color)', textAlign: 'center' }}>{item.cantidad}</td>
-                        <td style={{ padding: '12px', borderBottom: '1px solid var(--border-color)', textAlign: 'right' }}>S/. {Number(item.precio_compra).toFixed(2)}</td>
-                        <td style={{ padding: '12px', borderBottom: '1px solid var(--border-color)', textAlign: 'right' }}>S/. {Number(item.descuento || 0).toFixed(2)}</td>
-                        <td style={{ padding: '12px', borderBottom: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 'bold' }}>S/. {Number(item.subtotal).toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+      {/* Modales Modulares */}
+      <CompraDetailModal 
+        visible={detailModalVisible}
+        compra={selectedCompraForDetail}
+        onClose={closeDetailModal}
+      />
 
-              <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
-                <div style={{ width: '250px', background: 'var(--bg-card)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Subtotal:</span>
-                    <span style={{ fontWeight: 500 }}>S/. {Number(selectedCompraForDetail.subtotal).toFixed(2)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Impuesto:</span>
-                    <span style={{ fontWeight: 500 }}>S/. {Number(selectedCompraForDetail.impuesto).toFixed(2)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', paddingTop: '12px', borderTop: '2px solid var(--border-color)' }}>
-                    <span style={{ fontWeight: 'bold', fontSize: '16px' }}>Total:</span>
-                    <span style={{ fontWeight: 'bold', fontSize: '18px', color: 'var(--accent, #1677ff)' }}>S/. {Number(selectedCompraForDetail.total).toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-              
-              {selectedCompraForDetail.notas && (
-                <div style={{ marginTop: '16px', padding: '12px', background: 'var(--bg-body)', borderRadius: '4px', fontStyle: 'italic', fontSize: '13px' }}>
-                  <strong>Notas:</strong> {selectedCompraForDetail.notas}
-                </div>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-primary" onClick={closeDetailModal}>Cerrar</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {historyModalVisible && (
-        <div className="modal-overlay" onClick={closeHistoryModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '1200px', width: '95vw' }}>
-            <div className="modal-header">
-              <div style={{ flex: 1 }}>
-                <h3 className="modal-title">Historial de Compras</h3>
-                <p className="modal-subtitle">
-                  {selectedHistoryCompra?.numero_comprobante || `#${selectedHistoryCompra?.id}`} - {selectedHistoryCompra?.proveedor_nombre}
-                </p>
-              </div>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button className="btn btn-secondary" onClick={handleExportHistorialIndividual} style={{ padding: '4px 12px', fontSize: '12px' }}>
-                  Exportar Excel
-                </button>
-                <button className="modal-close" onClick={closeHistoryModal}>×</button>
-              </div>
-            </div>
-            
-            <div className="modal-body" style={{ paddingTop: '0' }}>
-              <div style={{ padding: '12px 0 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '16px' }}>
-                <div>
-                  <label className="form-label" style={{ display: 'block', fontSize: '11px', marginBottom: '4px', color: 'var(--text-secondary)' }}>Desde</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    style={{ padding: '5px 8px', fontSize: '13px', width: 'auto' }}
-                    value={historyFechaDesde}
-                    onChange={(e) => setHistoryFechaDesde(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="form-label" style={{ display: 'block', fontSize: '11px', marginBottom: '4px', color: 'var(--text-secondary)' }}>Hasta</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    style={{ padding: '5px 8px', fontSize: '13px', width: 'auto' }}
-                    value={historyFechaHasta}
-                    onChange={(e) => setHistoryFechaHasta(e.target.value)}
-                  />
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className="btn btn-primary" onClick={handleHistoryFilter} style={{ padding: '5px 14px', fontSize: '13px' }}>Filtrar</button>
-                  <button className="btn btn-secondary" onClick={() => {
-                    setHistoryFechaDesde('');
-                    setHistoryFechaHasta('');
-                    if (activeHistoryTab === 'estados') fetchHistoryEstados(selectedHistoryCompra.id, 1, '', '');
-                    else fetchHistoryProductos(selectedHistoryCompra.id, 1, '', '');
-                  }} style={{ padding: '5px 14px', fontSize: '13px' }}>Limpiar</button>
-                </div>
-                <div style={{ marginLeft: 'auto', fontSize: '12px', color: 'var(--text-muted)', alignSelf: 'center' }}>
-                  {historyTotal} registro{historyTotal !== 1 ? 's' : ''} encontrados
-                </div>
-              </div>
+      <CompraHistoryModal 
+        visible={historyModalVisible}
+        compra={selectedHistoryCompra}
+        onClose={closeHistoryModal}
+        onFetchHistory={fetchHistoryEstados}
+        onFetchKardex={fetchHistoryProductos}
+        historyData={historyEstados}
+        kardexData={historyProductos}
+        loading={loadingHistory}
+        currentPage={historyPage}
+        totalPages={historyTotalPages}
+        totalItems={historyTotal}
+      />
 
-              <div className="tabs" style={{ marginBottom: '20px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '24px' }}>
-                <button 
-                  className={`tab-item ${activeHistoryTab === 'estados' ? 'active' : ''}`}
-                  onClick={() => {
-                    setActiveHistoryTab('estados');
-                    setHistoryPage(1);
-                    fetchHistoryEstados(selectedHistoryCompra.id, 1, historyFechaDesde, historyFechaHasta);
-                  }}
-                  style={{ 
-                    padding: '12px 4px', 
-                    background: 'none', 
-                    border: 'none', 
-                    color: activeHistoryTab === 'estados' ? 'var(--primary-color)' : 'var(--text-secondary)',
-                    fontWeight: activeHistoryTab === 'estados' ? '600' : '400',
-                    borderBottom: activeHistoryTab === 'estados' ? '2px solid var(--primary-color)' : '2px solid transparent',
-                    cursor: 'pointer',
-                    fontSize: '14px'
-                  }}
-                >
-                  Historial de Estados
-                </button>
-                <button 
-                  className={`tab-item ${activeHistoryTab === 'productos' ? 'active' : ''}`}
-                  onClick={() => {
-                    setActiveHistoryTab('productos');
-                    setHistoryPage(1);
-                    fetchHistoryProductos(selectedHistoryCompra.id, 1, historyFechaDesde, historyFechaHasta);
-                  }}
-                  style={{ 
-                    padding: '12px 4px', 
-                    background: 'none', 
-                    border: 'none', 
-                    color: activeHistoryTab === 'productos' ? 'var(--primary-color)' : 'var(--text-secondary)',
-                    fontWeight: activeHistoryTab === 'productos' ? '600' : '400',
-                    borderBottom: activeHistoryTab === 'productos' ? '2px solid var(--primary-color)' : '2px solid transparent',
-                    cursor: 'pointer',
-                    fontSize: '14px'
-                  }}
-                >
-                  Detalle de Compra de Productos
-                </button>
-              </div>
-
-              {loadingHistory ? (
-                <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                  Cargando información...
-                </div>
-              ) : (
-                <>
-                  {activeHistoryTab === 'estados' ? (
-                    <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '45vh', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
-                      <table style={{ fontSize: '13px', minWidth: '800px', width: '100%' }}>
-                          <thead>
-                            <tr>
-                              <th style={{ whiteSpace: 'nowrap' }}>Fecha</th>
-                              <th style={{ whiteSpace: 'nowrap' }}>Estado Anterior</th>
-                              <th style={{ whiteSpace: 'nowrap' }}>Estado Nuevo</th>
-                              <th>Notas</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {historyEstados.map((h) => (
-                              <tr key={h.id}>
-                                <td style={{ whiteSpace: 'nowrap' }}>
-                                  {(() => {
-                                    const d = new Date(h.fecha);
-                                    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                                  })()}
-                                </td>
-                                <td>
-                                  <span className={`badge ${
-                                    h.estado_anterior === 'CONFIRMADA' ? 'badge-success' :
-                                    h.estado_anterior === 'CANCELADA' ? 'badge-danger' : 
-                                    h.estado_anterior === 'BORRADOR' ? 'badge-warning' : ''
-                                  }`} style={{ fontSize: '10px' }}>
-                                    {h.estado_anterior}
-                                  </span>
-                                </td>
-                                <td>
-                                  <span className={`badge ${
-                                    h.estado_nuevo === 'CONFIRMADA' ? 'badge-success' :
-                                    h.estado_nuevo === 'CANCELADA' ? 'badge-danger' : 'badge-warning'
-                                  }`} style={{ fontSize: '10px' }}>
-                                    {h.estado_nuevo}
-                                  </span>
-                                </td>
-                                <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{h.notes || h.notas}</td>
-                              </tr>
-                            ))}
-                            {historyEstados.length === 0 && (
-                              <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>No hay cambios de estado registrados.</td></tr>
-                            )}
-                          </tbody>
-                        </table>
-                    </div>
-                  ) : (
-                    <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '45vh', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
-                        <table style={{ fontSize: '12px', minWidth: '1200px', width: '100%' }}>
-                          <thead>
-                            <tr>
-                              <th style={{ whiteSpace: 'nowrap' }}>Fecha</th>
-                              <th style={{ whiteSpace: 'nowrap' }}>Tipo de comprobante</th>
-                              <th>Comprobante</th>
-                              <th>Proveedor</th>
-                              <th>Producto</th>
-                              <th>Código de Producto</th>
-                              <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Cantidad</th>
-                              <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Precio de compra</th>
-                              <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Descuento</th>
-                              <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Impuesto</th>
-                              <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Total</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {historyProductos.map((p) => (
-                              <tr key={p.id}>
-                                <td style={{ whiteSpace: 'nowrap' }}>
-                                  {(() => {
-                                    const d = new Date(p.fecha);
-                                    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                                  })()}
-                                </td>
-                                <td>{p.tipo_comprobante}</td>
-                                <td>{p.numero_comprobante}</td>
-                                <td>{p.proveedor_nombre}</td>
-                                <td style={{ fontWeight: 600 }}>{p.producto_nombre}</td>
-                                <td style={{ color: 'var(--text-secondary)' }}>{p.producto_codigo}</td>
-                                <td style={{ textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>{p.cantidad}</td>
-                                <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>S/. {Number(p.precio_compra).toFixed(2)}</td>
-                                <td style={{ textAlign: 'right', color: 'var(--color-danger)', whiteSpace: 'nowrap' }}>-S/. {Number(p.descuento).toFixed(2)}</td>
-                                <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>S/. {Number(p.impuesto || 0).toFixed(2)}</td>
-                                <td style={{ textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>S/. {Number(p.total).toFixed(2)}</td>
-                              </tr>
-                            ))}
-                            {historyProductos.length === 0 && (
-                              <tr><td colSpan="10" style={{ textAlign: 'center', padding: '20px' }}>No hay productos registrados en esta compra.</td></tr>
-                            )}
-                          </tbody>
-                        </table>
-                    </div>
-                  )}
-
-                  {(!loadingHistory && historyTotalPages > 1) ? (
-                    <div style={{ marginTop: '20px' }}>
-                      <Pagination 
-                        currentPage={historyPage}
-                        totalPages={historyTotalPages}
-                        onPageChange={handleHistoryPageChange}
-                        pageSize={15}
-                        totalItems={historyTotal}
-                        itemName="registros"
-                      />
-                    </div>
-                  ) : null}
-                </>
-              )}
-            </div>
-            <div className="modal-footer" style={{ marginTop: '0', paddingTop: '15px' }}>
-              <button className="btn btn-secondary" onClick={closeHistoryModal}>Cerrar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      <GlobalKardexModal 
+        visible={globalKardexVisible}
+        onClose={() => setGlobalKardexVisible(false)}
+        onFetchKardex={openGlobalKardex}
+        kardexData={globalKardexData}
+        loading={loadingGlobalKardex}
+        currentPage={globalKardexPage}
+        totalPages={globalKardexTotalPages}
+        totalItems={globalKardexTotal}
+      />
     </div>
   );
 }

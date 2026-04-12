@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from apps.clientes.models import Cliente
@@ -59,6 +60,7 @@ class Venta(models.Model):
     )
     
     # Control
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     notas = models.TextField(blank=True, null=True)
     creado_en = models.DateTimeField(auto_now_add=True, db_index=True)
     actualizado_en = models.DateTimeField(auto_now=True)
@@ -73,6 +75,13 @@ class Venta(models.Model):
         is_new = self.pk is None
         old_estado = None
         
+        # Auditoría de usuario
+        if is_new and getattr(self, "usuario_id", None) is None:
+            from apps.core.middleware import get_current_user
+            user = get_current_user()
+            if user and user.is_authenticated:
+                self.usuario = user
+
         if not is_new:
             try:
                 old_instance = Venta.objects.get(pk=self.pk)
@@ -187,6 +196,7 @@ class DetalleVenta(models.Model):
 
 
 class MovimientoEstadoVenta(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     """Historial de cambios de estado de una venta de productos"""
     venta = models.ForeignKey(
         Venta, 
@@ -198,6 +208,14 @@ class MovimientoEstadoVenta(models.Model):
     fecha = models.DateTimeField(auto_now_add=True)
     notas = models.TextField(blank=True, null=True)
     
+
+    def save(self, *args, **kwargs):
+        if getattr(self, "usuario_id", None) is None:
+            from apps.core.middleware import get_current_user
+            user = get_current_user()
+            if user and user.is_authenticated:
+                self.usuario = user
+        super().save(*args, **kwargs)
     class Meta:
         ordering = ['-fecha']
         verbose_name_plural = "Movimientos de Estado de Venta"

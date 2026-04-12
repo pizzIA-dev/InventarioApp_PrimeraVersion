@@ -68,15 +68,41 @@ class VentaServicioCreateSerializer(serializers.ModelSerializer):
         ]
 
 class MovimientoEstadoVentaServicioSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.SerializerMethodField()
+    usuario_rol = serializers.SerializerMethodField()
+
     class Meta:
         model = MovimientoEstadoVentaServicio
-        fields = ['id', 'estado_anterior', 'estado_nuevo', 'fecha', 'notas']
+        fields = ['id', 'usuario', 'usuario_nombre', 'usuario_rol', 'estado_anterior', 'estado_nuevo', 'fecha', 'notas']
 
+
+    def get_usuario_nombre(self, obj):
+        if obj.usuario:
+            return getattr(obj.usuario, "get_full_name", lambda: "")() or obj.usuario.username
+        return "Sistema"
+
+    def get_usuario_rol(self, obj):
+        if obj.usuario and hasattr(obj.usuario, "perfil"):
+            return obj.usuario.perfil.get_rol_display()
+        return "-"
 
 class MovimientoServicioSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.SerializerMethodField()
+    usuario_rol = serializers.SerializerMethodField()
+
     class Meta:
         model = MovimientoServicio
         fields = [
-            'id', 'fecha', 'tipo', 'costo_anterior', 'costo_nuevo',
+            'id', 'usuario', 'usuario_nombre', 'usuario_rol', 'fecha', 'tipo', 'costo_anterior', 'costo_nuevo',
             'precio_anterior', 'precio_nuevo', 'activo_anterior', 'activo_nuevo', 'notas'
         ]
+
+    def get_usuario_nombre(self, obj):
+        if obj.usuario:
+            return getattr(obj.usuario, "get_full_name", lambda: "")() or obj.usuario.username
+        return "Sistema"
+
+    def get_usuario_rol(self, obj):
+        if obj.usuario and hasattr(obj.usuario, "perfil"):
+            return obj.usuario.perfil.get_rol_display()
+        return "-"

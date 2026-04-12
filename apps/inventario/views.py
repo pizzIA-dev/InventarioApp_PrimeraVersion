@@ -157,7 +157,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
         producto = self.get_object()
         movimientos = producto.movimientos.all().order_by('-fecha')
         
-        headers = ['Fecha', 'Tipo', 'Origen', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Referencia', 'Notas']
+        headers = ['Fecha', 'Tipo', 'Origen', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Referencia', 'Notas', 'Responsable']
         rows = []
         for mov in movimientos:
             fecha_str = mov.fecha.strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
@@ -170,6 +170,8 @@ class ProductoViewSet(viewsets.ModelViewSet):
                 estado_str = f"Inactivo desde {fecha_str}"
             else:
                 estado_str = '-'
+            
+            usuario_str = f"{mov.usuario.get_full_name() or mov.usuario.username} ({mov.usuario.perfil.get_rol_display() if hasattr(mov.usuario, 'perfil') else '-'})" if hasattr(mov, 'usuario') and mov.usuario else "Sistema"
             
             rows.append([
                 fecha_str,
@@ -184,7 +186,8 @@ class ProductoViewSet(viewsets.ModelViewSet):
                 float(mov.stock_nuevo),
                 estado_str,
                 mov.referencia or '',
-                mov.notas or ''
+                mov.notas or '',
+                usuario_str
             ])
 
         return create_excel_response(
@@ -218,13 +221,17 @@ class ProductoViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
-        headers = ['ID', 'Código', 'Nombre', 'Categoría', 'Stock Actual', 'Precio Compra (S/.)', 'Precio Venta (S/.)', 'Activo', 'Fecha Creación', 'Última Modificación']
+        headers = ['ID', 'Código', 'Nombre', 'Categoría', 'Stock Actual', 'Precio Compra (S/.)', 'Precio Venta (S/.)', 'Activo', 'Fecha Creación', 'Última Modificación', 'Responsable']
         rows = []
         for obj in queryset:
             categoria_nombre = obj.categoria.nombre if obj.categoria else 'Sin Categoría'
             fecha_creacion = obj.creado_en.strftime('%d/%m/%Y %H:%M') if obj.creado_en else ''
             fecha_modificacion = obj.actualizado_en.strftime('%d/%m/%Y %H:%M') if obj.actualizado_en else ''
             
+            # Get latest movement to find the responsible user
+            last_mov = obj.movimientos.order_by('-fecha').first()
+            usuario_str = f"{last_mov.usuario.get_full_name() or last_mov.usuario.username} ({last_mov.usuario.perfil.get_rol_display() if hasattr(last_mov.usuario, 'perfil') else '-'})" if last_mov and last_mov.usuario else "Sistema"
+
             rows.append([
                 obj.id,
                 obj.codigo,
@@ -235,7 +242,8 @@ class ProductoViewSet(viewsets.ModelViewSet):
                 float(obj.precio_venta),
                 'Sí' if obj.activo else 'No',
                 fecha_creacion,
-                fecha_modificacion
+                fecha_modificacion,
+                usuario_str
             ])
 
         period_label = get_period_label(periodo, anio)
@@ -296,7 +304,7 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(fecha__date__gte=date_from, fecha__date__lte=date_to)
 
-        headers = ['Fecha', 'Código', 'Producto', 'Tipo', 'Origen', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Notas']
+        headers = ['Fecha', 'Código', 'Producto', 'Tipo', 'Origen', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Notas', 'Responsable']
         rows = []
         for mov in queryset:
             fecha_str = mov.fecha.strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
@@ -309,6 +317,8 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
                 estado_str = f"Inactivo desde {fecha_str}"
             else:
                 estado_str = '-'
+            
+            usuario_str = f"{mov.usuario.get_full_name() or mov.usuario.username} ({mov.usuario.perfil.get_rol_display() if hasattr(mov.usuario, 'perfil') else '-'})" if hasattr(mov, 'usuario') and mov.usuario else "Sistema"
             
             rows.append([
                 fecha_str,
@@ -324,7 +334,8 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
                 float(mov.stock_anterior),
                 float(mov.stock_nuevo),
                 estado_str,
-                mov.notas or ''
+                mov.notas or '',
+                usuario_str
             ])
 
         period_label = get_period_label(periodo, anio)

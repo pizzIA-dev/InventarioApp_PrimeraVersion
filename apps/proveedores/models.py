@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 from django.core.validators import MinValueValidator, EmailValidator
@@ -152,6 +153,7 @@ class HistoricoPrecio(models.Model):
         return f"{self.producto.nombre} - {self.precio_compra} ({self.fecha})"
 
 class MovimientoProveedor(models.Model):
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     """Registro de historial de cambios del proveedor"""
     TIPO_EVENTO_CHOICES = [
         ('CREACION', 'Creación del proveedor'),
@@ -175,6 +177,14 @@ class MovimientoProveedor(models.Model):
     activo_nuevo = models.BooleanField(default=True)
     contrato_nuevo = models.BooleanField(default=False)
 
+
+    def save(self, *args, **kwargs):
+        if getattr(self, "usuario_id", None) is None:
+            from apps.core.middleware import get_current_user
+            user = get_current_user()
+            if user and user.is_authenticated:
+                self.usuario = user
+        super().save(*args, **kwargs)
     class Meta:
         ordering = ['-fecha']
         verbose_name_plural = "Movimientos de Proveedor"

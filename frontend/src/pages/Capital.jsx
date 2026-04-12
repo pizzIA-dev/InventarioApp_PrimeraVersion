@@ -1017,6 +1017,7 @@ function Capital() {
                       <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '11px', color: '#888' }}>V. Actual Ant.</th>
                       <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '11px' }}>V. Actual Nvo.</th>
                       <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px' }}>Notas</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '11px' }}>Responsable</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1052,6 +1053,9 @@ function Capital() {
                           </td>
                           <td style={{ padding: '8px 12px', fontSize: '11px', color: 'var(--text-secondary)' }}>
                             {mov.notas || ''}
+                          </td>
+                          <td style={{ padding: '8px 12px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            {mov.usuario_nombre ? `${mov.usuario_nombre} (${mov.usuario_rol || '-'})` : 'Sistema'}
                           </td>
                         </tr>
                       );

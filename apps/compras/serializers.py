@@ -35,6 +35,8 @@ class CompraSerializer(serializers.ModelSerializer):
     proveedor_nombre = serializers.CharField(source='proveedor.nombre', read_only=True)
     detalle = DetalleCompraSerializer(source='detallecompra_set', many=True, read_only=True)
     productos_resumen = serializers.SerializerMethodField()
+    usuario_nombre = serializers.SerializerMethodField()
+    usuario_rol = serializers.SerializerMethodField()
     
     class Meta:
         model = Compra
@@ -43,7 +45,7 @@ class CompraSerializer(serializers.ModelSerializer):
             'numero_comprobante', 'tipo_comprobante', 'estado',
             'subtotal', 'impuesto', 'total', 'notas',
             'creado_en', 'actualizado_en', 'detalle', 'comprobante_archivo',
-            'productos_resumen'
+            'productos_resumen', 'usuario_nombre', 'usuario_rol'
         ]
         read_only_fields = ['subtotal', 'impuesto', 'total', 'creado_en', 'actualizado_en']
         
@@ -54,6 +56,18 @@ class CompraSerializer(serializers.ModelSerializer):
         if count > 3:
             resumen += f" y {count - 3} más..."
         return resumen or "Sin productos"
+
+    def get_usuario_nombre(self, obj):
+        usuario = getattr(obj, 'usuario', None)
+        if usuario:
+            return getattr(usuario, "get_full_name", lambda: "")() or usuario.username
+        return "Sistema"
+
+    def get_usuario_rol(self, obj):
+        usuario = getattr(obj, 'usuario', None)
+        if usuario and hasattr(usuario, "perfil"):
+            return usuario.perfil.get_rol_display()
+        return "-"
 
 
 class CompraCreateSerializer(serializers.ModelSerializer):
@@ -153,10 +167,23 @@ class CompraUpdateSerializer(serializers.ModelSerializer):
 
 
 class MovimientoEstadoCompraSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.SerializerMethodField()
+    usuario_rol = serializers.SerializerMethodField()
+
     class Meta:
         model = MovimientoEstadoCompra
-        fields = ['id', 'estado_anterior', 'estado_nuevo', 'fecha', 'notas']
+        fields = ['id', 'usuario', 'usuario_nombre', 'usuario_rol', 'estado_anterior', 'estado_nuevo', 'fecha', 'notas']
 
+
+    def get_usuario_nombre(self, obj):
+        if obj.usuario:
+            return getattr(obj.usuario, "get_full_name", lambda: "")() or obj.usuario.username
+        return "Sistema"
+
+    def get_usuario_rol(self, obj):
+        if obj.usuario and hasattr(obj.usuario, "perfil"):
+            return obj.usuario.perfil.get_rol_display()
+        return "-"
 
 class KardexProductoCompraSerializer(serializers.ModelSerializer):
     """Serializer aplanado para el Kardex de productos comprados"""
@@ -168,14 +195,30 @@ class KardexProductoCompraSerializer(serializers.ModelSerializer):
     producto_codigo = serializers.CharField(source='producto.codigo', read_only=True)
     impuesto = serializers.DecimalField(source='compra.impuesto', max_digits=12, decimal_places=2, read_only=True)
     total = serializers.SerializerMethodField()
+    usuario_nombre = serializers.SerializerMethodField()
+    usuario_rol = serializers.SerializerMethodField()
 
     class Meta:
         model = DetalleCompra
         fields = [
             'id', 'fecha', 'tipo_comprobante', 'numero_comprobante',
             'proveedor_nombre', 'producto_nombre', 'producto_codigo',
-            'cantidad', 'precio_compra', 'descuento', 'impuesto', 'total'
+            'cantidad', 'precio_compra', 'descuento', 'impuesto', 'total',
+            'usuario_nombre', 'usuario_rol'
         ]
+
+    def get_usuario_nombre(self, obj):
+        # Acceso seguro al usuario de la compra
+        usuario = getattr(obj.compra, 'usuario', None)
+        if usuario:
+            return getattr(usuario, "get_full_name", lambda: "")() or usuario.username
+        return "Sistema"
+
+    def get_usuario_rol(self, obj):
+        usuario = getattr(obj.compra, 'usuario', None)
+        if usuario and hasattr(usuario, "perfil"):
+            return usuario.perfil.get_rol_display()
+        return "-"
 
     def get_proveedor_nombre(self, obj):
         return obj.compra.proveedor_nombre or (obj.compra.proveedor.nombre if obj.compra.proveedor else 'N/A')

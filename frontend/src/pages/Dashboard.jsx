@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { reportesAPI, productosAPI, serviciosAPI } from '../services/api';
 import { 
   WarningOutlined,
 } from '@ant-design/icons';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import LoadingScreen from '../components/LoadingScreen';
+import { AuthContext } from '../context/AuthContext';
 
 const COLORS = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2'];
 
 function Dashboard() {
+  const { isVendedor, user } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   const [reporteMensual, setReporteMensual] = useState(null);
@@ -60,11 +62,34 @@ function Dashboard() {
         setLoading(false);
       }
     };
+    
+    if (isVendedor) {
+      setLoading(false);
+      return;
+    }
+    
     fetchReportes();
-  }, [selectedYear, selectedMonth, selectedProducto, selectedServicio]);
+  }, [selectedYear, selectedMonth, selectedProducto, selectedServicio, isVendedor]);
 
   if (loading) {
     return <LoadingScreen message="ACTUALIZANDO DASHBOARD..." />;
+  }
+
+  if (isVendedor) {
+    return (
+      <div style={{ padding: '24px', textAlign: 'center' }}>
+        <h1 className="page-title">Bienvenido, {user?.username}</h1>
+        <p className="page-subtitle">Sistema de Ventas e Inventario Operativo</p>
+        <div className="card" style={{ marginTop: '40px', padding: '40px', maxWidth: '600px', marginLeft: 'auto', marginRight: 'auto' }}>
+          <h2>Accesos Rápidos</h2>
+          <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', marginTop: '30px' }}>
+            <a href="/ventas" className="btn btn-primary" style={{ padding: '10px 20px' }}>Ir a Ventas</a>
+            <a href="/fiados" className="btn btn-primary" style={{ padding: '10px 20px' }}>Ir a Fiados</a>
+            <a href="/clientes" className="btn btn-secondary" style={{ padding: '10px 20px' }}>Directorio de Clientes</a>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

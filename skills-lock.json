@@ -21,6 +21,11 @@
       "sourceType": "github",
       "computedHash": "516bd2154eb843a8240e43d5b285229129853114ad7075a5e141e1c08e408c84"
     },
+    "saas-platforms": {
+      "source": "miles990/claude-software-skills",
+      "sourceType": "github",
+      "computedHash": "c10c32bc43d04f27f1d8148b3242ac45713b46c3a1967bd49852c9726a146369"
+    },
     "vercel-react-best-practices": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",

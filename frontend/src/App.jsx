@@ -3,7 +3,10 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ConfigProvider, theme } from 'antd';
 import esES from 'antd/locale/es_ES';
 import { ThemeProvider, useTheme } from './ThemeContext';
+import { AuthProvider } from './context/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
+import Login from './pages/Login';
 
 // Lazy loading de páginas (bundle-dynamic-imports / code-splitting)
 // Cada página se cargará solo cuando el usuario navegue a esa ruta
@@ -18,6 +21,7 @@ const Servicios = lazy(() => import('./pages/Servicios'));
 const Transacciones = lazy(() => import('./pages/Transacciones'));
 const Reportes = lazy(() => import('./pages/Reportes'));
 const Fiados = lazy(() => import('./pages/Fiados'));
+const GestionUsuarios = lazy(() => import('./pages/GestionUsuarios'));
 
 // Fallback de carga para Suspense — usa el spinner ya definido en index.css
 const PageLoader = () => (
@@ -41,18 +45,20 @@ const AppContent = () => {
             se descarga el chunk de la página correspondiente */}
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="productos" element={<Productos />} />
-              <Route path="proveedores" element={<Proveedores />} />
-              <Route path="clientes" element={<Clientes />} />
-              <Route path="ventas" element={<Ventas />} />
-              <Route path="compras" element={<Compras />} />
-              <Route path="capital" element={<Capital />} />
-              <Route path="servicios" element={<Servicios />} />
-              <Route path="transacciones" element={<Transacciones />} />
-              <Route path="reportes" element={<Reportes />} />
-              <Route path="fiados" element={<Fiados />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+              <Route index element={<ProtectedRoute allowedRoles={['GERENTE']}><Dashboard /></ProtectedRoute>} />
+              <Route path="productos" element={<ProtectedRoute allowedRoles={['GERENTE', 'VENDEDOR']}><Productos /></ProtectedRoute>} />
+              <Route path="proveedores" element={<ProtectedRoute allowedRoles={['GERENTE']}><Proveedores /></ProtectedRoute>} />
+              <Route path="clientes" element={<ProtectedRoute allowedRoles={['GERENTE', 'VENDEDOR']}><Clientes /></ProtectedRoute>} />
+              <Route path="ventas" element={<ProtectedRoute allowedRoles={['GERENTE', 'VENDEDOR']}><Ventas /></ProtectedRoute>} />
+              <Route path="compras" element={<ProtectedRoute allowedRoles={['GERENTE']}><Compras /></ProtectedRoute>} />
+              <Route path="capital" element={<ProtectedRoute allowedRoles={['GERENTE']}><Capital /></ProtectedRoute>} />
+              <Route path="servicios" element={<ProtectedRoute allowedRoles={['GERENTE', 'VENDEDOR']}><Servicios /></ProtectedRoute>} />
+              <Route path="transacciones" element={<ProtectedRoute allowedRoles={['GERENTE']}><Transacciones /></ProtectedRoute>} />
+              <Route path="reportes" element={<ProtectedRoute allowedRoles={['GERENTE']}><Reportes /></ProtectedRoute>} />
+              <Route path="fiados" element={<ProtectedRoute allowedRoles={['GERENTE', 'VENDEDOR']}><Fiados /></ProtectedRoute>} />
+              <Route path="usuarios" element={<ProtectedRoute allowedRoles={['GERENTE']}><GestionUsuarios /></ProtectedRoute>} />
             </Route>
           </Routes>
         </Suspense>
@@ -63,9 +69,11 @@ const AppContent = () => {
 
 function App() {
   return (
-    <ThemeProvider>
-      <AppContent />
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 

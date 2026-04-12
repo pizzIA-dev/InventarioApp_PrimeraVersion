@@ -203,10 +203,10 @@ class ClienteViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
-        # Cabeceras: ID Nombre Tipo Documento Contacto Email Teléfono Recurrencia Total Comprado Estado Última Modificación
+        # Cabeceras: ID Nombre Tipo Documento Contacto Email Teléfono Recurrencia Total Comprado Estado Última Modificación Responsable
         headers = [
             'ID', 'Nombre', 'Tipo', 'Documento', 'Contacto', 'Email', 
-            'Teléfono', 'Recurrencia', 'Total Comprado (S/.)', 'Estado', 'Última Modificación'
+            'Teléfono', 'Recurrencia', 'Total Comprado (S/.)', 'Estado', 'Última Modificación', 'Responsable'
         ]
         
         rows_productos = []
@@ -214,6 +214,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
         for obj in queryset:
             # Common data
+            last_mov = obj.movimientos_estado.order_by('-fecha').first()
+            usuario_str = f"{last_mov.usuario.get_full_name() or last_mov.usuario.username} ({last_mov.usuario.perfil.get_rol_display() if hasattr(last_mov.usuario, 'perfil') else '-'})" if last_mov and last_mov.usuario else "Sistema"
+            
             common_data = [
                 obj.id,
                 obj.nombre,
@@ -225,7 +228,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
             ]
             common_footer = [
                 'Activo' if obj.activo else 'Inactivo',
-                timezone.localtime(obj.actualizado_en).strftime("%d/%m/%Y %H:%M:%S")
+                timezone.localtime(obj.actualizado_en).strftime("%d/%m/%Y %H:%M:%S"),
+                usuario_str
             ]
 
             # Product sheet logic
@@ -315,7 +319,9 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 'precio_servicio': float(v.precio),
                 'descuento': float(v.descuento),
                 'impuesto': float(v.impuesto),
-                'total': float(v.total)
+                'total': float(v.total),
+                'usuario_nombre': getattr(v.usuario, "get_full_name", lambda: "")() or v.usuario.username if v.usuario else "Sistema",
+                'usuario_rol': v.usuario.perfil.get_rol_display() if v.usuario and hasattr(v.usuario, "perfil") else "-"
             })
 
         return Response({
@@ -335,7 +341,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
 
         # Hoja 1: Historial de Estados
         estados = cliente.movimientos_estado.all().order_by('-fecha')
-        headers_estados = ['Fecha', 'Tipo de Evento', 'Estado Anterior', 'Estado Nuevo', 'Notas']
+        headers_estados = ['Fecha', 'Tipo de Evento', 'Estado Anterior', 'Estado Nuevo', 'Notas', 'Responsable']
         rows_estados = []
         for e in estados:
             es_creacion = e.estado_anterior == '—'
@@ -344,7 +350,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 'CREACIÓN' if es_creacion else 'CAMBIO DE ESTADO',
                 'Nuevo cliente' if es_creacion else e.estado_anterior,
                 e.estado_nuevo,
-                e.notas
+                e.notas,
+                f"{e.usuario.get_full_name() or e.usuario.username} ({e.usuario.perfil.get_rol_display() if hasattr(e.usuario, 'perfil') else '-'})" if e.usuario else "Sistema"
             ])
 
         # Hoja 2: Detalle de Venta de Productos
@@ -355,7 +362,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         headers_productos = [
             'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
             'Tipo Comprobante', 'Comprobante', 'Cliente', 'Producto',
-            'Código', 'Cant.', 'P. Unit. (S/.)', 'Subtotal (S/.)', 'Desc. (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
+            'Código', 'Cant.', 'P. Unit. (S/.)', 'Subtotal (S/.)', 'Desc. (S/.)', 'Impuesto (S/.)', 'Total (S/.)', 'Responsable'
         ]
         rows_productos = []
         for d in detalles:
@@ -373,7 +380,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 float(d.cantidad), float(d.precio_venta),
                 float(d.cantidad) * float(d.precio_venta),
                 float(d.descuento), float(v.impuesto),
-                (float(d.cantidad) * float(d.precio_venta)) - float(d.descuento) + float(v.impuesto)
+                (float(d.cantidad) * float(d.precio_venta)) - float(d.descuento) + float(v.impuesto),
+                f"{v.usuario.get_full_name() or v.usuario.username} ({v.usuario.perfil.get_rol_display() if hasattr(v.usuario, 'perfil') else '-'})" if v.usuario else "Sistema"
             ])
 
         # Hoja 3: Detalle de Venta de Servicios
@@ -385,7 +393,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         headers_servicios = [
             'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
             'Tipo Comprobante', 'Comprobante', 'Cliente', 'Servicio',
-            'Precio Serv. (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
+            'Precio Serv. (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)', 'Responsable'
         ]
         rows_servicios = []
         for v in ventas_s:
@@ -399,7 +407,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 l_t, l_n,
                 v.cliente_nombre or (v.cliente.nombre if v.cliente else "Cliente General"),
                 v.servicio_nombre or (v.servicio.nombre if v.servicio else 'Sin Servicio'),
-                float(v.precio), float(v.descuento), float(v.impuesto), float(v.total)
+                float(v.precio), float(v.descuento), float(v.impuesto), float(v.total), f'{v.usuario.get_full_name() or v.usuario.username} ({v.usuario.perfil.get_rol_display() if hasattr(v.usuario, 'perfil') else '-'})' if v.usuario else 'Sistema'
             ])
 
         sheets_data = [
@@ -456,7 +464,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         headers_estados = [
             'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
             'Tipo Comprobante', 'Comprobante', 'Cliente',
-            'Estado Anterior', 'Estado Nuevo', 'Notas'
+            'Estado Anterior', 'Estado Nuevo', 'Notas', 'Responsable'
         ]
         rows_estados = []
         for e in estados_qs:
@@ -468,7 +476,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             rows_estados.append([
                 timezone.localtime(e.fecha).strftime("%d/%m/%Y %H:%M:%S"),
                 "COMPROBANTE SIMPLE", v.numero_comprobante_simple or "",
-                l_t, l_n, comp_cliente, e.estado_anterior, e.estado_nuevo, e.notas
+                l_t, l_n, comp_cliente, e.estado_anterior, e.estado_nuevo, e.notas, f"{e.usuario.get_full_name() or e.usuario.username} ({e.usuario.perfil.get_rol_display() if hasattr(e.usuario, 'perfil') else '-'})" if e.usuario else "Sistema"
             ])
 
         # Hoja 2: Detalle de Venta de Productos (Kardex Global)
@@ -477,7 +485,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
             'Fecha/Hora', 'Tipo Comprobante Simple', 'Comprobante Simple',
             'Tipo Comprobante', 'Comprobante', 'Cliente', 'Estado',
             'Producto', 'Código de Producto', 'Cantidad', 'Precio Unitario (S/.)', 
-            'Subtotal (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
+            'Subtotal (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)', 'Responsable'
         ]
         rows_productos = []
         for d in detalles:
@@ -493,7 +501,8 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 d.producto.nombre, d.producto.codigo, float(d.cantidad),
                 float(d.precio_venta), float(d.cantidad) * float(d.precio_venta),
                 float(d.descuento), float(v.impuesto), 
-                (float(d.cantidad) * float(d.precio_venta)) - float(d.descuento) + float(v.impuesto)
+                (float(d.cantidad) * float(d.precio_venta)) - float(d.descuento) + float(v.impuesto),
+                f"{v.usuario.get_full_name() or v.usuario.username} ({v.usuario.perfil.get_rol_display() if hasattr(v.usuario, 'perfil') else '-'})" if v.usuario else "Sistema"
             ])
 
         # Hoja 3: Detalle de Venta de Servicios (Kardex Global)
@@ -505,7 +514,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         headers_servicios = [
             'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
             'Tipo Comprobante', 'Comprobante', 'Cliente', 'Estado', 'Servicio',
-            'Precio Serv. (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)'
+            'Precio Serv. (S/.)', 'Descuento (S/.)', 'Impuesto (S/.)', 'Total (S/.)', 'Responsable'
         ]
         rows_servicios = []
         for v in ventas_s:
@@ -518,7 +527,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
                 "COMPROBANTE SIMPLE", v.numero_comprobante_simple or "",
                 l_t, l_n, cliente_nombre, v.get_estado_display(),
                 v.servicio_nombre or (v.servicio.nombre if v.servicio else 'Sin Servicio'),
-                float(v.precio), float(v.descuento), float(v.impuesto), float(v.total)
+                float(v.precio), float(v.descuento), float(v.impuesto), float(v.total), f'{v.usuario.get_full_name() or v.usuario.username} ({v.usuario.perfil.get_rol_display() if hasattr(v.usuario, 'perfil') else '-'})' if v.usuario else 'Sistema'
             ])
 
         period_label = get_period_label(periodo, anio)
