@@ -293,18 +293,27 @@ class VentaServicio(models.Model):
 
 
 class MovimientoEstadoVentaServicio(models.Model):
-    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     """Historial de cambios de estado de una venta de servicios"""
-    venta_servicio = models.ForeignKey(
-        VentaServicio, 
-        on_delete=models.CASCADE, 
-        related_name='movimientos_estado'
-    )
+
+    RAZON_CANCELACION_CHOICES = [
+        ('CONFUSION',       'Confusión en el pedido'),
+        ('ARREPENTIMIENTO', 'El cliente se arrepintió'),
+        ('SIN_STOCK',       'Sin stock disponible'),
+        ('PRECIO',          'Desacuerdo en el precio'),
+        ('DUPLICADO',       'Registro duplicado'),
+        ('ERROR_SISTEMA',   'Error del sistema'),
+        ('OTRO',            'Otro motivo'),
+    ]
+
+    usuario         = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    venta_servicio  = models.ForeignKey(VentaServicio, on_delete=models.CASCADE, related_name='movimientos_estado')
     estado_anterior = models.CharField(max_length=20)
-    estado_nuevo = models.CharField(max_length=20)
-    fecha = models.DateTimeField(auto_now_add=True)
-    notas = models.TextField(blank=True, null=True)
-    
+    estado_nuevo    = models.CharField(max_length=20)
+    fecha           = models.DateTimeField(auto_now_add=True)
+    notas           = models.TextField(blank=True, null=True)
+    # Razón de cancelación (obligatoria cuando estado_nuevo == 'CANCELADO')
+    razon_tag    = models.CharField(max_length=30, choices=RAZON_CANCELACION_CHOICES, null=True, blank=True)
+    razon_detalle = models.TextField(null=True, blank=True, help_text='Detalle libre del motivo de cancelación')
 
     def save(self, *args, **kwargs):
         if getattr(self, "usuario_id", None) is None:
@@ -313,9 +322,161 @@ class MovimientoEstadoVentaServicio(models.Model):
             if user and user.is_authenticated:
                 self.usuario = user
         super().save(*args, **kwargs)
+
     class Meta:
         ordering = ['-fecha']
         verbose_name_plural = "Movimientos de Estado de Venta de Servicio"
-    
+
     def __str__(self):
         return f"Servicio {self.venta_servicio.id}: {self.estado_anterior} -> {self.estado_nuevo}"
+
+
+
+class CompraServicio(models.Model):
+    """Compra de un servicio a un proveedor (Outsourcing)"""
+    ESTADO_CHOICES = [
+        ('PENDIENTE', 'Pendiente'),
+        ('EN_PROGRESO', 'En Progreso'),
+        ('TERMINADO', 'Terminado'),
+        ('CANCELADO', 'Cancelado'),
+    ]
+    
+    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='compras_servicio', null=True)
+    comprobante_archivo = models.FileField(upload_to='comprobantes/servicios_compras/', null=True, blank=True)
+    
+    servicio = models.ForeignKey(
+        'servicios.Servicio', 
+        on_delete=models.SET_NULL, 
+        null=True,
+        related_name='compras_rel'
+    )
+    servicio_nombre = models.CharField(max_length=200, blank=True, null=True)
+    
+    proveedor = models.ForeignKey(
+        'proveedores.Proveedor', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='servicios_contratados'
+    )
+    proveedor_nombre = models.CharField(max_length=200, blank=True, null=True)
+    
+    # Documento
+    numero_comprobante_simple = models.CharField(max_length=50, blank=True, null=True)
+    numero_comprobante = models.CharField(max_length=50, blank=True, null=True)
+    tipo_comprobante = models.CharField(max_length=50, blank=True, null=True)
+    
+    # Precio
+    precio = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    descuento = models.DecimalField(max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    impuesto = models.DecimalField(max_digits=10, decimal_places=2, default=0, validators=[MinValueValidator(0)])
+    total = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
+    
+    # Fechas
+    fecha_programada = models.DateTimeField(blank=True, null=True)
+    fecha_completado = models.DateTimeField(blank=True, null=True)
+    
+    # Control
+    usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE')
+    notas = models.TextField(blank=True, null=True)
+    creado_en = models.DateTimeField(auto_now_add=True)
+    actualizado_en = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-creado_en']
+    
+    def __str__(self):
+        return f"Compra Servicio: {self.servicio_nombre or self.servicio} - {self.proveedor_nombre or 'Proveedor'}"
+    
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        old_estado = None
+        
+        # Auditoría de usuario
+        if is_new and getattr(self, 'usuario_id', None) is None:
+            from apps.core.middleware import get_current_user
+            user = get_current_user()
+            if user and user.is_authenticated:
+                self.usuario = user
+
+        if not is_new:
+            try:
+                old_instance = CompraServicio.objects.get(pk=self.pk)
+                old_estado = old_instance.estado
+            except CompraServicio.DoesNotExist:
+                pass
+
+        # Calcular total automáticamente
+        self.total = self.precio - self.descuento + self.impuesto
+        super().save(*args, **kwargs)
+
+        # Log status change
+        if is_new:
+            from django.utils import timezone
+            now_str = timezone.localtime().strftime("%d/%m/%Y a las %H:%M:%S")
+            MovimientoEstadoCompraServicio.objects.create(
+                compra_servicio=self,
+                estado_anterior='N/A',
+                estado_nuevo=self.estado,
+                notas=f"Registro inicial de la compra de servicio ({self.estado.capitalize()}) el {now_str}"
+            )
+        elif old_estado and old_estado != self.estado:
+            from django.utils import timezone
+            now_str = timezone.localtime().strftime("%d/%m/%Y a las %H:%M:%S")
+            MovimientoEstadoCompraServicio.objects.create(
+                compra_servicio=self,
+                estado_anterior=old_estado,
+                estado_nuevo=self.estado,
+                notas=f"Cambió de {old_estado.capitalize()} a {self.estado.capitalize()} el {now_str}"
+            )
+    
+    def terminar(self):
+        from django.utils import timezone
+        self.estado = 'TERMINADO'
+        self.fecha_completado = timezone.now()
+        self.save()
+
+    def iniciar(self):
+        self.estado = 'EN_PROGRESO'
+        self.save()
+
+    def completar(self):
+        self.terminar()
+
+
+class MovimientoEstadoCompraServicio(models.Model):
+    """Historial de cambios de estado de una compra de servicios"""
+    RAZON_CANCELACION_CHOICES = [
+        ('CONFUSION',       'Confusión en el pedido'),
+        ('ARREPENTIMIENTO', 'El usuario se arrepintió'),
+        ('INCUMPLIMIENTO',  'Proveedor no cumplió'),
+        ('PRECIO',          'Desacuerdo en el precio'),
+        ('DUPLICADO',       'Registro duplicado'),
+        ('ERROR_SISTEMA',   'Error del sistema'),
+        ('OTRO',            'Otro motivo'),
+    ]
+
+    usuario         = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    compra_servicio = models.ForeignKey(CompraServicio, on_delete=models.CASCADE, related_name='movimientos_estado')
+    estado_anterior = models.CharField(max_length=20)
+    estado_nuevo    = models.CharField(max_length=20)
+    fecha           = models.DateTimeField(auto_now_add=True)
+    notas           = models.TextField(blank=True, null=True)
+    razon_tag       = models.CharField(max_length=30, choices=RAZON_CANCELACION_CHOICES, null=True, blank=True)
+    razon_detalle   = models.TextField(null=True, blank=True, help_text='Detalle libre del motivo de cancelación')
+
+    def save(self, *args, **kwargs):
+        if getattr(self, 'usuario_id', None) is None:
+            from apps.core.middleware import get_current_user
+            user = get_current_user()
+            if user and user.is_authenticated:
+                self.usuario = user
+        super().save(*args, **kwargs)
+
+    class Meta:
+        ordering = ['-fecha']
+        verbose_name_plural = 'Movimientos de Estado de Compra de Servicio'
+
+    def __str__(self):
+        return f"Compra Servicio {self.compra_servicio.id}: {self.estado_anterior} -> {self.estado_nuevo}"

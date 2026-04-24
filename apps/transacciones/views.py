@@ -15,9 +15,10 @@ from .serializers import (
     TransaccionSerializer, TransaccionCreateSerializer,
     MovimientoCategoriaSerializer, HistorialTransaccionSerializer
 )
+from apps.core.mixins import SoloGerenteDestroyMixin
 
 
-class CategoriaTransaccionViewSet(viewsets.ModelViewSet):
+class CategoriaTransaccionViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     queryset = CategoriaTransaccion.objects.all()
     serializer_class = CategoriaTransaccionSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -101,7 +102,7 @@ class CategoriaTransaccionViewSet(viewsets.ModelViewSet):
         )
 
 
-class TransaccionViewSet(viewsets.ModelViewSet):
+class TransaccionViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     queryset = Transaccion.objects.all().select_related('categoria')
     filter_backends = [filters.OrderingFilter, DjangoFilterBackend]
     filterset_fields = ['tipo', 'categoria', 'metodo_pago']

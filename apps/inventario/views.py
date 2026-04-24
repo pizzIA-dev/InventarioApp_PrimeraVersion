@@ -1,20 +1,30 @@
 from django.http import HttpResponse
+from django.db.models import Sum
 from apps.core.export_utils import (
     get_period_range, get_period_label, create_excel_response
 )
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
-from .models import Categoria, Producto, MovimientoStock
+from django.core.exceptions import ValidationError
+
+# Importar Permisos RBAC
+from apps.core.permissions import HasRBACScope, IsGerente
+
+from .models import Categoria, Producto, MovimientoStock, Almacen, StockAlmacen, TrasladoStock
 from .serializers import (
     CategoriaSerializer,
     ProductoSerializer, ProductoCreateSerializer,
-    MovimientoStockSerializer, MovimientoStockCreateSerializer
+    MovimientoStockSerializer, MovimientoStockCreateSerializer,
+    AlmacenSerializer, AlmacenListSerializer,
+    StockAlmacenSerializer, TrasladoStockSerializer
 )
+from apps.core.mixins import SoloGerenteDestroyMixin
 
 
-class CategoriaViewSet(viewsets.ModelViewSet):
+class CategoriaViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     queryset = Categoria.objects.all()
     serializer_class = CategoriaSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -27,7 +37,10 @@ class CategoriaViewSet(viewsets.ModelViewSet):
         instance.save()
 
 
-class ProductoViewSet(viewsets.ModelViewSet):
+class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
+    # Proteger este ViewSet con el motor de roles Customizados
+    permission_classes = [HasRBACScope]
+    required_scope = 'inventario:escribir'
     queryset = Producto.objects.all()
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['codigo', 'nombre', 'descripcion']
@@ -157,11 +170,12 @@ class ProductoViewSet(viewsets.ModelViewSet):
         producto = self.get_object()
         movimientos = producto.movimientos.all().order_by('-fecha')
         
-        headers = ['Fecha', 'Tipo', 'Origen', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Referencia', 'Notas', 'Responsable']
+        headers = ['Fecha', 'Almacén', 'Tipo', 'Origen', 'P. Unitario (S/.)', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Referencia', 'Notas', 'Responsable']
         rows = []
         for mov in movimientos:
             fecha_str = mov.fecha.strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
             cantidad_str = f"+{float(mov.cantidad)}" if mov.tipo == 'ENTRADA' else f"-{float(mov.cantidad)}"
+            almacen_str = mov.almacen.nombre if mov.almacen else 'General'
             
             # Build the estado string for this row
             if mov.activo_nuevo is True:
@@ -175,8 +189,10 @@ class ProductoViewSet(viewsets.ModelViewSet):
             
             rows.append([
                 fecha_str,
+                almacen_str,
                 mov.tipo,
                 mov.origen,
+                float(mov.precio_unitario) if mov.precio_unitario else '',
                 cantidad_str,
                 float(mov.precio_compra_anterior) if mov.precio_compra_anterior else '',
                 float(mov.precio_compra_nuevo) if mov.precio_compra_nuevo else '',
@@ -199,6 +215,77 @@ class ProductoViewSet(viewsets.ModelViewSet):
             period_label='Todos los registros'
         )
     
+    @action(detail=True, methods=['post'])
+    def ajustar_stock(self, request, pk=None):
+        """
+        Ajuste de inventario (Merma, Extravío, Caducidad, etc.).
+        """
+        producto = self.get_object()
+        user_perfil = request.user.perfil
+        
+        # Parámetros
+        cantidad_ajuste = request.data.get('cantidad_ajuste')
+        tipo = request.data.get('tipo', 'SALIDA')  # ENTRADA o SALIDA
+        origen = request.data.get('origen')        # MERMA, CADUCIDAD, EXTRAVIO, ROTURA, etc.
+        notas = request.data.get('notas', '')
+        almacen_id = request.data.get('almacen_id')
+        
+        if not cantidad_ajuste or float(cantidad_ajuste) <= 0:
+            return Response({'error': 'La cantidad de ajuste debe ser mayor a 0.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if origen not in dict(MovimientoStock.ORIGEN_MOVIMIENTO_CHOICES).keys():
+            return Response({'error': 'Motivo de ajuste inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validación de almacén basada en rol
+        from apps.inventario.models import Almacen
+        almacen_obj = None
+        if user_perfil.rol == 'GERENTE':
+            # El Gerente debe mandar explicitamente a qué almacén ajusta
+            if almacen_id:
+                try:
+                    almacen_obj = Almacen.objects.get(id=almacen_id, empresa=user_perfil.empresa)
+                except Almacen.DoesNotExist:
+                    return Response({'error': 'Almacén seleccionado es inválido o no te pertenece.'}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({'error': 'Debes especificar el almacén a afectar.'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            # Si es Colaborador, el ajuste SOLO afecta al subalmacén donde está asignado
+            if not user_perfil.almacen:
+                # Fallback al almacén general
+                almacen_obj = Almacen.objects.filter(empresa=user_perfil.empresa, es_general=True).first()
+            else:
+                almacen_obj = user_perfil.almacen
+                
+            if not almacen_obj:
+                return Response({'error': 'No tienes un almacén asignado para ajustar.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validación que no deje saldo negativo el sub-almacén si es salida
+        if tipo == 'SALIDA':
+            from apps.inventario.models import StockAlmacen
+            sa = StockAlmacen.objects.filter(almacen=almacen_obj, producto=producto).first()
+            disp = sa.cantidad if sa else 0
+            if disp < float(cantidad_ajuste):
+                return Response({
+                    'error': f"Stock insuficiente en {almacen_obj.nombre}. Necesitas descontar {cantidad_ajuste} pero solo hay {disp} disponibles."
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Ejecutar Creación (MovimientoStock.save() se encarga de re-calcular todo atómicamente)
+        MovimientoStock.objects.create(
+            empresa=producto.empresa,
+            producto=producto,
+            tipo=tipo,
+            origen=origen,
+            almacen=almacen_obj,
+            cantidad=cantidad_ajuste,
+            notas=notas,
+            usuario=request.user,
+            referencia='Ajuste de Sistema',
+        )
+        
+        # Refrescar y serializar
+        producto.refresh_from_db()
+        return Response(self.get_serializer(producto).data)
+
     @action(detail=False, methods=['get'])
     def stock_bajo(self, request):
         """Obtiene productos con stock bajo"""
@@ -304,11 +391,12 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(fecha__date__gte=date_from, fecha__date__lte=date_to)
 
-        headers = ['Fecha', 'Código', 'Producto', 'Tipo', 'Origen', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Notas', 'Responsable']
+        headers = ['Fecha', 'Almacén', 'Código', 'Producto', 'Tipo', 'Origen', 'P. Unitario (S/.)', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Notas', 'Responsable']
         rows = []
         for mov in queryset:
             fecha_str = mov.fecha.strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
             cantidad_str = f"+{float(mov.cantidad)}" if mov.tipo == 'ENTRADA' else f"-{float(mov.cantidad)}"
+            almacen_str = mov.almacen.nombre if mov.almacen else 'General'
             
             # Build the estado string for this row
             if mov.activo_nuevo is True:
@@ -322,10 +410,12 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
             
             rows.append([
                 fecha_str,
+                almacen_str,
                 mov.producto.codigo,
                 mov.producto.nombre,
                 mov.tipo,
                 mov.origen,
+                float(mov.precio_unitario) if mov.precio_unitario else '',
                 cantidad_str,
                 float(mov.precio_compra_anterior) if mov.precio_compra_anterior else '',
                 float(mov.precio_compra_nuevo) if mov.precio_compra_nuevo else '',
@@ -346,4 +436,156 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
             rows=rows,
             title='Diario de Movimientos (Kardex Global)',
             period_label=period_label
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ALMACENES / CAJAS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class AlmacenViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
+    """
+    CRUD de Almacenes. Escritura solo para Gerentes.
+    Los colaboradores pueden leer para saber a qué almacén están asignados.
+    """
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['nombre']
+    ordering_fields = ['nombre', 'es_general', 'creado_en']
+
+    def get_queryset(self):
+        return Almacen.objects.filter(activo=True).prefetch_related('stocks__producto')
+
+    def get_serializer_class(self):
+        if self.action == 'retrieve':
+            return AlmacenSerializer  # Con stocks detallados
+        return AlmacenListSerializer  # Ligero para lista
+
+    def perform_create(self, serializer):
+        # Asignar empresa del usuario autenticado
+        empresa = None
+        try:
+            empresa = self.request.user.perfil.empresa
+        except AttributeError:
+            pass
+        serializer.save(empresa=empresa)
+
+    def perform_update(self, serializer):
+        if not (
+            self.request.user.is_superuser
+            or getattr(self.request.user.perfil, 'rol', '') == 'GERENTE'
+        ):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Solo el Gerente puede modificar almacenes.')
+        serializer.save()
+
+    @action(detail=False, methods=['get'], url_path='mi-almacen')
+    def mi_almacen(self, request):
+        """
+        Devuelve el almacén asignado al colaborador autenticado.
+        Si es Gerente, devuelve el almacén general.
+        """
+        try:
+            perfil = request.user.perfil
+        except AttributeError:
+            return Response({'error': 'Perfil no encontrado.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if perfil.almacen:
+            almacen = perfil.almacen
+        else:
+            # Fallback: almacén general de la empresa
+            empresa = perfil.empresa
+            almacen = Almacen.objects.filter(empresa=empresa, es_general=True).first()
+
+        if not almacen:
+            return Response({'error': 'No hay almacén asignado.'}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(AlmacenSerializer(almacen).data)
+
+
+class StockAlmacenViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Vista de solo lectura del stock por almacén.
+    El frontend usa esto para mostrar el stock disponible en el almacén del colaborador.
+    """
+    serializer_class = StockAlmacenSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ['almacen', 'producto']
+    search_fields = ['producto__nombre', 'producto__codigo']
+
+    def get_queryset(self):
+        return StockAlmacen.objects.select_related(
+            'almacen', 'producto'
+        ).filter(almacen__activo=True)
+
+
+class TrasladoStockViewSet(viewsets.ModelViewSet):
+    """
+    Traslados de stock entre almacenes.
+    - Escritura (POST): solo Gerentes.
+    - Lectura: todos los autenticados.
+    - DELETE: bloqueado (registro inmutable).
+    - PUT/PATCH: bloqueado (registro inmutable).
+    """
+    serializer_class = TrasladoStockSerializer
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['tipo', 'producto', 'almacen_origen', 'almacen_destino']
+    ordering_fields = ['fecha']
+
+    def get_queryset(self):
+        return TrasladoStock.objects.select_related(
+            'producto', 'almacen_origen', 'almacen_destino', 'usuario'
+        ).all()
+
+    def create(self, request, *args, **kwargs):
+        """Ejecutar traslado de forma atómica via TrasladoStock.ejecutar()."""
+        # Solo Gerentes pueden crear traslados
+        try:
+            perfil = request.user.perfil
+        except AttributeError:
+            return Response({'error': 'Perfil no encontrado.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if not (request.user.is_superuser or perfil.rol == 'GERENTE'):
+            return Response(
+                {'error': 'Solo el Gerente puede realizar traslados de stock.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            traslado = TrasladoStock.ejecutar(
+                tipo=data['tipo'],
+                producto=data['producto'],
+                origen=data.get('almacen_origen'),
+                destino=data.get('almacen_destino'),
+                cantidad=data['cantidad'],
+                usuario=request.user,
+                notas=data.get('notas', ''),
+            )
+        except ValidationError as e:
+            return Response(
+                {'error': str(e.message) if hasattr(e, 'message') else str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            TrasladoStockSerializer(traslado).data,
+            status=status.HTTP_201_CREATED
+        )
+
+    def update(self, request, *args, **kwargs):
+        return Response(
+            {'error': 'Los traslados son registros inmutables y no pueden modificarse.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        return Response(
+            {'error': 'Los traslados son registros contables inmutables. No se pueden eliminar.'},
+            status=status.HTTP_405_METHOD_NOT_ALLOWED
         )

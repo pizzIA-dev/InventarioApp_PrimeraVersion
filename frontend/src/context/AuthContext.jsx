@@ -9,9 +9,9 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check locally stored user data on app load
-    const token = localStorage.getItem('access_token');
-    const userData = localStorage.getItem('user_data');
+    // Check both localStorage (remember=true) and sessionStorage (remember=false)
+    const token    = localStorage.getItem('access_token')    || sessionStorage.getItem('access_token');
+    const userData = localStorage.getItem('user_data')       || sessionStorage.getItem('user_data');
 
     if (token && userData) {
       setUser(JSON.parse(userData));
@@ -19,27 +19,43 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = async (username, password) => {
+  const login = async (username, password, remember = false) => {
     try {
-      // Use direct axios to bypass any existing interceptors if they cause trouble during login
-      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/auth/login/`, {
+      // Multi-tenant: usar el hostname actual del navegador (ej: emprendedor.localhost)
+      // para que la petición vaya al subdominio correcto del backend
+      const host    = window.location.hostname;
+      const port    = import.meta.env.VITE_API_PORT || '8000';
+      const apiBase = import.meta.env.VITE_API_URL  || `http://${host}:${port}`;
+      const response = await axios.post(`${apiBase}/api/auth/login/`, {
         username,
         password
       });
 
       const { access, refresh, user: userData } = response.data;
-      
-      localStorage.setItem('access_token', access);
-      localStorage.setItem('refresh_token', refresh);
-      localStorage.setItem('user_data', JSON.stringify(userData));
-      
+
+      // Si remember=true → localStorage (persiste entre sesiones)
+      // Si remember=false → sessionStorage (se borra al cerrar el navegador)
+      const storage = remember ? localStorage : sessionStorage;
+
+      // Limpiar el otro storage para evitar conflictos
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user_data');
+      sessionStorage.removeItem('access_token');
+      sessionStorage.removeItem('refresh_token');
+      sessionStorage.removeItem('user_data');
+
+      storage.setItem('access_token', access);
+      storage.setItem('refresh_token', refresh);
+      storage.setItem('user_data', JSON.stringify(userData));
+
       setUser(userData);
       return { success: true };
     } catch (error) {
-      console.error("Login failed", error);
-      return { 
-        success: false, 
-        message: error.response?.data?.detail || 'Credenciales inválidas' 
+      console.error('Login failed', error);
+      return {
+        success: false,
+        message: error.response?.data?.detail || 'Credenciales inválidas'
       };
     }
   };
@@ -48,6 +64,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user_data');
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('user_data');
     setUser(null);
   };
 

@@ -3,6 +3,7 @@ from apps.core.export_utils import (
     get_period_range, get_period_label, create_excel_response,
     create_multi_sheet_excel_response
 )
+from apps.core.constants import RAZON_CANCELACION_SET
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -16,9 +17,10 @@ from .serializers import (
     VentaSerializer, VentaCreateSerializer, VentaUpdateSerializer,
     DetalleVentaSerializer, MovimientoEstadoVentaSerializer, VentaKardexSerializer
 )
+from apps.core.mixins import SoloGerenteDestroyMixin
 
 
-class VentaViewSet(viewsets.ModelViewSet):
+class VentaViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     queryset = Venta.objects.all().select_related('cliente').prefetch_related('detalleventa_set', 'detalleventa_set__producto')
     filter_backends = [filters.OrderingFilter, DjangoFilterBackend]
     filterset_fields = ['estado', 'cliente']
@@ -113,32 +115,169 @@ class VentaViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def confirmar(self, request, pk=None):
-        """Confirma una venta y registra la salida de stock"""
+        """
+        Confirma una venta y registra la salida de stock.
+        - Si el colaborador tiene almacén asignado, valida y descuenta de ese almacén.
+        - Si no, descuenta del stock global como antes.
+        Bloquea si algún producto no tiene stock suficiente.
+        """
+        from apps.inventario.models import Almacen, StockAlmacen
+        from django.db.models import F
+
         venta = self.get_object()
+
+        if venta.estado == 'CONFIRMADA':
+            return Response(
+                {'error': 'Esta venta ya está confirmada.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ── Determinar almacén del colaborador ─────────────────────────────
+        almacen_colaborador = None
+        try:
+            almacen_colaborador = request.user.perfil.almacen
+        except AttributeError:
+            pass
+
+        # Si no tiene asignado, usar almacén general de la empresa
+        if almacen_colaborador is None:
+            try:
+                empresa = request.user.perfil.empresa
+                almacen_colaborador = Almacen.objects.filter(
+                    empresa=empresa, es_general=True, activo=True
+                ).first()
+            except AttributeError:
+                almacen_colaborador = None
+
+        # ── Verificar stock antes de proceder ──────────────────────────────
+        sin_stock = []
+        detalles  = list(venta.detalleventa_set.select_related('producto').all())
+
+        for detalle in detalles:
+            producto = detalle.producto
+
+            if almacen_colaborador:
+                # Verificar vs StockAlmacen del colaborador
+                sa = StockAlmacen.objects.filter(
+                    almacen=almacen_colaborador, producto=producto
+                ).first()
+                disponible = sa.cantidad if sa else 0
+            else:
+                # Fallback: stock global
+                disponible = producto.stock_actual
+
+            if disponible < detalle.cantidad:
+                sin_stock.append({
+                    'producto_id':        producto.id,
+                    'producto':           producto.nombre,
+                    'almacen':            almacen_colaborador.nombre if almacen_colaborador else 'Stock global',
+                    'stock_disponible':   float(disponible),
+                    'cantidad_requerida': float(detalle.cantidad),
+                    'faltante':           float(detalle.cantidad - disponible),
+                })
+
+        if sin_stock:
+            return Response(
+                {
+                    'error': 'No se puede confirmar la venta: stock insuficiente en los siguientes productos.',
+                    'almacen': almacen_colaborador.nombre if almacen_colaborador else 'Stock global',
+                    'productos_sin_stock': sin_stock,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # ───────────────────────────────────────────────────────────────────
+
+        # Guardar referencia al almacén en la venta para reversión posterior
+        if almacen_colaborador and not venta.almacen_id if hasattr(venta, 'almacen_id') else False:
+            venta.almacen = almacen_colaborador
+
         venta.estado = 'CONFIRMADA'
+        venta._skip_auto_historial = True
         venta.save()
-        
-        # Solo descontar stock si NO proviene de un fiado (el fiado ya descontó el stock pidiendo confirmación de reserva)
+
+        # Solo descontar stock si NO proviene de un fiado
         if not venta.fiado_origen.exists():
-            venta.registrar_salida_stock()
-        
+            venta.registrar_salida_stock(almacen=almacen_colaborador)
+
+        # Registrar historial de confirmación
+        from .models import MovimientoEstadoVenta
+        now_str = timezone.localtime().strftime("%d/%m/%Y a las %H:%M:%S")
+        notas_extra = f" (Almacén: {almacen_colaborador.nombre})" if almacen_colaborador else ''
+        MovimientoEstadoVenta.objects.create(
+            venta=venta,
+            estado_anterior='BORRADOR',
+            estado_nuevo='CONFIRMADA',
+            notas=f'Venta confirmada el {now_str} por {request.user.username}{notas_extra}',
+        )
+
         serializer = self.get_serializer(venta)
         return Response(serializer.data)
-    
+
     @action(detail=True, methods=['post'])
     def cancelar(self, request, pk=None):
-        """Cancela una venta y revierte el stock si estaba confirmada"""
+        """Cancela una venta y revierte el stock si estaba confirmada.
+        Requiere: razon_tag (obligatorio), razon_detalle (opcional).
+        """
         venta = self.get_object()
+
+        if venta.estado == 'CANCELADA':
+            return Response(
+                {'error': 'Esta venta ya se encuentra cancelada.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Validar razón obligatoria
+        razon_tag = request.data.get('razon_tag', '').strip()
+        razon_detalle = request.data.get('razon_detalle', '').strip()
+
+        RAZON_VALIDA = RAZON_CANCELACION_SET
+        if not razon_tag or razon_tag not in RAZON_VALIDA:
+            return Response(
+                {
+                    'error': 'Debes indicar una razón de cancelación.',
+                    'opciones': list(RAZON_VALIDA),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Determinar almacén del colaborador para revertir correctamente
+        from apps.inventario.models import Almacen
+        almacen_colaborador = None
+        try:
+            almacen_colaborador = request.user.perfil.almacen
+            if almacen_colaborador is None:
+                empresa = request.user.perfil.empresa
+                almacen_colaborador = Almacen.objects.filter(
+                    empresa=empresa, es_general=True, activo=True
+                ).first()
+        except AttributeError:
+            pass
+
         if venta.estado == 'CONFIRMADA':
-            venta.revertir_stock()
+            venta.revertir_stock(almacen=almacen_colaborador)
+
+        estado_anterior = venta.estado
         venta.estado = 'CANCELADA'
+        venta._skip_auto_historial = True
         venta.save()
-        
+
+        # Registrar el motivo en el historial (inmutable)
+        from .models import MovimientoEstadoVenta
+        notas_extra = f" (Almacén: {almacen_colaborador.nombre})" if almacen_colaborador else ''
+        MovimientoEstadoVenta.objects.create(
+            venta=venta,
+            estado_anterior=estado_anterior,
+            estado_nuevo='CANCELADA',
+            notas=f"{razon_detalle or razon_tag}{notas_extra}",
+            razon_tag=razon_tag,
+            razon_detalle=razon_detalle,
+        )
+
         serializer = self.get_serializer(venta)
         return Response(serializer.data)
-        
+
     def perform_destroy(self, instance):
-        """Si la venta estaba confirmada, reveritimos el stock antes de eliminar"""
+        """Si la venta estaba confirmada, revertimos el stock antes de eliminar"""
         if instance.estado == 'CONFIRMADA':
             instance.revertir_stock()
         instance.delete()

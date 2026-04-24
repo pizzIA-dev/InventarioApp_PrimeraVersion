@@ -9,29 +9,42 @@ import dj_database_url
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-default-key')
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,.onrender.com,.railway.app,.herokuapp.com').split(',')
+# SECURITY WARNING: keep the secret key used in production secret!
+# En producción: definir en .env sin default — si falta, Django falla intencionalmente
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-DEV-ONLY-change-in-production-!!!' if DEBUG else None)
 
-# Application definition
-INSTALLED_APPS = [
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,.localhost,.nip.io,.onrender.com,.railway.app,.herokuapp.com').split(',')
+
+SHARED_APPS = [
+    'django_tenants',
+    'apps.clientes_saas',  # Nuestra app pública/compartida de tenants
+    'apps.suscripciones',  # Planes y Facturación
+
+    'cloudinary_storage',  # Cloudinary Storage
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'cloudinary',          # Cloudinary
     'django.contrib.staticfiles',
-    
-    # Third party apps
+
     'rest_framework',
     'corsheaders',
     'django_filters',
-    
-    # Local apps
+    'rest_framework_simplejwt',
+]
+
+TENANT_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+
     'apps.core.apps.CoreConfig',
     'apps.inventario.apps.InventarioConfig',
     'apps.ventas.apps.VentasConfig',
@@ -43,14 +56,19 @@ INSTALLED_APPS = [
     'apps.transacciones.apps.TransaccionesConfig',
     'apps.reportes.apps.ReportesConfig',
     'apps.fiados.apps.FiadosConfig',
-    'rest_framework_simplejwt',
 ]
 
+INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
+
+TENANT_MODEL = "clientes_saas.Cliente"
+TENANT_DOMAIN_MODEL = "clientes_saas.Domain"
+
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',         # CORS primero — responde OPTIONS antes de tenant routing
+    'django_tenants.middleware.main.TenantMainMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -60,6 +78,10 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'config.urls'
+
+# django-tenants: el esquema public (dominio raíz) usa las mismas URLs que el resto
+# Esto permite que /api/public/registro/ y /api/public/buscar-tenant/ funcionen desde localhost
+PUBLIC_SCHEMA_URLCONF = 'config.urls'
 
 TEMPLATES = [
     {
@@ -83,16 +105,26 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASE_URL = config('DATABASE_URL', default=None)
 
 if DATABASE_URL:
-    DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, conn_health_checks=True)
-    }
+    # Producción: usar DATABASE_URL completo (Railway, Render, Heroku, etc.)
+    db_config = dj_database_url.parse(DATABASE_URL, conn_max_age=600, conn_health_checks=True)
+    db_config['ENGINE'] = 'django_tenants.postgresql_backend'
+    DATABASES = {'default': db_config}
 else:
+    # Desarrollo local: leer credenciales individuales del .env
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db_v2.sqlite3',
+            'ENGINE': 'django_tenants.postgresql_backend',
+            'NAME': config('DB_NAME', default='inventario_saas'),
+            'USER': config('DB_USER', default='postgres'),
+            'PASSWORD': config('DB_PASSWORD', default='postgres'),
+            'HOST': config('DB_HOST', default='127.0.0.1'),
+            'PORT': config('DB_PORT', default='5432'),
         }
     }
+
+DATABASE_ROUTERS = (
+    'django_tenants.routers.TenantSyncRouter',
+)
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -125,6 +157,15 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Cloudinary Integration for Production
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME', default='dlhix3p7p'),
+    'API_KEY': config('CLOUDINARY_API_KEY', default='placeholder'),
+    'API_SECRET': config('CLOUDINARY_API_SECRET', default='placeholder'),
+}
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -136,10 +177,12 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
-    'DEFAULT_RENDERER_CLASSES': [
-        'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',
-    ],
+    'DEFAULT_RENDERER_CLASSES': (
+        ['rest_framework.renderers.JSONRenderer',
+         'rest_framework.renderers.BrowsableAPIRenderer']  # Solo en DEBUG
+        if DEBUG else
+        ['rest_framework.renderers.JSONRenderer']          # En prod: ocultar API browser
+    ),
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
         'rest_framework.parsers.FormParser',
@@ -151,15 +194,15 @@ REST_FRAMEWORK = {
 
 from datetime import timedelta
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME':  timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'ROTATE_REFRESH_TOKENS': False,
-    'BLACKLIST_AFTER_ROTATION': False,
-    'UPDATE_LAST_LOGIN': False,
+    'ROTATE_REFRESH_TOKENS':  False,  # Sin rotación: evita escritura en OutstandingToken
+    'BLACKLIST_AFTER_ROTATION': False, # Sin blacklist: FK cross-schema incompatible con multi-tenant
+    'UPDATE_LAST_LOGIN': True,
 
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': SECRET_KEY,
-    'VERIFYING_KEY': "",
+    'VERIFYING_KEY': '',
     'AUDIENCE': None,
     'ISSUER': None,
     'JSON_ENCODER': None,
@@ -178,7 +221,20 @@ CORS_ALLOWED_ORIGINS = [
     orig.strip() for orig in config('CORS_ALLOWED_ORIGINS', default='http://localhost:5173,http://localhost:3000').split(',')
 ]
 
+# En desarrollo: permitir todos los subdominios .localhost y 127.0.0.1 en cualquier puerto
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://.*\.localhost:\d+$",
+    r"^http://localhost:\d+$",
+    r"^http://127\.0\.0\.1:\d+$",
+    r"^http://.*\.nip\.io:\d+$",
+]
+
+# Permitir credenciales (tokens JWT en headers Authorization)
 CORS_ALLOW_CREDENTIALS = True
+
+# Modo desarrollo: si DEBUG está activo, permitir todos los orígenes para evitar bloqueos locales
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -202,6 +258,45 @@ CORS_ALLOW_HEADERS = [
 ]
 
 # Security Headers (Shielding)
-SECURE_BROWSER_XSS_FILTER = True
+SECURE_BROWSER_XSS_FILTER   = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
+X_FRAME_OPTIONS             = 'DENY'
+
+# ── Seguridad adicional para HTTPS en PRODUCCIÓN ──────────────────────────────
+# Estos se activan automáticamente cuando DEBUG=False (producción)
+if not DEBUG:
+    SECURE_SSL_REDIRECT          = True   # HTTP → HTTPS redirect
+    SESSION_COOKIE_SECURE        = True   # Cookie de sesión solo por HTTPS
+    CSRF_COOKIE_SECURE           = True   # CSRF cookie solo por HTTPS
+    SECURE_HSTS_SECONDS          = 31536000  # 1 año de HSTS
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True # Aplica HSTS a todos los subdominios
+    SECURE_HSTS_PRELOAD          = True   # Permite agregar a la lista de preload HSTS
+    CSRF_TRUSTED_ORIGINS = [
+        orig.strip()
+        for orig in config('CORS_ALLOWED_ORIGINS', default='').split(',')
+        if orig.strip()
+    ]
+
+# BASE_DOMAIN: dominio raíz de la plataforma (usado para construir subdominios de tenants)
+# Desarrollo: localhost
+# Producción: tudominio.com  (configurar en .env)
+BASE_DOMAIN = config('BASE_DOMAIN', default='localhost')
+FRONTEND_URL = config('FRONTEND_URL', default=f'http://localhost:5175')
+
+# Email backend
+# Desarrollo: muestra emails en consola
+# Producción: SMTP real (SendGrid, SES, Mailgun, etc.)
+if DEBUG:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    EMAIL_BACKEND  = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+    EMAIL_HOST     = config('EMAIL_HOST', default='smtp.sendgrid.net')
+    EMAIL_PORT     = config('EMAIL_PORT', default=587, cast=int)
+    EMAIL_USE_TLS  = config('EMAIL_USE_TLS', default=True, cast=bool)
+    EMAIL_HOST_USER     = config('EMAIL_HOST_USER', default='')
+    EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+    DEFAULT_FROM_EMAIL  = config('DEFAULT_FROM_EMAIL', default='noreply@negocia.dev')
+    SERVER_EMAIL        = DEFAULT_FROM_EMAIL
+
+if 'DEFAULT_FROM_EMAIL' not in dir():
+    DEFAULT_FROM_EMAIL = 'dev@localhost'

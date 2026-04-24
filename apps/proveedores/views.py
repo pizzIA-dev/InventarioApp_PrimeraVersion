@@ -34,6 +34,12 @@ class ProveedorViewSet(viewsets.ModelViewSet):
         serializer.save(empresa=empresa)
     
     def perform_destroy(self, instance):
+        if instance.identificador == '00000000':
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied(
+                'El Proveedor General no puede ser eliminado ni desactivado. '
+                'Es un registro del sistema necesario para compras sin proveedor registrado.'
+            )
         instance.activo = False
         instance.save()
     

@@ -106,3 +106,54 @@ class MovimientoServicioSerializer(serializers.ModelSerializer):
         if obj.usuario and hasattr(obj.usuario, "perfil"):
             return obj.usuario.perfil.get_rol_display()
         return "-"
+
+
+
+from .models import CompraServicio, MovimientoEstadoCompraServicio
+
+class CompraServicioSerializer(serializers.ModelSerializer):
+    servicio_nombre_display = serializers.CharField(source='servicio.nombre', read_only=True)
+    proveedor_nombre_display = serializers.SerializerMethodField()
+
+    def get_proveedor_nombre_display(self, obj):
+        if obj.proveedor_nombre:
+            return obj.proveedor_nombre
+        return obj.proveedor.nombre if obj.proveedor else 'Sin Proveedor'
+    
+    class Meta:
+        model = CompraServicio
+        fields = [
+            'id', 'servicio', 'servicio_nombre', 'servicio_nombre_display', 'proveedor', 'proveedor_nombre', 'proveedor_nombre_display',
+            'numero_comprobante', 'numero_comprobante_simple', 'tipo_comprobante',
+            'precio', 'descuento', 'impuesto', 'total',
+            'fecha_programada', 'fecha_completado', 'estado', 'notas',
+            'creado_en', 'actualizado_en'
+        ]
+        read_only_fields = ['total', 'creado_en', 'actualizado_en']
+
+class CompraServicioCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompraServicio
+        fields = [
+            'id', 'servicio', 'servicio_nombre', 'proveedor', 'proveedor_nombre',
+            'numero_comprobante', 'numero_comprobante_simple', 'tipo_comprobante',
+            'precio', 'descuento', 'impuesto', 'fecha_programada', 'estado', 'notas'
+        ]
+
+class MovimientoEstadoCompraServicioSerializer(serializers.ModelSerializer):
+    usuario_nombre = serializers.SerializerMethodField()
+    usuario_rol = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MovimientoEstadoCompraServicio
+        fields = ['id', 'usuario', 'usuario_nombre', 'usuario_rol', 'estado_anterior', 'estado_nuevo', 'fecha', 'notas']
+
+    def get_usuario_nombre(self, obj):
+        if obj.usuario:
+            return getattr(obj.usuario, 'get_full_name', lambda: '')() or obj.usuario.username
+        return 'Sistema'
+
+    def get_usuario_rol(self, obj):
+        if obj.usuario and hasattr(obj.usuario, 'perfil'):
+            return obj.usuario.perfil.get_rol_display()
+        return '-'

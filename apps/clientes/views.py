@@ -23,9 +23,10 @@ from apps.core.export_utils import (
     get_period_range, get_period_label, create_excel_response,
     create_multi_sheet_excel_response
 )
+from apps.core.mixins import SoloGerenteDestroyMixin
 
 
-class ClienteViewSet(viewsets.ModelViewSet):
+class ClienteViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     queryset = Cliente.objects.all()
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre', 'numero_documento', 'email', 'telefono']
@@ -40,9 +41,15 @@ class ClienteViewSet(viewsets.ModelViewSet):
         return ClienteSerializer
     
     def perform_destroy(self, instance):
+        if instance.numero_documento == '00000000':
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied(
+                'El Cliente General no puede ser eliminado ni desactivado. '
+                'Es un registro del sistema necesario para ventas sin cliente registrado.'
+            )
         instance.activo = False
         instance.save()
-    
+
     @action(detail=True, methods=['get'])
     def historial_estados(self, request, pk=None):
         """Obtiene el historial de estados del cliente paginado"""
@@ -558,7 +565,7 @@ class ClienteViewSet(viewsets.ModelViewSet):
         )
 
 
-class SegmentoClienteViewSet(viewsets.ModelViewSet):
+class SegmentoClienteViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     queryset = SegmentoCliente.objects.all()
     serializer_class = SegmentoClienteSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]

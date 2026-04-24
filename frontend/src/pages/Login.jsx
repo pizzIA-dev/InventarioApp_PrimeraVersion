@@ -1,28 +1,39 @@
-import React, { useState, useContext } from 'react';
-import { Form, Input, Button, Card, Typography, Alert, message, Layout } from 'antd';
-import { UserOutlined, LockOutlined } from '@ant-design/icons';
+﻿import React, { useState, useContext } from 'react';
+import {
+  Form, Input, Button, Card, Typography, Alert,
+  message, Layout, Checkbox, Modal, Divider
+} from 'antd';
+import {
+  UserOutlined, LockOutlined, MailOutlined, KeyOutlined
+} from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../ThemeContext';
+import axios from 'axios';
 
 const { Title, Text } = Typography;
 
 const Login = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const { login } = useContext(AuthContext);
-  const navigate = useNavigate();
-  const location = useLocation();
+  const [loading, setLoading]             = useState(false);
+  const [error, setError]                 = useState(null);
+  const [forgotOpen, setForgotOpen]       = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSuccess, setForgotSuccess] = useState(null);
+  const [forgotError, setForgotError]     = useState(null);
+  const [forgotForm]                      = Form.useForm();
+
+  const { login }  = useContext(AuthContext);
+  const navigate   = useNavigate();
+  const location   = useLocation();
   const { isDark } = useTheme();
 
-  // Redirect to where user came from, or default to dashboard/ventas based on logic in App.jsx
-  const from = location.state?.from?.pathname || "/";
+  const from = location.state?.from?.pathname || '/';
 
+  // ─── Login ─────────────────────────────────────────────────────────────
   const onFinish = async (values) => {
     setLoading(true);
     setError(null);
-    const result = await login(values.username, values.password);
-
+    const result = await login(values.username, values.password, !!values.remember);
     if (result.success) {
       message.success('Sesión iniciada correctamente');
       navigate(from, { replace: true });
@@ -32,6 +43,36 @@ const Login = () => {
     setLoading(false);
   };
 
+  // ─── Forgot Password ────────────────────────────────────────────────────
+  const onForgotSubmit = async (values) => {
+    setForgotLoading(true);
+    setForgotError(null);
+    setForgotSuccess(null);
+    try {
+      const host    = window.location.hostname;
+      const port    = import.meta.env.VITE_API_PORT || '8000';
+      const apiBase = import.meta.env.VITE_API_URL  || `http://${host}:${port}`;
+      const res = await axios.post(`${apiBase}/api/auth/forgot-password/`, { email: values.email });
+      let msg = res.data.detail || 'Revisa tu email con las instrucciones.';
+      if (res.data.reset_url) {
+        msg += `\n\n[DEV] Link: ${res.data.reset_url}`;
+      }
+      setForgotSuccess(msg);
+    } catch (err) {
+      setForgotError(err.response?.data?.error || 'Error al enviar. Intenta más tarde.');
+    }
+    setForgotLoading(false);
+  };
+
+  // ─── Shared card styles ─────────────────────────────────────────────────
+  const cardBg = isDark
+    ? 'rgba(255,255,255,0.04)'
+    : 'rgba(255,255,255,0.85)';
+
+  const cardBorder = isDark
+    ? '1px solid rgba(255,255,255,0.08)'
+    : '1px solid rgba(0,0,0,0.06)';
+
   return (
     <Layout
       style={{
@@ -39,69 +80,219 @@ const Login = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: isDark ? '#141414' : '#f0f2f5',
+        background: isDark
+          ? 'linear-gradient(135deg, #0d0d1a 0%, #0a1628 60%, #0d0d1a 100%)'
+          : 'linear-gradient(135deg, #e8edf5 0%, #f0f4fc 100%)',
       }}
     >
       <Card
         style={{
           width: '100%',
-          maxWidth: 400,
-          boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
-          borderRadius: 12,
-          padding: 24,
+          maxWidth: 420,
+          background: cardBg,
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          borderRadius: 20,
+          padding: '36px 36px 28px',
+          boxShadow: isDark
+            ? '0 8px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.07)'
+            : '0 8px 40px rgba(0,0,0,0.12)',
+          border: cardBorder,
         }}
         bordered={false}
       >
+        {/* Logo / Título */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <Title level={2} style={{ margin: 0, color: 'var(--primary-color)' }}>
-            Bienvenido a Mi Bodeguita
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            width: 56, height: 56, borderRadius: 14,
+            background: 'linear-gradient(135deg, #1677ff, #00b4ff)',
+            marginBottom: 16,
+            boxShadow: '0 4px 18px rgba(22,119,255,0.45)',
+          }}>
+            <LockOutlined style={{ fontSize: 26, color: '#fff' }} />
+          </div>
+          <Title level={2} style={{
+            margin: 0, fontSize: 22, fontWeight: 700,
+            color: isDark ? '#fff' : '#141414',
+          }}>
+            Bienvenido a NegocIA
           </Title>
-          <Text type="secondary">Ingresa tus credenciales para continuar</Text>
+          <Text style={{ color: isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)', fontSize: 13 }}>
+            Ingresa tus credenciales para continuar
+          </Text>
         </div>
 
+        {/* Error de login */}
         {error && (
           <Alert
-            message="Error"
+            message="Credenciales incorrectas"
             description={error}
             type="error"
             showIcon
-            style={{ marginBottom: 24 }}
+            closable
+            onClose={() => setError(null)}
+            style={{ marginBottom: 24, borderRadius: 10 }}
           />
         )}
 
         <Form
           name="login_form"
-          initialValues={{ remember: true }}
+          initialValues={{ remember: false }}
           onFinish={onFinish}
           size="large"
           layout="vertical"
         >
+          {/* Usuario */}
           <Form.Item
             name="username"
-            rules={[{ required: true, message: 'Por favor ingresa tu usuario!' }]}
+            rules={[{ required: true, message: 'Ingresa tu nombre de usuario' }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Usuario" />
+            <Input
+              prefix={<UserOutlined style={{ color: '#1677ff' }} />}
+              placeholder="Usuario"
+              autoComplete="username"
+              style={{ borderRadius: 10, height: 46 }}
+            />
           </Form.Item>
 
+          {/* Contraseña */}
           <Form.Item
             name="password"
-            rules={[{ required: true, message: 'Por favor ingresa tu contraseña!' }]}
+            rules={[{ required: true, message: 'Ingresa tu contraseña' }]}
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="Contraseña" />
+            <Input.Password
+              prefix={<LockOutlined style={{ color: '#1677ff' }} />}
+              placeholder="Contraseña"
+              autoComplete="current-password"
+              style={{ borderRadius: 10, height: 46 }}
+            />
           </Form.Item>
 
-          <Form.Item>
+          {/* Remember + Forgot */}
+          <Form.Item style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Form.Item name="remember" valuePropName="checked" noStyle>
+                <Checkbox style={{ color: isDark ? 'rgba(255,255,255,0.65)' : undefined }}>
+                  Mantener sesión iniciada
+                </Checkbox>
+              </Form.Item>
+              <span
+                onClick={() => {
+                  setForgotOpen(true);
+                  setForgotSuccess(null);
+                  setForgotError(null);
+                  forgotForm.resetFields();
+                }}
+                style={{ fontSize: 13, color: '#1677ff', cursor: 'pointer', userSelect: 'none' }}
+              >
+                ¿Olvidaste tu contraseña?
+              </span>
+            </div>
+          </Form.Item>
+
+          {/* Botón Entrar */}
+          <Form.Item style={{ marginBottom: 0 }}>
             <Button
               type="primary"
               htmlType="submit"
               loading={loading}
-              style={{ width: '100%', marginTop: 8 }}
+              style={{
+                width: '100%',
+                height: 46,
+                borderRadius: 10,
+                fontWeight: 600,
+                fontSize: 15,
+                background: 'linear-gradient(135deg, #1677ff, #0958d9)',
+                border: 'none',
+                boxShadow: '0 4px 14px rgba(22,119,255,0.4)',
+              }}
             >
               Entrar
             </Button>
           </Form.Item>
         </Form>
+
+        <Divider style={{ margin: '22px 0 12px', opacity: 0.2 }} />
+        <Text style={{ fontSize: 12, display: 'block', textAlign: 'center', color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)' }}>
+          Accede desde el subdominio de tu empresa · NegocIA SaaS
+        </Text>
       </Card>
+
+      {/* ── Modal: Olvidé mi contraseña ─────────────────────────────── */}
+      <Modal
+        open={forgotOpen}
+        onCancel={() => setForgotOpen(false)}
+        footer={null}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <KeyOutlined style={{ color: '#1677ff' }} />
+            Restablecer contraseña
+          </div>
+        }
+        centered
+        destroyOnClose
+      >
+        <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+          Ingresa el email asociado a tu cuenta. Recibirás un enlace para restablecer tu contraseña.
+        </Text>
+
+        {forgotSuccess && (
+          <Alert
+            message="Instrucciones enviadas"
+            description={<span style={{ whiteSpace: 'pre-wrap' }}>{forgotSuccess}</span>}
+            type="success"
+            showIcon
+            style={{ marginBottom: 16, borderRadius: 8 }}
+          />
+        )}
+        {forgotError && (
+          <Alert
+            message="Error"
+            description={forgotError}
+            type="error"
+            showIcon
+            style={{ marginBottom: 16, borderRadius: 8 }}
+          />
+        )}
+
+        {!forgotSuccess && (
+          <Form form={forgotForm} layout="vertical" onFinish={onForgotSubmit} size="large">
+            <Form.Item
+              name="email"
+              rules={[
+                { required: true, message: 'Ingresa tu email' },
+                { type: 'email', message: 'Ingresa un email válido' },
+              ]}
+            >
+              <Input
+                prefix={<MailOutlined style={{ color: '#1677ff' }} />}
+                placeholder="tu@email.com"
+                autoComplete="email"
+                style={{ borderRadius: 8 }}
+              />
+            </Form.Item>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={forgotLoading}
+              style={{ width: '100%', height: 42, borderRadius: 8 }}
+            >
+              Enviar instrucciones
+            </Button>
+          </Form>
+        )}
+
+        {forgotSuccess && (
+          <Button
+            block
+            onClick={() => setForgotOpen(false)}
+            style={{ marginTop: 8, borderRadius: 8 }}
+          >
+            Cerrar
+          </Button>
+        )}
+      </Modal>
     </Layout>
   );
 };

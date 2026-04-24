@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ventasAPI } from '../../services/api';
+import { ventasAPI, almacenesAPI } from '../../services/api';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import SearchableSelect from '../SearchableSelect';
 
@@ -20,12 +20,21 @@ function VentaFormModal({
     numero_comprobante: '',
     numero_comprobante_simple: '',
     estado: 'BORRADOR',
+    almacen: '',
     detalle: [],
     descuento: 0,
     impuesto: 0,
     notas: ''
   });
 
+    const [almacenes, setAlmacenes] = useState([]);
+
+  useEffect(() => {
+    const fetchAlmacenes = async () => {
+      try { const res = await almacenesAPI.getAll(); setAlmacenes(res.data.results || res.data); } catch (error) { console.error('Error fetching almacenes', error); }
+    };
+    fetchAlmacenes();
+  }, []);
   const [errors, setErrors] = useState({});
   const [clienteAlias, setClienteAlias] = useState('');
   const [calcularIgv, setCalcularIgv] = useState(false);
@@ -72,6 +81,7 @@ function VentaFormModal({
           numero_comprobante: initialData.numero_comprobante || '',
           numero_comprobante_simple: initialData.numero_comprobante_simple || '',
           estado: initialData.estado || 'BORRADOR',
+          almacen: initialData.almacen || '',
           detalle: detalles,
           descuento: Number(initialData.descuento || 0),
           impuesto: Number(initialData.impuesto || 0),
@@ -96,6 +106,7 @@ function VentaFormModal({
           numero_comprobante: '',
           numero_comprobante_simple: '',
           estado: 'BORRADOR',
+    almacen: '',
           detalle: [],
           descuento: 0,
           impuesto: 0,
@@ -317,6 +328,16 @@ function VentaFormModal({
               <div className="form-group">
                 <label className="form-label">Nro Comprobante</label>
                 <input type="text" name="numero_comprobante" className="form-input" value={formData.tipo_comprobante === 'SIMPLE' ? formData.numero_comprobante_simple : formData.numero_comprobante} readOnly style={{ background: 'var(--bg-input)', opacity: 0.8 }} />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Almacén/Caja</label>
+                <select name="almacen" className="form-input" value={formData.almacen || ''} onChange={handleChange}>
+                  <option value="">General (Sin Almacén)</option>
+                  {almacenes.map(a => (
+                    <option key={a.id} value={a.id}>{a.nombre}</option>
+                  ))}
+                </select>
               </div>
               <div className="form-group">
                 <label className="form-label">Estado</label>

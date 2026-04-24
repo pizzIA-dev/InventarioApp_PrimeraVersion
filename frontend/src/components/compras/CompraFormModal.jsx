@@ -197,6 +197,16 @@ const CompraFormModal = ({
             </div>
 
             <div className="grid grid-3">
+              
+              <div className="form-group">
+                <label className="form-label">Almacén/Caja</label>
+                <select name="almacen" className="form-input" value={formData.almacen || ''} onChange={handleChange}>
+                  <option value="">General (Sin Almacén)</option>
+                  {almacenes.map(a => (
+                    <option key={a.id} value={a.id}>{a.nombre}</option>
+                  ))}
+                </select>
+              </div>
               <div className="form-group">
                 <label className="form-label">Estado</label>
                 <select name="estado" className="form-input" value={formData.estado} onChange={handleChange}>

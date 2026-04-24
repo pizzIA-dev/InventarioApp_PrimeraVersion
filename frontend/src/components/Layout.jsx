@@ -5,6 +5,9 @@ import { AuthContext } from '../context/AuthContext';
 import { Modal } from 'antd';
 import { 
   DashboardOutlined, 
+  SafetyCertificateOutlined,
+  InboxOutlined,
+  CloudServerOutlined,
   ShoppingOutlined, 
   TeamOutlined, 
   UsergroupAddOutlined,
@@ -36,6 +39,11 @@ const menuItems = [
   { path: '/transacciones', icon: <SwapOutlined />, label: 'Otros Movimientos' },
   { path: '/fiados', icon: <CreditCardOutlined />, label: 'Fiados' },
   { path: '/reportes', icon: <BarChartOutlined />, label: 'Reportes' },
+
+  { path: '/usuarios', icon: <UserOutlined />, label: 'Colaboradores' },
+  { path: '/roles', icon: <SafetyCertificateOutlined />, label: 'Roles Corporativos' },
+  { path: '/almacenes', icon: <InboxOutlined />, label: 'Almacenes y Cajas' },
+  { path: '/backups', icon: <CloudServerOutlined />, label: 'Backups' },
 ];
 
 function Layout() {
@@ -69,7 +77,12 @@ function Layout() {
   // Menu extra solo para Gerente
   const gerenteMenuItems = [
     { path: '/usuarios', icon: <UserOutlined />, label: 'Gestión de Usuarios' },
-  ];
+  
+  { path: '/usuarios', icon: <UserOutlined />, label: 'Colaboradores' },
+  { path: '/roles', icon: <SafetyCertificateOutlined />, label: 'Roles Corporativos' },
+  { path: '/almacenes', icon: <InboxOutlined />, label: 'Almacenes y Cajas' },
+  { path: '/backups', icon: <CloudServerOutlined />, label: 'Backups' },
+];
 
   // Close mobile menu when route changes
   useEffect(() => {

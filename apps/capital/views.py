@@ -14,9 +14,10 @@ from .serializers import (
     CapitalSerializer, CapitalCreateSerializer, CapitalUpdateSerializer,
     MovimientoCapitalSerializer, format_historial_value
 )
+from apps.core.mixins import SoloGerenteDestroyMixin
 
 
-class TipoCapitalViewSet(viewsets.ModelViewSet):
+class TipoCapitalViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     queryset = TipoCapital.objects.all()
     serializer_class = TipoCapitalSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -28,7 +29,7 @@ class TipoCapitalViewSet(viewsets.ModelViewSet):
         instance.save()
 
 
-class CapitalViewSet(viewsets.ModelViewSet):
+class CapitalViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     queryset = Capital.objects.all().select_related('tipo')
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre', 'descripcion', 'banco', 'cuenta']

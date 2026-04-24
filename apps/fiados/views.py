@@ -7,8 +7,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import ClienteFiado, Fiado, HistorialFiado
 from .serializers import ClienteFiadoSerializer, FiadoSerializer, FiadoCreateSerializer
+from apps.core.mixins import SoloGerenteDestroyMixin
 
-class ClienteFiadoViewSet(viewsets.ModelViewSet):
+class ClienteFiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     queryset = ClienteFiado.objects.all()
     serializer_class = ClienteFiadoSerializer
 
@@ -250,7 +251,7 @@ class ClienteFiadoViewSet(viewsets.ModelViewSet):
         )
 
 
-class FiadoViewSet(viewsets.ModelViewSet):
+class FiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     queryset = Fiado.objects.all()
     
     def get_serializer_class(self):

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ventasAPI } from '../../services/api';
+import { ventasAPI, almacenesAPI } from '../../services/api';
 import SearchableSelect from '../SearchableSelect';
 
 function ServicioVentaFormModal({ 
@@ -28,6 +28,14 @@ function ServicioVentaFormModal({
     notas: ''
   });
 
+    const [almacenes, setAlmacenes] = useState([]);
+
+  useEffect(() => {
+    const fetchAlmacenes = async () => {
+      try { const res = await almacenesAPI.getAll(); setAlmacenes(res.data.results || res.data); } catch (error) { console.error('Error fetching almacenes', error); }
+    };
+    fetchAlmacenes();
+  }, []);
   const [errors, setErrors] = useState({});
   const [clienteAlias, setClienteAlias] = useState('');
   const [calcularIgv, setCalcularIgv] = useState(false);
@@ -316,7 +324,17 @@ function ServicioVentaFormModal({
               </div>
             </div>
             <div className="grid grid-2">
-               <div className="form-group">
+               
+              <div className="form-group">
+                <label className="form-label">Almacén/Caja</label>
+                <select name="almacen" className="form-input" value={formData.almacen || ''} onChange={handleChange}>
+                  <option value="">General (Sin Almacén)</option>
+                  {almacenes.map(a => (
+                    <option key={a.id} value={a.id}>{a.nombre}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
                 <label className="form-label">Estado</label>
                   <select
                     name="estado"

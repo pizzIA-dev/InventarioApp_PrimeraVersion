@@ -3,6 +3,7 @@ from apps.core.export_utils import (
     get_period_range, get_period_label, create_excel_response,
     create_multi_sheet_excel_response
 )
+from apps.core.constants import RAZON_CANCELACION_SET
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -17,9 +18,10 @@ from .serializers import (
     MovimientoEstadoVentaServicioSerializer,
     MovimientoServicioSerializer
 )
+from apps.core.mixins import SoloGerenteDestroyMixin
 
 
-class CategoriaServicioViewSet(viewsets.ModelViewSet):
+class CategoriaServicioViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     queryset = CategoriaServicio.objects.all()
     serializer_class = CategoriaServicioSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
@@ -31,7 +33,7 @@ class CategoriaServicioViewSet(viewsets.ModelViewSet):
         instance.save()
 
 
-class ServicioViewSet(viewsets.ModelViewSet):
+class ServicioViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     queryset = Servicio.objects.all()
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['nombre', 'descripcion']
@@ -253,7 +255,7 @@ class ServicioViewSet(viewsets.ModelViewSet):
         )
 
 
-class VentaServicioViewSet(viewsets.ModelViewSet):
+class VentaServicioViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     queryset = VentaServicio.objects.all().select_related('servicio', 'cliente')
     filter_backends = [filters.OrderingFilter, DjangoFilterBackend]
     filterset_fields = ['estado', 'servicio', 'cliente']
@@ -307,11 +309,39 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def cancelar(self, request, pk=None):
-        """Cancela un servicio"""
+        """Cancela un servicio. Requiere: razon_tag (obligatorio), razon_detalle (opcional)."""
         venta_servicio = self.get_object()
+
+        if venta_servicio.estado == 'CANCELADO':
+            return Response(
+                {'error': 'Este servicio ya se encuentra cancelado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        razon_tag = request.data.get('razon_tag', '').strip()
+        razon_detalle = request.data.get('razon_detalle', '').strip()
+        RAZON_VALIDA = RAZON_CANCELACION_SET
+        if not razon_tag or razon_tag not in RAZON_VALIDA:
+            return Response(
+                {'error': 'Debes indicar una razón de cancelación.', 'opciones': list(RAZON_VALIDA)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        estado_anterior = venta_servicio.estado
         venta_servicio.estado = 'CANCELADO'
         venta_servicio.save()
-        
+
+        # Registrar motivo en historial (inmutable)
+        from apps.servicios.models import MovimientoEstadoVentaServicio
+        MovimientoEstadoVentaServicio.objects.create(
+            venta_servicio=venta_servicio,
+            estado_anterior=estado_anterior,
+            estado_nuevo='CANCELADO',
+            notas=razon_detalle or razon_tag,
+            razon_tag=razon_tag,
+            razon_detalle=razon_detalle,
+        )
+
         serializer = self.get_serializer(venta_servicio)
         return Response(serializer.data)
 
@@ -611,3 +641,131 @@ class VentaServicioViewSet(viewsets.ModelViewSet):
             filename=f'historial_global_servicios_{periodo}.xlsx',
             sheets_data=sheets_data
         )
+
+
+
+from .models import CompraServicio, MovimientoEstadoCompraServicio
+from .serializers import CompraServicioSerializer, CompraServicioCreateSerializer, MovimientoEstadoCompraServicioSerializer
+
+class CompraServicioViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
+    queryset = CompraServicio.objects.all().select_related('servicio', 'proveedor')
+    filter_backends = [filters.OrderingFilter, DjangoFilterBackend]
+    filterset_fields = ['servicio', 'proveedor', 'estado']
+    ordering_fields = ['creado_en', 'fecha_programada', 'total']
+    ordering = ['-creado_en']
+
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return CompraServicioCreateSerializer
+        return CompraServicioSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if getattr(self, 'swagger_fake_view', False):
+            return queryset.none()
+        if self.request.user.is_authenticated:
+            return queryset.filter(empresa=self.request.user.perfil.empresa)
+        return queryset.none()
+
+    def perform_create(self, serializer):
+        serializer.save(empresa=self.request.user.perfil.empresa)
+
+    @action(detail=True, methods=['post'])
+    def iniciar(self, request, pk=None):
+        compra = self.get_object()
+        if compra.estado != 'PENDIENTE':
+            return Response(
+                {"error": "Solo se pueden iniciar compras pendientes"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        compra.iniciar()
+        return Response({'status': 'Compra de servicio en progreso'})
+
+    @action(detail=True, methods=['post'])
+    def completar(self, request, pk=None):
+        compra = self.get_object()
+        if compra.estado == 'CANCELADO':
+            return Response(
+                {"error": "No se puede completar una compra cancelada"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        compra.completar()
+        return Response({'status': 'Compra de servicio completada'})
+
+    @action(detail=True, methods=['post'])
+    def cancelar(self, request, pk=None):
+        compra = self.get_object()
+        if compra.estado in ['TERMINADO', 'CANCELADO']:
+            return Response(
+                {"error": "No se puede cancelar en este estado"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        razon_tag = request.data.get('razon_tag')
+        razon_detalle = request.data.get('razon_detalle', '')
+        
+        if not razon_tag or razon_tag not in RAZON_CANCELACION_SET:
+            return Response(
+                {"error": f"razon_tag es requerido y debe ser uno de: {', '.join(RAZON_CANCELACION_SET)}"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        old_estado = compra.estado
+        compra.estado = 'CANCELADO'
+        compra.save()
+        
+        MovimientoEstadoCompraServicio.objects.create(
+            compra_servicio=compra,
+            estado_anterior=old_estado,
+            estado_nuevo='CANCELADO',
+            notas=f'Compra cancelada. Razón: {razon_tag}. Detalle: {razon_detalle}',
+            razon_tag=razon_tag,
+            razon_detalle=razon_detalle
+        )
+        
+        return Response({'status': 'Compra cancelada'})
+    @action(detail=False, methods=['get'])
+    def exportar(self, request):
+        """Exportar compras de servicios a Excel con filtro de período"""
+        from django.utils import timezone
+        import datetime
+        from apps.core.export_utils import create_excel_response
+        
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        fecha_inicio = request.query_params.get('fecha_inicio')
+        fecha_fin = request.query_params.get('fecha_fin')
+        
+        if fecha_inicio and fecha_fin:
+            try:
+                start_date = datetime.datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
+                end_date = datetime.datetime.strptime(fecha_fin, '%Y-%m-%d').date()
+                queryset = queryset.filter(
+                    creado_en__date__gte=start_date,
+                    creado_en__date__lte=end_date
+                )
+            except ValueError:
+                pass
+                
+        data_rows = []
+        for c in queryset:
+            data_rows.append([
+                c.creado_en.strftime('%Y-%m-%d %H:%M'),
+                str(c.numero_comprobante or c.id),
+                str(c.servicio_nombre or 'Servicio sin nombre'),
+                str(c.proveedor_nombre or 'Proveedor General'),
+                str(c.almacen.nombre if getattr(c, 'almacen', None) else 'General'),
+                c.estado,
+                float(c.precio or 0),
+                float(c.descuento or 0),
+                float(c.impuesto or 0),
+                float(c.total or 0)
+            ])
+            
+        return create_excel_response(
+            filename='compras_servicios.xlsx',
+            headers=['Fecha', 'Comprobante', 'Servicio', 'Proveedor', 'Almacén', 'Estado', 'Precio Base', 'Descuento', 'Impuesto', 'Total (S/.)'],
+            data_rows=data_rows,
+            sheet_name='Compras de Servicios'
+        )
+

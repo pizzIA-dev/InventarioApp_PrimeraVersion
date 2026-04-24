@@ -33,6 +33,7 @@ class DetalleCompraCreateSerializer(serializers.ModelSerializer):
 
 class CompraSerializer(serializers.ModelSerializer):
     proveedor_nombre = serializers.CharField(source='proveedor.nombre', read_only=True)
+    almacen_nombre = serializers.CharField(source='almacen.nombre', read_only=True)
     detalle = DetalleCompraSerializer(source='detallecompra_set', many=True, read_only=True)
     productos_resumen = serializers.SerializerMethodField()
     usuario_nombre = serializers.SerializerMethodField()
@@ -43,7 +44,7 @@ class CompraSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'proveedor', 'proveedor_nombre', 'tipo_compra',
             'numero_comprobante', 'tipo_comprobante', 'estado',
-            'subtotal', 'impuesto', 'total', 'notas',
+            'subtotal', 'impuesto', 'total', 'notas', 'almacen',
             'creado_en', 'actualizado_en', 'detalle', 'comprobante_archivo',
             'productos_resumen', 'usuario_nombre', 'usuario_rol'
         ]

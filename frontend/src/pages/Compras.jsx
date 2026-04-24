@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { comprasAPI, proveedoresAPI, productosAPI } from '../services/api';
+import { comprasAPI, proveedoresAPI, productosAPI, comprasServiciosAPI, serviciosAPI, almacenesAPI } from '../services/api';
 import { 
   PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined,
   OrderedListOutlined, EyeOutlined, DownloadOutlined, HistoryOutlined
@@ -761,7 +761,8 @@ function Compras() {
                 <th>Proveedor</th>
                 <th style={{ textAlign: 'center' }}>Productos</th>
                 <th style={{ width: '100px', textAlign: 'center' }}>Archivo</th>
-                <th>Estado</th>
+                <th>Almacén</th>
+                  <th>Estado</th>
                 <th>Total</th>
                 <th style={{ width: '100px' }}>Acciones</th>
               </tr>

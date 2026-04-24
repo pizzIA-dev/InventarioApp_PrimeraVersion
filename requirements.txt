@@ -1,9 +1,37 @@
+# ─── Framework ───────────────────────────────────────────────────
 Django==5.0.6
 djangorestframework==3.15.1
-django-cors-headers==4.3.1
-python-decouple==3.8
-django-filter==24.2
-psycopg2-binary==2.9.9
-dj-database-url==2.2.0
+
+# ─── Servidor de producción ───────────────────────────────────────
 gunicorn==22.0.0
-whitenoise==6.7.0
+whitenoise==6.7.0       # Sirve archivos estáticos en producción sin nginx
+
+# ─── Base de datos ────────────────────────────────────────────────
+psycopg2-binary>=2.9.0  # PostgreSQL driver
+dj-database-url==2.2.0  # DATABASE_URL parsing (Railway, Render, Heroku)
+
+# ─── Multi-tenant SaaS ───────────────────────────────────────────
+django-tenants>=3.5.0
+
+# ─── Auth y seguridad ─────────────────────────────────────────────
+djangorestframework-simplejwt>=5.3.0
+python-decouple==3.8    # Variables de entorno desde .env
+
+# ─── CORS ─────────────────────────────────────────────────────────
+django-cors-headers==4.3.1
+
+# ─── Filtros y paginación ─────────────────────────────────────────
+django-filter==24.2
+
+# ─── Archivos e imágenes ──────────────────────────────────────────
+Pillow>=10.0.0
+cloudinary>=1.41.0
+django-cloudinary-storage>=0.3.0
+
+# ─── Exportación de datos ─────────────────────────────────────────
+openpyxl>=3.1.0         # Export a Excel
+
+# ─── Email (producción) ───────────────────────────────────────────
+# No requiere dependencia extra: Django incluye smtp backend nativo
+# Para envío con SendGrid API (alternativa más robusta al SMTP):
+# sendgrid>=6.11.0

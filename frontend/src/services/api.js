@@ -1,7 +1,13 @@
 import axios from 'axios';
 
+// Multi-tenant: construir la URL del API desde el hostname actual del navegador
+// Ej: emprendedor.localhost:5173 → emprendedor.localhost:8000/api
+const _host    = window.location.hostname;
+const _port    = import.meta.env.VITE_API_PORT || '8000';
+const _apiBase = import.meta.env.VITE_API_URL  || `http://${_host}:${_port}`;
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api',
+  baseURL: `${_apiBase}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -106,7 +112,18 @@ export const ventasAPI = {
   getNextNumber: (tipo) => api.get('/ventas/proximo_numero/', { params: { tipo } }),
 };
 
-// Compras
+// Compras de Servicios
+export const comprasServiciosAPI = {
+  getAll: (params) => api.get('/servicios/compras/', { params }),
+  getById: (id) => api.get(`/servicios/compras/${id}/`),
+  create: (data) => api.post('/servicios/compras/', data),
+  update: (id, data) => api.patch(`/servicios/compras/${id}/`, data),
+  delete: (id) => api.delete(`/servicios/compras/${id}/`),
+  completar: (id) => api.post(`/servicios/compras/${id}/completar/`),
+  iniciar: (id) => api.post(`/servicios/compras/${id}/iniciar/`),
+  exportar: (params) => api.get('/servicios/compras/exportar/', { params, responseType: 'blob' }),
+};
+
 export const comprasAPI = {
   getAll: (params) => api.get('/compras/', { params }),
   getById: (id) => api.get(`/compras/${id}/`),
@@ -232,12 +249,40 @@ export const fiadosAPI = {
   exportarHistorialGlobal: (params) => api.get('/fiados/fiados/exportar_historial_global/', { params, responseType: 'blob' }),
 };
 
+
 // Gestión de Usuarios (solo Gerente)
 export const usuariosAPI = {
   listar: () => api.get('/auth/usuarios/'),
   crear: (data) => api.post('/auth/usuarios/crear/', data),
   toggle: (id) => api.patch(`/auth/usuarios/${id}/toggle/`),
   cambiarPassword: (id, data) => api.put(`/auth/usuarios/${id}/password/`, data),
+  asignarAlmacen: (id, almacenId) => api.patch(`/auth/usuarios/${id}/asignar-almacen/`, { almacen_id: almacenId }),
+};
+
+export const rolesAPI = {
+  listar: () => api.get('/auth/roles/'),
+  crear: (data) => api.post('/auth/roles/', data),
+  actualizar: (id, data) => api.put(`/auth/roles/${id}/`, data),
+  eliminar: (id) => api.delete(`/auth/roles/${id}/`),
+};
+
+export const almacenesAPI = {
+  listar: (params) => api.get('/productos/almacenes/', { params }),
+  getById: (id) => api.get(`/productos/almacenes/${id}/`),
+  crear: (data) => api.post('/productos/almacenes/', data),
+  actualizar: (id, data) => api.patch(`/productos/almacenes/${id}/`, data),
+  desactivar: (id) => api.delete(`/productos/almacenes/${id}/`),
+  miAlmacen: () => api.get('/productos/almacenes/mi-almacen/'),
+  getStockAlmacen: (params) => api.get('/productos/stock-almacen/', { params }),
+  getTraslados: (params) => api.get('/productos/traslados/', { params }),
+  crearTraslado: (data) => api.post('/productos/traslados/', data),
+};
+
+export const backupsAPI = {
+  generar: () => api.post('/backups/generar/'),
+  listar: () => api.get('/backups/listar/'),
+  descargar: (filename) => api.get(`/backups/descargar/?filename=${filename}`, { responseType: 'blob' }),
+  restaurar: (data) => api.post('/backups/restaurar/', data),
 };
 
 export default api;

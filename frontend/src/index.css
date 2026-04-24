@@ -1029,3 +1029,11 @@ td {
 [data-theme="dark"] .search-box {
   background: var(--bg-table-header);
 }
+
+[data-theme="dark"] .btn-primary {
+  color: #000 !important;
+  font-weight: bold;
+}
+[data-theme="dark"] .tab-btn.active {
+  color: #000 !important;
+}

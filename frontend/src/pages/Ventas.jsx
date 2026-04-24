@@ -1124,7 +1124,8 @@ function Ventas() {
                 <th style={{ width: '120px' }}>Comprobante</th>
                 <th>Cliente</th>
                 <th style={{ textAlign: 'center' }}>Producto</th>
-                <th>Estado</th>
+                <th>Almacén</th>
+                  <th>Estado</th>
                 <th style={{ textAlign: 'right' }}>Total</th>
                 <th style={{ width: '120px' }}>Acciones</th>
               </tr>
@@ -1211,6 +1212,7 @@ function Ventas() {
                   <th>Servicio</th>
                   <th>Cliente</th>
                   <th>F. Programada</th>
+                  <th>Almacén</th>
                   <th>Estado</th>
                   <th style={{ textAlign: 'right' }}>Total</th>
                   <th style={{ width: '120px' }}>Acciones</th>

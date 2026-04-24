@@ -4,6 +4,7 @@ from apps.core.export_utils import (
     get_period_range, get_period_label, create_excel_response,
     create_multi_sheet_excel_response
 )
+from apps.core.constants import RAZON_CANCELACION_SET
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -16,9 +17,10 @@ from .serializers import (
     DetalleCompraSerializer, MovimientoEstadoCompraSerializer,
     KardexProductoCompraSerializer
 )
+from apps.core.mixins import SoloGerenteDestroyMixin
 
 
-class CompraViewSet(viewsets.ModelViewSet):
+class CompraViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     queryset = Compra.objects.all().select_related('proveedor').prefetch_related('detallecompra_set', 'detallecompra_set__producto')
     filter_backends = [filters.OrderingFilter, DjangoFilterBackend]
     filterset_fields = ['estado', 'tipo_compra', 'proveedor']
@@ -62,11 +64,28 @@ class CompraViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def cancelar(self, request, pk=None):
-        """Cancela una compra y revierte el stock si estaba confirmada"""
+        """Cancela una compra y revierte el stock si estaba confirmada.
+        Requiere: razon_tag (obligatorio), razon_detalle (opcional).
+        """
         compra = self.get_object()
+
+        if compra.estado == 'CANCELADA':
+            return Response(
+                {'error': 'Esta compra ya se encuentra cancelada.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        razon_tag = request.data.get('razon_tag', '').strip()
+        razon_detalle = request.data.get('razon_detalle', '').strip()
+        RAZON_VALIDA = RAZON_CANCELACION_SET
+        if not razon_tag or razon_tag not in RAZON_VALIDA:
+            return Response(
+                {'error': 'Debes indicar una razón de cancelación.', 'opciones': list(RAZON_VALIDA)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         if compra.estado == 'CONFIRMADA':
             for detalle in compra.detallecompra_set.all():
-                # Revertir stock (Salida por devolución)
                 MovimientoStock.objects.create(
                     producto=detalle.producto,
                     tipo='SALIDA',
@@ -80,9 +99,22 @@ class CompraViewSet(viewsets.ModelViewSet):
                     precio_venta_nuevo=detalle.producto.precio_venta,
                     referencia=f"Cancelación Compra {compra.numero_comprobante or compra.id}"
                 )
+
+        estado_anterior = compra.estado
         compra.estado = 'CANCELADA'
         compra.save()
-        
+
+        # Registrar motivo en historial (inmutable)
+        from .models import MovimientoEstadoCompra
+        MovimientoEstadoCompra.objects.create(
+            compra=compra,
+            estado_anterior=estado_anterior,
+            estado_nuevo='CANCELADA',
+            notas=razon_detalle or razon_tag,
+            razon_tag=razon_tag,
+            razon_detalle=razon_detalle,
+        )
+
         serializer = self.get_serializer(compra)
         return Response(serializer.data)
 

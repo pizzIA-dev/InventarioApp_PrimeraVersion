@@ -17,20 +17,22 @@ except ImportError:
     OPENPYXL_AVAILABLE = False
 
 
-# ─── Header color (dark green/teal matching the app's color palette) ───────────
-HEADER_FILL = "1a5276"
-HEADER_FONT_COLOR = "FFFFFF"
-ALT_ROW_FILL = "eaf4fb"
+# ─── Color palette ────────────────────────────────────────────────────────────
+HEADER_FILL_COLOR  = "1A5276"   # Dark navy-blue
+HEADER_FONT_COLOR  = "FFFFFF"
+ALT_ROW_FILL_COLOR = "EAF4FB"   # Light blue-grey for alternating rows
+# NOTE: No emojis in cell values — openpyxl can corrupt .xlsx on some platforms.
 
+
+# ─── Period helpers ───────────────────────────────────────────────────────────
 
 def get_period_range(periodo: str, anio: int | None = None):
     """
     Returns (date_from, date_to) for the given period string.
-    periodo: 'trimestre1', 'trimestre2', 'trimestre3', 'trimestre4',
-             'semestre1', 'semestre2', 'anual', 'todo'
+    periodo: 'trimestre1' .. 'trimestre4', 'semestre1', 'semestre2', 'anual', 'todo'
+    Returns None for 'todo'.
     """
     year = anio or timezone.now().year
-
     ranges = {
         'trimestre1': (date(year, 1, 1),  date(year, 3, 31)),
         'trimestre2': (date(year, 4, 1),  date(year, 6, 30)),
@@ -40,209 +42,190 @@ def get_period_range(periodo: str, anio: int | None = None):
         'semestre2':  (date(year, 7, 1),  date(year, 12, 31)),
         'anual':      (date(year, 1, 1),  date(year, 12, 31)),
     }
-    return ranges.get(periodo)  # Returns None when period is 'todo'
+    return ranges.get(periodo)
 
 
 def get_period_label(periodo: str, anio: int | None = None) -> str:
     year = anio or timezone.now().year
     labels = {
-        'trimestre1': f"T1 {year} (Ene–Mar)",
-        'trimestre2': f"T2 {year} (Abr–Jun)",
-        'trimestre3': f"T3 {year} (Jul–Sep)",
-        'trimestre4': f"T4 {year} (Oct–Dic)",
-        'semestre1':  f"1er Semestre {year} (Ene–Jun)",
-        'semestre2':  f"2do Semestre {year} (Jul–Dic)",
-        'anual':      f"Año {year} (Completo)",
+        'trimestre1': f"T1 {year} (Ene-Mar)",
+        'trimestre2': f"T2 {year} (Abr-Jun)",
+        'trimestre3': f"T3 {year} (Jul-Sep)",
+        'trimestre4': f"T4 {year} (Oct-Dic)",
+        'semestre1':  f"1er Semestre {year} (Ene-Jun)",
+        'semestre2':  f"2do Semestre {year} (Jul-Dic)",
+        'anual':      f"Anio {year} (Completo)",
         'todo':       "Historial Completo",
     }
     return labels.get(periodo, "Historial")
 
 
-def create_excel_response(filename: str, sheet_name: str, headers: list,
-                          rows: list, title: str, period_label: str) -> HttpResponse:
+# ─── Internal helpers ─────────────────────────────────────────────────────────
+
+def _make_styles():
+    """Returns a dict of reusable openpyxl style objects."""
+    return dict(
+        header_fill   = PatternFill("solid", fgColor=HEADER_FILL_COLOR),
+        alt_fill      = PatternFill("solid", fgColor=ALT_ROW_FILL_COLOR),
+        # PatternFill(fill_type=None) is the only safe way to have 'no fill'
+        # without generating malformed XML in openpyxl.
+        no_fill       = PatternFill(fill_type=None),
+        header_font   = Font(bold=True, color=HEADER_FONT_COLOR, size=11),
+        title_font    = Font(bold=True, size=14),
+        subtitle_font = Font(italic=True, size=10, color="555555"),
+        center        = Alignment(horizontal="center", vertical="center"),
+        left_vc       = Alignment(vertical="center"),
+        border        = Border(
+            left   = Side(style="thin", color="CCCCCC"),
+            right  = Side(style="thin", color="CCCCCC"),
+            top    = Side(style="thin", color="CCCCCC"),
+            bottom = Side(style="thin", color="CCCCCC"),
+        ),
+    )
+
+
+def _write_sheet(ws, headers: list, rows: list, title: str, period_label: str, styles: dict):
     """
-    Creates an HttpResponse containing a styled .xlsx workbook.
-
-    - filename: e.g. 'productos.xlsx'
-    - sheet_name: e.g. 'Productos'
-    - headers: list of column header strings
-    - rows: list of tuples / lists with row data
-    - title: big title shown in row 1
-    - period_label: human-readable period string shown in row 2
+    Writes a fully styled sheet into an existing openpyxl Worksheet.
+    Layout:
+      Row 1  – merged title (plain text, NO emojis)
+      Row 2  – merged subtitle: period + generated timestamp
+      Row 3  – small visual separator
+      Row 4  – column header row  (frozen here)
+      Row 5+ – data rows with alternating fill
     """
-    if not OPENPYXL_AVAILABLE:
-        # Fallback: plain CSV
-        import csv
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="{filename.replace(".xlsx", ".csv")}"'
-        response.write(u'\ufeff'.encode('utf8'))
-        writer = csv.writer(response)
-        writer.writerow(headers)
-        for row in rows:
-            writer.writerow(row)
-        return response
+    n_cols = max(len(headers), 1)
 
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = sheet_name
+    # Row 1 – Title
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=n_cols)
+    t = ws.cell(row=1, column=1, value=title)
+    t.font      = styles['title_font']
+    t.alignment = styles['center']
 
-    header_fill    = PatternFill("solid", fgColor=HEADER_FILL)
-    alt_fill       = PatternFill("solid", fgColor=ALT_ROW_FILL)
-    header_font    = Font(bold=True, color=HEADER_FONT_COLOR, size=11)
-    title_font     = Font(bold=True, size=14)
-    subtitle_font  = Font(italic=True, size=10, color="555555")
-    center         = Alignment(horizontal="center", vertical="center")
-    thin           = Side(style="thin", color="CCCCCC")
-    border         = Border(left=thin, right=thin, top=thin, bottom=thin)
+    # Row 2 – Subtitle
+    ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=n_cols)
+    s = ws.cell(
+        row=2, column=1,
+        value=f"Periodo: {period_label}  |  Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    )
+    s.font      = styles['subtitle_font']
+    s.alignment = styles['center']
 
-    # ── Row 1: Title ───────────────────────────────────────────────────────────
-    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers))
-    title_cell = ws.cell(row=1, column=1, value=f"📊 {title}")
-    title_cell.font = title_font
-    title_cell.alignment = center
-
-    # ── Row 2: Period label ────────────────────────────────────────────────────
-    ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=len(headers))
-    sub_cell = ws.cell(row=2, column=1, value=f"Período: {period_label}  |  Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-    sub_cell.font = subtitle_font
-    sub_cell.alignment = center
-
-    # ── Row 3: blank separator ─────────────────────────────────────────────────
+    # Row 3 – Visual separator
     ws.row_dimensions[3].height = 6
 
-    # ── Row 4: Column headers ──────────────────────────────────────────────────
+    # Row 4 – Headers
     for col_idx, header in enumerate(headers, start=1):
-        cell = ws.cell(row=4, column=col_idx, value=header)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = center
-        cell.border = border
+        cell            = ws.cell(row=4, column=col_idx, value=str(header))
+        cell.fill       = styles['header_fill']
+        cell.font       = styles['header_font']
+        cell.alignment  = styles['center']
+        cell.border     = styles['border']
 
-    # ── Data rows (starting at row 5) ─────────────────────────────────────────
+    # Row 5+ – Data
     for row_idx, row_data in enumerate(rows, start=5):
-        fill = alt_fill if row_idx % 2 == 0 else PatternFill()
+        use_fill = styles['alt_fill'] if row_idx % 2 == 0 else styles['no_fill']
         for col_idx, value in enumerate(row_data, start=1):
-            cell = ws.cell(row=row_idx, column=col_idx, value=value)
-            cell.fill = fill
-            cell.border = border
-            cell.alignment = Alignment(vertical="center")
+            safe_val       = value if value is not None else ""
+            cell           = ws.cell(row=row_idx, column=col_idx, value=safe_val)
+            cell.fill      = use_fill
+            cell.border    = styles['border']
+            cell.alignment = styles['left_vc']
 
-    # ── Auto-size columns ──────────────────────────────────────────────────────
+    # Auto-size columns (capped at 50 chars wide)
     for col_idx, header in enumerate(headers, start=1):
-        col_letter = get_column_letter(col_idx)
-        max_len = max(
-            len(str(header)),
-            *(len(str(row[col_idx - 1])) for row in rows if row) if rows else [0]
-        )
-        ws.column_dimensions[col_letter].width = min(max_len + 4, 40)
+        col_letter  = get_column_letter(col_idx)
+        col_values  = [
+            str(row[col_idx - 1])
+            for row in rows
+            if row and len(row) >= col_idx and row[col_idx - 1] is not None
+        ]
+        max_len = max([len(str(header))] + [len(v) for v in col_values] + [0])
+        ws.column_dimensions[col_letter].width = min(max_len + 4, 50)
 
-    ws.freeze_panes = "A5"  # Freeze title + headers
+    ws.freeze_panes = "A5"
 
-    # ── Build response ─────────────────────────────────────────────────────────
-    buffer = io.BytesIO()
-    wb.save(buffer)
-    buffer.seek(0)
 
-    response = HttpResponse(
-        content=buffer.getvalue(),
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+def _build_response(wb, filename: str) -> HttpResponse:
+    """Serialises workbook to bytes and returns an HttpResponse."""
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    resp = HttpResponse(
+        content=buf.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    return response
+    resp['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return resp
 
-def create_multi_sheet_excel_response(filename: str, sheets_data: list) -> HttpResponse:
+
+def _csv_fallback(filename: str, headers: list, rows: list) -> HttpResponse:
+    """Plain-text CSV fallback when openpyxl is not installed."""
+    import csv
+    resp = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    resp['Content-Disposition'] = f'attachment; filename="{filename.replace(".xlsx", ".csv")}"'
+    writer = csv.writer(resp)
+    writer.writerow(headers)
+    for row in rows:
+        writer.writerow(row)
+    return resp
+
+
+# ─── Public API ───────────────────────────────────────────────────────────────
+
+def create_excel_response(
+    filename: str,
+    sheet_name: str,
+    headers: list,
+    rows: list,
+    title: str,
+    period_label: str,
+) -> HttpResponse:
     """
-    Creates an HttpResponse containing a styled .xlsx workbook with multiple sheets.
-
-    - filename: e.g. 'historial_compras.xlsx'
-    - sheets_data: list of dictionaries, each containing:
-        - sheet_name: str
-        - headers: list of column header strings
-        - rows: list of tuples / lists with row data
-        - title: big title shown in row 1
-        - period_label: human-readable period string shown in row 2
+    Creates an HttpResponse with a styled single-sheet .xlsx workbook.
     """
     if not OPENPYXL_AVAILABLE:
-        # Fallback: plain CSV, we just export the first sheet's data as a CSV
-        import csv
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="{filename.replace(".xlsx", ".csv")}"'
-        response.write(u'\ufeff'.encode('utf8'))
-        writer = csv.writer(response)
-        if sheets_data:
-            first_sheet = sheets_data[0]
-            writer.writerow(first_sheet['headers'])
-            for row in first_sheet['rows']:
-                writer.writerow(row)
-        return response
+        return _csv_fallback(filename, headers, rows)
 
-    wb = openpyxl.Workbook()
-    
-    header_fill    = PatternFill("solid", fgColor=HEADER_FILL)
-    alt_fill       = PatternFill("solid", fgColor=ALT_ROW_FILL)
-    header_font    = Font(bold=True, color=HEADER_FONT_COLOR, size=11)
-    title_font     = Font(bold=True, size=14)
-    subtitle_font  = Font(italic=True, size=10, color="555555")
-    center         = Alignment(horizontal="center", vertical="center")
-    thin           = Side(style="thin", color="CCCCCC")
-    border         = Border(left=thin, right=thin, top=thin, bottom=thin)
+    styles = _make_styles()
+    wb     = openpyxl.Workbook()
+    ws     = wb.active
+    ws.title = sheet_name[:31]   # Excel enforces max 31 chars per sheet name
+    _write_sheet(ws, headers, rows, title, period_label, styles)
+    return _build_response(wb, filename)
+
+
+def create_multi_sheet_excel_response(
+    filename: str,
+    sheets_data: list,
+) -> HttpResponse:
+    """
+    Creates an HttpResponse with a styled multi-sheet .xlsx workbook.
+
+    sheets_data – list of dicts, each with keys:
+        sheet_name   : str
+        headers      : list[str]
+        rows         : list[list]
+        title        : str
+        period_label : str
+    """
+    if not OPENPYXL_AVAILABLE:
+        first = sheets_data[0] if sheets_data else {}
+        return _csv_fallback(filename, first.get('headers', []), first.get('rows', []))
+
+    styles = _make_styles()
+    wb     = openpyxl.Workbook()
 
     for idx, sheet_info in enumerate(sheets_data):
-        if idx == 0:
-            ws = wb.active
-            ws.title = sheet_info['sheet_name']
-        else:
-            ws = wb.create_sheet(title=sheet_info['sheet_name'])
+        ws       = wb.active if idx == 0 else wb.create_sheet()
+        ws.title = sheet_info['sheet_name'][:31]
+        _write_sheet(
+            ws,
+            sheet_info['headers'],
+            sheet_info['rows'],
+            sheet_info['title'],
+            sheet_info['period_label'],
+            styles,
+        )
 
-        headers = sheet_info['headers']
-        rows = sheet_info['rows']
-        title = sheet_info['title']
-        period_label = sheet_info['period_label']
-
-        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(headers) or 1)
-        title_cell = ws.cell(row=1, column=1, value=f"📊 {title}")
-        title_cell.font = title_font
-        title_cell.alignment = center
-
-        ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=len(headers) or 1)
-        sub_cell = ws.cell(row=2, column=1, value=f"Período: {period_label}  |  Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-        sub_cell.font = subtitle_font
-        sub_cell.alignment = center
-
-        ws.row_dimensions[3].height = 6
-
-        for col_idx, header in enumerate(headers, start=1):
-            cell = ws.cell(row=4, column=col_idx, value=header)
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.alignment = center
-            cell.border = border
-
-        for row_idx, row_data in enumerate(rows, start=5):
-            fill = alt_fill if row_idx % 2 == 0 else PatternFill()
-            for col_idx, value in enumerate(row_data, start=1):
-                cell = ws.cell(row=row_idx, column=col_idx, value=value)
-                cell.fill = fill
-                cell.border = border
-                cell.alignment = Alignment(vertical="center")
-
-        for col_idx, header in enumerate(headers, start=1):
-            col_letter = get_column_letter(col_idx)
-            max_len = max(
-                len(str(header)),
-                *(len(str(row[col_idx - 1])) for row in rows if row) if rows else [0]
-            )
-            ws.column_dimensions[col_letter].width = min(max_len + 4, 40)
-
-        ws.freeze_panes = "A5"
-
-    buffer = io.BytesIO()
-    wb.save(buffer)
-    buffer.seek(0)
-
-    response = HttpResponse(
-        content=buffer.getvalue(),
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    )
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    return response
+    return _build_response(wb, filename)
