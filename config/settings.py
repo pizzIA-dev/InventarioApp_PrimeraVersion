@@ -16,7 +16,7 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 # En producción: definir en .env sin default — si falta, Django falla intencionalmente
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-DEV-ONLY-change-in-production-!!!' if DEBUG else None)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,.localhost,.nip.io,.onrender.com,.railway.app,.herokuapp.com').split(',')
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,.localhost,.nip.io,.onrender.com,.railway.app,.up.railway.app,.herokuapp.com').split(',')
 
 SHARED_APPS = [
     'django_tenants',
