@@ -39,7 +39,7 @@ const menuItems = [
   { path: '/compras',       icon: <ContainerOutlined />,    label: 'Compras',            rolesOnly: ['GERENTE'] },
   { path: '/capital',       icon: <WalletOutlined />,       label: 'Capital',            rolesOnly: ['GERENTE'] },
   { path: '/servicios',     icon: <ToolOutlined />,         label: 'Servicios' },
-  { path: '/transacciones', icon: <SwapOutlined />,         label: 'Caja Externa',       rolesOnly: ['GERENTE'] },
+  { path: '/transacciones', icon: <SwapOutlined />,         label: 'Transacciones Generales',       rolesOnly: ['GERENTE'] },
   { path: '/fiados',        icon: <CreditCardOutlined />,   label: 'Fiados' },
   { path: '/reportes',      icon: <BarChartOutlined />,     label: 'Reportes',           rolesOnly: ['GERENTE'] },
 ];
@@ -202,3 +202,4 @@ function Layout() {
 }
 
 export default Layout;
+
