@@ -1037,3 +1037,212 @@ td {
 [data-theme="dark"] .tab-btn.active {
   color: #000 !important;
 }
+
+/* ================================================================
+   CONTACTS GRID — Clientes y Proveedores en tarjetas
+   ================================================================ */
+.contacts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.contact-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 18px;
+  transition: box-shadow .2s, transform .15s;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.contact-card:hover {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.10);
+  transform: translateY(-2px);
+}
+
+[data-theme="dark"] .contact-card:hover {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.30);
+}
+
+.contact-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.contact-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.contact-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.contact-card-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.contact-card-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.contact-card-meta-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.contact-card-meta-value {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.contact-card-stats {
+  display: flex;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.contact-card-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.contact-card-stat-val {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.contact-card-stat-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.contact-card-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 8px;
+  justify-content: flex-end;
+}
+
+/* ================================================================
+   AUTO-CODE TOGGLE — ProductFormModal código automático
+   ================================================================ */
+.auto-code-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: color .15s;
+}
+
+.auto-code-toggle:hover {
+  color: var(--text-primary);
+}
+
+.auto-code-checkbox {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-color);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all .15s;
+  color: #fff;
+}
+
+.auto-code-checkbox.checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.auto-code-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 2px;
+  font-style: italic;
+}
+
+/* ================================================================
+   CANCEL MODAL — Modal de cancelación con razón
+   ================================================================ */
+.cancel-reason-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.cancel-reason-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all .15s;
+  background: transparent;
+}
+
+.cancel-reason-option:hover {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb, 22,119,255), 0.05);
+}
+
+.cancel-reason-option.selected {
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb, 22,119,255), 0.08);
+}
+
+.cancel-reason-option input[type="radio"] {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+}
+
+/* ================================================================
+   UPSELL SCREEN
+   ================================================================ */
+.upsell-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  text-align: center;
+  gap: 16px;
+  color: var(--text-secondary);
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { productosAPI, categoriasAPI } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 
@@ -20,6 +20,27 @@ const ProductFormModal = ({ visible, mode = 'create', initialData = null, onClos
   const [errors, setErrors] = useState({});
   const [categorias, setCategorias] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [autoCode, setAutoCode] = useState(false);
+  const [generando, setGenerando] = useState(false);
+  const autoCodeTimer = useRef(null);
+
+  const triggerAutoCode = useCallback((nombre, categoria, codigos = []) => {
+    clearTimeout(autoCodeTimer.current);
+    setGenerando(true);
+    autoCodeTimer.current = setTimeout(() => {
+      const base = (nombre || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4) || 'PROD';
+      const cat  = (categoria || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 2) || 'XX';
+      let num = 1;
+      let code = `${cat}-${base}-${String(num).padStart(3, '0')}`;
+      while (codigos.includes(code)) {
+        num++;
+        code = `${cat}-${base}-${String(num).padStart(3, '0')}`;
+      }
+      setFormData(prev => ({ ...prev, codigo: code }));
+      setGenerando(false);
+    }, 300);
+  }, []);
+
 
   useEffect(() => {
     if (visible) {
@@ -75,7 +96,26 @@ const ProductFormModal = ({ visible, mode = 'create', initialData = null, onClos
     }));
   };
 
+  const handleToggleAutoCode = () => {
+    const next = !autoCode;
+    setAutoCode(next);
+    if (next && mode === 'create') {
+      productosAPI.getAll({ page_size: 500 }).then(r => {
+        const ex = (r.data.results || r.data).map(p => p.codigo).filter(Boolean);
+        triggerAutoCode(formData.nombre, formData.categoria_nombre, ex);
+      }).catch(() => triggerAutoCode(formData.nombre, formData.categoria_nombre, []));
+    }
+  };
+
+  const handleRegenerate = () => {
+    productosAPI.getAll({ page_size: 500 }).then(r => {
+      const ex = (r.data.results || r.data).map(p => p.codigo).filter(Boolean);
+      triggerAutoCode(formData.nombre, formData.categoria_nombre, ex);
+    }).catch(() => triggerAutoCode(formData.nombre, formData.categoria_nombre, []));
+  };
+
   const handleSubmit = async (e) => {
+
     e.preventDefault();
     // Inline validation
     const newErrors = {};

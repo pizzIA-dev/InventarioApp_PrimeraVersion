@@ -1,19 +1,18 @@
-import { useState, useEffect, useContext } from 'react';
+﻿import { useState, useEffect, useContext } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../ThemeContext';
 import { AuthContext } from '../context/AuthContext';
 import { Modal } from 'antd';
-import { 
-  DashboardOutlined, 
+import {
+  DashboardOutlined,
   SafetyCertificateOutlined,
-  InboxOutlined,
   CloudServerOutlined,
-  ShoppingOutlined, 
-  TeamOutlined, 
+  ShoppingOutlined,
+  TeamOutlined,
   UsergroupAddOutlined,
-  ShoppingCartOutlined, 
-  ContainerOutlined, 
-  WalletOutlined, 
+  ShoppingCartOutlined,
+  ContainerOutlined,
+  WalletOutlined,
   ToolOutlined,
   SwapOutlined,
   BarChartOutlined,
@@ -27,23 +26,29 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 
-const menuItems = [
-  { path: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
-  { path: '/productos', icon: <ShoppingOutlined />, label: 'Productos' },
-  { path: '/proveedores', icon: <TeamOutlined />, label: 'Proveedores' },
-  { path: '/clientes', icon: <UsergroupAddOutlined />, label: 'Clientes' },
-  { path: '/ventas', icon: <ShoppingCartOutlined />, label: 'Ventas' },
-  { path: '/compras', icon: <ContainerOutlined />, label: 'Compras' },
-  { path: '/capital', icon: <WalletOutlined />, label: 'Capital' },
-  { path: '/servicios', icon: <ToolOutlined />, label: 'Servicios' },
-  { path: '/transacciones', icon: <SwapOutlined />, label: 'Otros Movimientos' },
-  { path: '/fiados', icon: <CreditCardOutlined />, label: 'Fiados' },
-  { path: '/reportes', icon: <BarChartOutlined />, label: 'Reportes' },
+// Items visibles para COLABORADOR / VENDEDOR
+const COLABORADOR_PATHS = ['/productos', '/clientes', '/ventas', '/servicios', '/fiados'];
 
-  { path: '/usuarios', icon: <UserOutlined />, label: 'Colaboradores' },
-  { path: '/roles', icon: <SafetyCertificateOutlined />, label: 'Roles Corporativos' },
-  { path: '/almacenes', icon: <InboxOutlined />, label: 'Almacenes y Cajas' },
-  { path: '/backups', icon: <CloudServerOutlined />, label: 'Backups' },
+// Menu principal (todos los roles que pasan el filtro de ruta)
+const menuItems = [
+  { path: '/',              icon: <DashboardOutlined />,    label: 'Dashboard',         rolesOnly: ['GERENTE'] },
+  { path: '/productos',     icon: <ShoppingOutlined />,     label: 'Productos' },
+  { path: '/proveedores',   icon: <TeamOutlined />,         label: 'Proveedores',        rolesOnly: ['GERENTE'] },
+  { path: '/clientes',      icon: <UsergroupAddOutlined />, label: 'Clientes' },
+  { path: '/ventas',        icon: <ShoppingCartOutlined />, label: 'Ventas' },
+  { path: '/compras',       icon: <ContainerOutlined />,    label: 'Compras',            rolesOnly: ['GERENTE'] },
+  { path: '/capital',       icon: <WalletOutlined />,       label: 'Capital',            rolesOnly: ['GERENTE'] },
+  { path: '/servicios',     icon: <ToolOutlined />,         label: 'Servicios' },
+  { path: '/transacciones', icon: <SwapOutlined />,         label: 'Caja Externa',       rolesOnly: ['GERENTE'] },
+  { path: '/fiados',        icon: <CreditCardOutlined />,   label: 'Fiados' },
+  { path: '/reportes',      icon: <BarChartOutlined />,     label: 'Reportes',           rolesOnly: ['GERENTE'] },
+];
+
+// Seccion admin — solo Gerente
+const adminItems = [
+  { path: '/usuarios',  icon: <UserOutlined />,               label: 'Colaboradores' },
+  { path: '/roles',     icon: <SafetyCertificateOutlined />,  label: 'Roles Corporativos' },
+  { path: '/backups',   icon: <CloudServerOutlined />,         label: 'Backups' },
 ];
 
 function Layout() {
@@ -51,80 +56,61 @@ function Layout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isDark, toggleTheme } = useTheme();
-  const { isVendedor, logout } = useContext(AuthContext);
+  const { user, logout, isVendedor, isGerente } = useContext(AuthContext);
 
   const handleLogoutClick = () => {
     Modal.confirm({
-      title: '¿Cerrar sesión?',
-      content: '¿Estás seguro que deseas salir del sistema?',
-      okText: 'Sí, cerrar sesión',
+      title: '¿Cerrar sesion?',
+      content: '¿Estas seguro que deseas salir del sistema?',
+      okText: 'Si, cerrar sesion',
       cancelText: 'Cancelar',
       okButtonProps: { danger: true },
-      onOk: () => {
-        logout();
-      }
+      onOk: () => { logout(); }
     });
   };
 
-  // Filter menu items for vendors
+  // Filtrar menu segun rol
+  const isColaborador = user?.rol === 'COLABORADOR' || user?.rol === 'VENDEDOR';
   const allowedMenuItems = menuItems.filter(item => {
-    if (isVendedor) {
-      return ['/productos', '/clientes', '/ventas', '/servicios', '/fiados'].includes(item.path);
-    }
-    return true; // Gerente sees everything
+    if (item.rolesOnly) return item.rolesOnly.includes(user?.rol);
+    return true; // Sin restriccion = visible para todos
   });
 
-  // Menu extra solo para Gerente
-  const gerenteMenuItems = [
-    { path: '/usuarios', icon: <UserOutlined />, label: 'Gestión de Usuarios' },
-  
-  { path: '/usuarios', icon: <UserOutlined />, label: 'Colaboradores' },
-  { path: '/roles', icon: <SafetyCertificateOutlined />, label: 'Roles Corporativos' },
-  { path: '/almacenes', icon: <InboxOutlined />, label: 'Almacenes y Cajas' },
-  { path: '/backups', icon: <CloudServerOutlined />, label: 'Backups' },
-];
-
-  // Close mobile menu when route changes
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
+
+  const empresaNombre = user?.empresa_nombre || 'NegocIA';
 
   return (
     <div className="layout">
       {/* Mobile Header */}
       <div className="mobile-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button 
-            className="mobile-menu-btn"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
+          <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
             <MenuOutlined />
           </button>
-          <div className="mobile-header-title" style={{ fontSize: '16px' }}>Inventario</div>
+          <div className="mobile-header-title" style={{ fontSize: '16px' }}>{empresaNombre}</div>
         </div>
-        <button 
-          className="mobile-menu-btn"
-          onClick={toggleTheme}
-          style={{ fontSize: '18px' }}
-        >
+        <button className="mobile-menu-btn" onClick={toggleTheme} style={{ fontSize: '18px' }}>
           {isDark ? <BulbFilled style={{ color: '#1b9cfc' }} /> : <BulbOutlined />}
         </button>
       </div>
 
       {/* Mobile Overlay */}
-      <div 
+      <div
         className={`mobile-overlay ${mobileMenuOpen ? 'visible' : ''}`}
         onClick={() => setMobileMenuOpen(false)}
-      ></div>
+      />
 
       <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`} style={{ display: 'flex', flexDirection: 'column' }}>
         <div className="sidebar-header">
           <div className="sidebar-title">
-            {collapsed && !mobileMenuOpen ? 'I&B' : 'Inventario y Balance'}
+            {collapsed && !mobileMenuOpen ? 'N' : empresaNombre}
           </div>
         </div>
-        
-        {/* Contenedor scrollable para los menús */}
+
+        {/* Contenedor scrollable */}
         <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
           <nav className="sidebar-menu">
             {allowedMenuItems.map((item) => (
@@ -138,13 +124,16 @@ function Layout() {
               </Link>
             ))}
           </nav>
-          
-          {/* Sección de Admin solo visible para Gerente */}
-          {!isVendedor && (
+
+          {/* Seccion Admin - solo Gerente */}
+          {isGerente && (
             <>
               <div style={{ borderTop: '1px solid var(--bg-table-header)', margin: '8px 12px', opacity: 0.4 }} />
-              <nav className="sidebar-menu" style={{ paddingBottom: 0 }}>
-                {gerenteMenuItems.map((item) => (
+              <div style={{ padding: '0 12px 4px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                {!collapsed && 'Administracion'}
+              </div>
+              <nav className="sidebar-menu" style={{ paddingTop: 0 }}>
+                {adminItems.map((item) => (
                   <Link
                     key={item.path}
                     to={item.path}
@@ -158,8 +147,8 @@ function Layout() {
             </>
           )}
         </div>
-        
-        {/* Contenedor fijo en la parte inferior */}
+
+        {/* Botones inferiores */}
         <div style={{
           padding: '20px',
           display: 'flex',
@@ -169,10 +158,10 @@ function Layout() {
           background: 'var(--bg-sidebar)',
           zIndex: 2
         }}>
-          <button 
+          <button
             className="btn btn-secondary"
             onClick={toggleTheme}
-            title={isDark ? "Cambiar a Modo Claro" : "Cambiar a Modo Oscuro"}
+            title={isDark ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
             style={{ width: '100%', justifyContent: collapsed ? 'center' : 'flex-start' }}
           >
             <span style={{ display: 'inline-flex', width: '20px', justifyContent: 'center' }}>
@@ -180,8 +169,8 @@ function Layout() {
             </span>
             {!collapsed && (isDark ? ' Modo Claro' : ' Modo Oscuro')}
           </button>
-          
-          <button 
+
+          <button
             className="btn btn-secondary collapse-btn-desktop"
             onClick={() => setCollapsed(!collapsed)}
             style={{ width: '100%', justifyContent: collapsed ? 'center' : 'flex-start' }}
@@ -189,10 +178,10 @@ function Layout() {
             <span style={{ display: 'inline-flex', width: '20px', justifyContent: 'center' }}>
               {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             </span>
-            {!collapsed && ' Colapsar menú'}
+            {!collapsed && ' Colapsar menu'}
           </button>
-          
-          <button 
+
+          <button
             className="btn btn-danger"
             onClick={handleLogoutClick}
             style={{ width: '100%', justifyContent: collapsed ? 'center' : 'flex-start', marginTop: 'auto' }}
@@ -200,7 +189,7 @@ function Layout() {
             <span style={{ display: 'inline-flex', width: '20px', justifyContent: 'center' }}>
               <LogoutOutlined />
             </span>
-            {!collapsed && ' Cerrar Sesión'}
+            {!collapsed && ' Cerrar Sesion'}
           </button>
         </div>
       </aside>

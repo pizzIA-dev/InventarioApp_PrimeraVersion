@@ -497,18 +497,34 @@ function Compras() {
     });
   };
 
-  const handleCancelarClick = (compra) => {
-    setConfirmDialog({
-      visible: true,
-      id: compra.id,
-      nombre: compra.numero_comprobante || `#${compra.id}`,
-      type: 'cancelar',
-      title: 'Cancelar Compra',
-      message: `¿Estás seguro de que deseas cancelar la compra "${compra.numero_comprobante || `#${compra.id}`}"? Si ya fue confirmada, se revertirá el incremento de stock.`,
-      confirmText: 'Sí, cancelar',
-      danger: true
-    });
+
+  // === Modal cancelacion con razon ===
+  const RAZON_OPCIONES_COMPRA = [
+    { value: 'CONFUSION',       label: 'Confusion en el pedido' },
+    { value: 'ARREPENTIMIENTO', label: 'Proveedor se arrepintio' },
+    { value: 'SIN_STOCK',       label: 'Sin stock disponible' },
+    { value: 'PRECIO',          label: 'Desacuerdo en el precio' },
+    { value: 'DUPLICADO',       label: 'Registro duplicado' },
+    { value: 'ERROR_SISTEMA',   label: 'Error del sistema' },
+    { value: 'OTRO',            label: 'Otro motivo' },
+  ];
+  const [cancelModal, setCancelModal] = useState({ visible: false, id: null, razon_tag: '', razon_detalle: '', loading: false, error: '' });
+  const openCancelModal  = (id) => setCancelModal({ visible: true, id, razon_tag: '', razon_detalle: '', loading: false, error: '' });
+  const closeCancelModal = () => setCancelModal({ visible: false, id: null, razon_tag: '', razon_detalle: '', loading: false, error: '' });
+  const submitCancelModal = async () => {
+    if (!cancelModal.razon_tag) { setCancelModal(p => ({ ...p, error: 'Debes seleccionar una razon.' })); return; }
+    setCancelModal(p => ({ ...p, loading: true, error: '' }));
+    try {
+      await comprasAPI.cancelar(cancelModal.id, { razon_tag: cancelModal.razon_tag, razon_detalle: cancelModal.razon_detalle });
+      fetchCompras();
+      closeCancelModal();
+    } catch (err) {
+      setCancelModal(p => ({ ...p, loading: false, error: err.response?.data?.error || 'Error al cancelar' }));
+    }
   };
+  // ===================================
+
+  const handleCancelarClick = (compra) => openCancelModal(compra.id);
 
   const handleGeneralConfirm = async () => {
     const { id, type } = confirmDialog;
@@ -655,6 +671,7 @@ function Compras() {
   }
 
   return (
+    <>
     <div>
       <ConfirmDialog
         visible={confirmDialog.visible}
@@ -1191,6 +1208,40 @@ function Compras() {
         totalItems={globalKardexTotal}
       />
     </div>
+    {/* Modal Cancelacion con Razon */}
+    {cancelModal.visible && (
+      <div className="modal-overlay" onClick={closeCancelModal}>
+        <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+          <div className="modal-header">
+            <h3 className="modal-title">Cancelar Compra</h3>
+            <button className="modal-close" onClick={closeCancelModal}>&times;</button>
+          </div>
+          <div className="modal-body">
+            <div className="cancel-reason-options">
+              {RAZON_OPCIONES_COMPRA.map(op => (
+                <label key={op.value} className={`cancel-reason-option ${cancelModal.razon_tag === op.value ? 'selected' : ''}`}>
+                  <input type="radio" name="razon_compra" value={op.value}
+                    checked={cancelModal.razon_tag === op.value}
+                    onChange={() => setCancelModal(p => ({ ...p, razon_tag: op.value }))}
+                  />
+                  <span style={{ fontSize: 13 }}>{op.label}</span>
+                </label>
+              ))}
+            </div>
+            {cancelModal.error && (
+              <p style={{ color: '#ef4444', fontSize: 13, marginTop: 10 }}>{cancelModal.error}</p>
+            )}
+          </div>
+          <div className="modal-footer">
+            <button className="btn btn-secondary" onClick={closeCancelModal} disabled={cancelModal.loading}>Volver</button>
+            <button className="btn btn-danger" onClick={submitCancelModal} disabled={cancelModal.loading}>
+              {cancelModal.loading ? 'Cancelando...' : 'Confirmar Cancelacion'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 

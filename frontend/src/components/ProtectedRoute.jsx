@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+﻿import React, { useContext } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
@@ -14,18 +14,15 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     );
   }
 
-  // Not authenticated
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check role restrictions
   if (allowedRoles && !allowedRoles.includes(user.rol)) {
-    // If VENDEDOR is trying to access DASHBOARD, redirect to VENTAS
-    if (user.rol === 'VENDEDOR') {
+    // VENDEDOR y COLABORADOR: redirigir a ventas
+    if (user.rol === 'VENDEDOR' || user.rol === 'COLABORADOR') {
       return <Navigate to="/ventas" replace />;
     }
-    // Else redirect to unauthorized or safe fallback
     return <Navigate to="/" replace />;
   }
 

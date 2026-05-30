@@ -1,196 +1,249 @@
-import React, { useState, useEffect } from 'react';
-import { Table, Button, Modal, Form, Input, Checkbox, message, Space, Result } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+﻿import { useState, useEffect, useContext } from 'react';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SafetyCertificateOutlined, CloseOutlined } from '@ant-design/icons';
 import { rolesAPI } from '../services/api';
+import { AuthContext } from '../context/AuthContext';
+import { Modal } from 'antd';
 
-const MÓDULOS_SCOPES = [
-  { label: 'Inventario (Lectura)', value: 'inventario:leer' },
-  { label: 'Inventario (Escritura)', value: 'inventario:escribir' },
-  { label: 'Ventas (Crear y Leer)', value: 'ventas:crear' },
-  { label: 'Finanzas/Capital (Acceso Total)', value: 'capital:acceso' },
-  { label: 'Reportes (Visualización)', value: 'reportes:ver' },
-  { label: 'Usuarios y Empleados (Gestión)', value: 'usuarios:manejo' },
+const MODULOS_SCOPES = [
+  { label: 'Inventario (Lectura)',          value: 'inventario:leer' },
+  { label: 'Inventario (Escritura)',         value: 'inventario:escribir' },
+  { label: 'Ventas (Crear y Leer)',          value: 'ventas:crear' },
+  { label: 'Finanzas/Capital (Acceso Total)',value: 'capital:acceso' },
+  { label: 'Reportes (Visualizacion)',       value: 'reportes:ver' },
+  { label: 'Usuarios y Empleados (Gestion)',  value: 'usuarios:manejo' },
 ];
 
 const GestionRoles = () => {
+  const { user } = useContext(AuthContext);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isUpsell, setIsUpsell] = useState(false);
-  
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [form] = Form.useForm();
+  const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState({ nombre: '', descripcion: '', permisos: [] });
+  const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchRoles();
-  }, []);
+  useEffect(() => { fetchRoles(); }, []);
 
   const fetchRoles = async () => {
     setLoading(true);
     try {
-      const res = await rolesAPI.getAll();
+      const res = await rolesAPI.listar();
       setRoles(res.data);
       setIsUpsell(false);
     } catch (error) {
-      if (error.response?.status === 403) {
-        setIsUpsell(true);
-      }
+      if (error.response?.status === 403) setIsUpsell(true);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreate = () => {
+  const openCrear = () => {
     setEditingId(null);
-    form.resetFields();
-    setIsModalVisible(true);
+    setForm({ nombre: '', descripcion: '', permisos: [] });
+    setFormError('');
+    setModalOpen(true);
   };
 
-  const handleEdit = (record) => {
-    setEditingId(record.id);
-    form.setFieldsValue({
-      nombre: record.nombre,
-      descripcion: record.descripcion,
-      permisos: record.permisos || [],
-    });
-    setIsModalVisible(true);
+  const openEditar = (rol) => {
+    setEditingId(rol.id);
+    setForm({ nombre: rol.nombre, descripcion: rol.descripcion || '', permisos: rol.permisos || [] });
+    setFormError('');
+    setModalOpen(true);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = (id, nombre) => {
     Modal.confirm({
-      title: '¿Eliminar este Rol?',
-      content: 'Los usuarios con este rol perderán inmediatamente el acceso a las funciones extra.',
+      title: `¿Eliminar el rol "${nombre}"?`,
+      content: 'Los usuarios con este rol perderan inmediatamente el acceso a las funciones extra.',
+      okText: 'Si, eliminar',
+      okButtonProps: { danger: true },
+      cancelText: 'Cancelar',
       onOk: async () => {
         try {
-          await rolesAPI.delete(id);
-          message.success('Rol eliminado');
+          await rolesAPI.eliminar(id);
           fetchRoles();
-        } catch (error) {
-          // El interceptor global mostrará el error si es que falla
+        } catch (err) {
+          alert(err.response?.data?.detail || 'Error al eliminar el rol.');
         }
       }
     });
   };
 
-  const handleSubmit = async () => {
+  const togglePermiso = (scope) => {
+    setForm(prev => ({
+      ...prev,
+      permisos: prev.permisos.includes(scope)
+        ? prev.permisos.filter(p => p !== scope)
+        : [...prev.permisos, scope]
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.nombre.trim()) { setFormError('El nombre del rol es obligatorio.'); return; }
+    setSaving(true);
+    setFormError('');
     try {
-      const values = await form.validateFields();
       if (editingId) {
-        await rolesAPI.update(editingId, values);
-        message.success('Rol actualizado con éxito');
+        await rolesAPI.actualizar(editingId, form);
       } else {
-        await rolesAPI.create(values);
-        message.success('Rol creado con éxito');
+        await rolesAPI.crear(form);
       }
-      setIsModalVisible(false);
+      setModalOpen(false);
       fetchRoles();
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      setFormError(err.response?.data?.detail || err.response?.data?.nombre?.[0] || 'Error al guardar.');
+    } finally {
+      setSaving(false);
     }
   };
 
   if (isUpsell) {
     return (
-      <div style={{ padding: '24px', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <Result
-          status="403"
-          title="Función Corporativa (Plan Empresario)"
-          subTitle="El Motor Avanzado de Roles y Permisos Granulares (RBAC) está disponible exclusivamente para clientes Empresarios. Contacta a nuestro equipo de ventas para hacer el upgrade."
-          extra={<Button type="primary">Contactar a Ventas</Button>}
-        />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', gap: 16, textAlign: 'center' }}>
+        <SafetyCertificateOutlined style={{ fontSize: 56, color: 'var(--text-muted)' }} />
+        <h2 style={{ color: 'var(--text-primary)', margin: 0 }}>Funcion Corporativa</h2>
+        <p style={{ color: 'var(--text-secondary)', maxWidth: 420, lineHeight: 1.6 }}>
+          El Motor Avanzado de Roles y Permisos (RBAC) esta disponible exclusivamente en el <strong>Plan Empresario</strong>.
+          Contacta a nuestro equipo para hacer el upgrade.
+        </p>
+        <a href="mailto:ventas@negocia.app" className="btn btn-primary">Contactar a Ventas</a>
       </div>
     );
   }
 
-  const columns = [
-    {
-      title: 'Nombre del Rol',
-      dataIndex: 'nombre',
-      key: 'nombre',
-      render: (text) => <strong>{text}</strong>,
-    },
-    {
-      title: 'Descripción',
-      dataIndex: 'descripcion',
-      key: 'descripcion',
-    },
-    {
-      title: 'Niveles de Acceso',
-      dataIndex: 'permisos',
-      key: 'permisos',
-      render: (permisos) => (
-        <span>{permisos?.length || 0} Reglas Privilegiadas</span>
-      ),
-    },
-    {
-      title: 'Acciones',
-      key: 'acciones',
-      render: (_, record) => (
-        <Space size="middle">
-          <Button icon={<EditOutlined />} onClick={() => handleEdit(record)} />
-          <Button icon={<DeleteOutlined />} danger onClick={() => handleDelete(record.id)} />
-        </Space>
-      ),
-    },
-  ];
-
   return (
-    <div style={{ padding: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'center' }}>
-        <h2 style={{ margin: 0 }}>
-          <SafetyCertificateOutlined style={{ marginRight: '8px' }} />
-          Motor de Roles Avanzados
-        </h2>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-          Nuevo Rol Corporate
-        </Button>
+    <div>
+      {/* Header */}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">
+            <SafetyCertificateOutlined style={{ marginRight: 8 }} />
+            Roles Corporativos
+          </h1>
+          <p className="page-subtitle">Crea y gestiona roles personalizados con permisos granulares (Plan Empresario)</p>
+        </div>
+        <button className="btn btn-primary" onClick={openCrear}>
+          <PlusOutlined /> Nuevo Rol
+        </button>
       </div>
 
-      <Table
-        columns={columns}
-        dataSource={roles}
-        rowKey="id"
-        loading={loading}
-        pagination={false}
-      />
+      {/* Tabla */}
+      <div className="card">
+        <div className="table-container">
+          {loading ? (
+            <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>Cargando roles...</div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Nombre del Rol</th>
+                  <th>Descripcion</th>
+                  <th>Niveles de Acceso</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {roles.map(rol => (
+                  <tr key={rol.id}>
+                    <td><strong>{rol.nombre}</strong></td>
+                    <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{rol.descripcion || '-'}</td>
+                    <td>
+                      <span className="badge badge-info">{rol.permisos?.length || 0} reglas</span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn btn-secondary" onClick={() => openEditar(rol)} title="Editar">
+                          <EditOutlined />
+                        </button>
+                        <button className="btn btn-danger" onClick={() => handleDelete(rol.id, rol.nombre)} title="Eliminar">
+                          <DeleteOutlined />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {roles.length === 0 && (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                      No hay roles corporativos creados aun. Crea el primero.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
 
-      <Modal
-        title={editingId ? 'Editar Rol' : 'Diseñar Nuevo Rol'}
-        open={isModalVisible}
-        onOk={handleSubmit}
-        onCancel={() => setIsModalVisible(false)}
-        okText="Guardar Cambios"
-        cancelText="Cancelar"
-        width={600}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="nombre"
-            label="Título del Rol"
-            rules={[{ required: true, message: 'Ingrese un nombre para el rol' }]}
-          >
-            <Input placeholder="Ej. Cajero, Sub-Gerente, Auditor..." />
-          </Form.Item>
-          
-          <Form.Item name="descripcion" label="Descripción (Opcional)">
-            <Input.TextArea placeholder="Describe brevemente de qué se encarga este rol" />
-          </Form.Item>
-
-          <Form.Item
-            name="permisos"
-            label="Interruptores de Acceso"
-            tooltip="Habilita exactamente las secciones a las que este rol tendrá entrada."
-          >
-            <Checkbox.Group style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {MÓDULOS_SCOPES.map(scope => (
-                <Checkbox key={scope.value} value={scope.value}>
-                  {scope.label}
-                </Checkbox>
-              ))}
-            </Checkbox.Group>
-          </Form.Item>
-        </Form>
-      </Modal>
+      {/* Modal Crear / Editar */}
+      {modalOpen && (
+        <div className="modal-overlay" onClick={() => setModalOpen(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <div className="modal-header">
+              <h3 className="modal-title">{editingId ? 'Editar Rol' : 'Nuevo Rol Corporativo'}</h3>
+              <button className="modal-close" onClick={() => setModalOpen(false)}><CloseOutlined /></button>
+            </div>
+            <form onSubmit={handleSubmit}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Nombre del Rol *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={form.nombre}
+                    onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))}
+                    placeholder="Ej. Cajero, Sub-Gerente, Auditor..."
+                    disabled={saving}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Descripcion (opcional)</label>
+                  <textarea
+                    className="form-input"
+                    value={form.descripcion}
+                    onChange={e => setForm(p => ({ ...p, descripcion: e.target.value }))}
+                    placeholder="Describe brevemente de que se encarga este rol"
+                    rows={2}
+                    disabled={saving}
+                    style={{ resize: 'vertical' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Permisos de Acceso</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+                    {MODULOS_SCOPES.map(scope => (
+                      <label key={scope.value} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: form.permisos.includes(scope.value) ? 'rgba(var(--accent-rgb, 22,119,255), 0.08)' : 'transparent', transition: 'all .15s' }}>
+                        <input
+                          type="checkbox"
+                          checked={form.permisos.includes(scope.value)}
+                          onChange={() => togglePermiso(scope.value)}
+                          disabled={saving}
+                          style={{ width: 16, height: 16, accentColor: 'var(--accent)' }}
+                        />
+                        <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{scope.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                {formError && (
+                  <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid #fca5a5', color: '#ef4444', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>
+                    {formError}
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setModalOpen(false)} disabled={saving}>Cancelar</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? 'Guardando...' : (editingId ? 'Guardar Cambios' : 'Crear Rol')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+﻿import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ConfigProvider, theme } from 'antd';
 import esES from 'antd/locale/es_ES';
@@ -10,8 +10,8 @@ import Login from './pages/Login';
 import Landing from './pages/Landing';
 import ResetPassword from './pages/ResetPassword';
 
-// Lazy loading de páginas (bundle-dynamic-imports / code-splitting)
-// Cada página se cargará solo cuando el usuario navegue a esa ruta
+// Lazy loading de pÃ¡ginas (bundle-dynamic-imports / code-splitting)
+// Cada pÃ¡gina se cargarÃ¡ solo cuando el usuario navegue a esa ruta
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Productos = lazy(() => import('./pages/Productos'));
 const Proveedores = lazy(() => import('./pages/Proveedores'));
@@ -25,10 +25,9 @@ const Reportes = lazy(() => import('./pages/Reportes'));
 const Fiados = lazy(() => import('./pages/Fiados'));
 const GestionUsuarios = lazy(() => import('./pages/GestionUsuarios'));
 const GestionRoles    = lazy(() => import('./pages/GestionRoles'));
-const GestionAlmacenes = lazy(() => import('./pages/GestionAlmacenes'));
 const Backups          = lazy(() => import('./pages/Backups'));
 
-// Fallback de carga para Suspense — usa el spinner ya definido en index.css
+// Fallback de carga para Suspense â€” usa el spinner ya definido en index.css
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
     <div className="spinner" />
@@ -47,11 +46,11 @@ const AppContent = () => {
     >
       <Router>
         {/* Suspense envuelve las rutas para mostrar el PageLoader mientras
-            se descarga el chunk de la página correspondiente */}
+            se descarga el chunk de la pÃ¡gina correspondiente */}
         <Suspense fallback={<PageLoader />}>
           <Routes>
                         {/* Routing: dominio principal (landing) vs subdominio de tenant (app) */}
-            {/* VITE_ROOT_DOMAIN en .env de producción: 'tudominio.com' */}
+            {/* VITE_ROOT_DOMAIN en .env de producciÃ³n: 'tudominio.com' */}
             {(() => {
               const rootDomain = import.meta.env.VITE_ROOT_DOMAIN || 'localhost';
               const h = window.location.hostname;
@@ -84,7 +83,6 @@ const AppContent = () => {
                   <Route path="fiados"        element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Fiados /></ProtectedRoute>} />
                   <Route path="usuarios"      element={<ProtectedRoute allowedRoles={['GERENTE']}><GestionUsuarios /></ProtectedRoute>} />
                   <Route path="roles"         element={<ProtectedRoute allowedRoles={['GERENTE']}><GestionRoles /></ProtectedRoute>} />
-                  <Route path="almacenes"     element={<ProtectedRoute allowedRoles={['GERENTE']}><GestionAlmacenes /></ProtectedRoute>} />
                   <Route path="backups"       element={<ProtectedRoute allowedRoles={['GERENTE']}><Backups /></ProtectedRoute>} />
                 </Route>
               </>
@@ -107,4 +105,5 @@ function App() {
 }
 
 export default App;
+
 

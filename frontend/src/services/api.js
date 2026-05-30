@@ -1,7 +1,7 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 
 // Multi-tenant: construir la URL del API desde el hostname actual del navegador
-// Ej: emprendedor.localhost:5173 → emprendedor.localhost:8000/api
+// Ej: emprendedor.localhost:5173 â†’ emprendedor.localhost:8000/api
 const _host    = window.location.hostname;
 const _port    = import.meta.env.VITE_API_PORT || '8000';
 const _apiBase = import.meta.env.VITE_API_URL  || `http://${_host}:${_port}`;
@@ -14,7 +14,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
+  const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -222,7 +222,7 @@ export const reportesAPI = {
   exportarReporteMensualDetalle: (params) => api.get('/reportes/reporte-mensual/exportar/', { params, responseType: 'blob' }),
 };
 
-// Fiados (Créditos)
+// Fiados (CrÃ©ditos)
 export const fiadosAPI = {
   // Clientes Fiados
   getClientes: (params) => api.get('/fiados/clientes-fiados/', { params }),
@@ -250,7 +250,7 @@ export const fiadosAPI = {
 };
 
 
-// Gestión de Usuarios (solo Gerente)
+// GestiÃ³n de Usuarios (solo Gerente)
 export const usuariosAPI = {
   listar: () => api.get('/auth/usuarios/'),
   crear: (data) => api.post('/auth/usuarios/crear/', data),
@@ -286,3 +286,4 @@ export const backupsAPI = {
 };
 
 export default api;
+
