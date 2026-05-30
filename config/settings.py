@@ -285,17 +285,17 @@ FRONTEND_URL = config('FRONTEND_URL', default=f'http://localhost:5175')
 
 # Email backend
 # Desarrollo: muestra emails en consola
-# Producción: SMTP real (SendGrid, SES, Mailgun, etc.)
+# Producción: Gmail SMTP (usa App Password de Google)
 if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 else:
-    EMAIL_BACKEND  = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
-    EMAIL_HOST     = config('EMAIL_HOST', default='smtp.sendgrid.net')
-    EMAIL_PORT     = config('EMAIL_PORT', default=587, cast=int)
-    EMAIL_USE_TLS  = config('EMAIL_USE_TLS', default=True, cast=bool)
-    EMAIL_HOST_USER     = config('EMAIL_HOST_USER', default='')
+    EMAIL_BACKEND       = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+    EMAIL_HOST          = config('EMAIL_HOST', default='smtp.gmail.com')
+    EMAIL_PORT          = config('EMAIL_PORT', default=587, cast=int)
+    EMAIL_USE_TLS       = config('EMAIL_USE_TLS', default=True, cast=bool)
+    EMAIL_HOST_USER     = config('EMAIL_HOST_USER', default='pizzia.peru@gmail.com')
     EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-    DEFAULT_FROM_EMAIL  = config('DEFAULT_FROM_EMAIL', default='noreply@negocia.dev')
+    DEFAULT_FROM_EMAIL  = config('DEFAULT_FROM_EMAIL', default='NegocIA <pizzia.peru@gmail.com>')
     SERVER_EMAIL        = DEFAULT_FROM_EMAIL
 
 if 'DEFAULT_FROM_EMAIL' not in dir():

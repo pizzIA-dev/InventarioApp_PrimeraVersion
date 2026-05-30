@@ -1,0 +1,56 @@
+﻿##############################################################################
+# render.yaml - Blueprint de despliegue para Render.com
+# Conectar este archivo con la rama "production" en el dashboard de Render
+##############################################################################
+
+services:
+  # Backend Django (API)
+  - type: web
+    name: negociav2-api
+    runtime: python
+    plan: free
+    branch: production
+    rootDir: .
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120 --log-level info
+    healthCheckPath: /api/public/health/
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: negociav2-db
+          property: connectionString
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_HOST_USER
+        value: pizzia.peru@gmail.com
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: EMAIL_USE_TLS
+        value: "True"
+
+databases:
+  - name: negociav2-db
+    plan: free
+    databaseName: negociav2
+    user: negociav2_user
+    region: oregon
