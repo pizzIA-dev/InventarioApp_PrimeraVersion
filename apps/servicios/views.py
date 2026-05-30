@@ -754,7 +754,7 @@ class CompraServicioViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
                 str(c.numero_comprobante or c.id),
                 str(c.servicio_nombre or 'Servicio sin nombre'),
                 str(c.proveedor_nombre or 'Proveedor General'),
-                str(c.almacen.nombre if getattr(c, 'almacen', None) else 'General'),
+                str('General'),
                 c.estado,
                 float(c.precio or 0),
                 float(c.descuento or 0),

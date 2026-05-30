@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { almacenesAPI } from '../services/api';
 import { WarningOutlined, SelectOutlined } from '@ant-design/icons';
 
 const AjusteStockModal = ({ visible, onClose, producto, onSubmit }) => {
@@ -14,7 +13,6 @@ const AjusteStockModal = ({ visible, onClose, producto, onSubmit }) => {
     notas: ''
   });
   
-  const [almacenes, setAlmacenes] = useState([]);
   const [loadingAlmacenes, setLoadingAlmacenes] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -38,10 +36,8 @@ const AjusteStockModal = ({ visible, onClose, producto, onSubmit }) => {
   const fetchAlmacenes = async () => {
     setLoadingAlmacenes(true);
     try {
-      const res = await almacenesAPI.listar();
       setAlmacenes(res.data.results || res.data);
     } catch (err) {
-      console.error("Error al cargar almacenes", err);
     } finally {
       setLoadingAlmacenes(false);
     }
@@ -98,7 +94,6 @@ const AjusteStockModal = ({ visible, onClose, producto, onSubmit }) => {
                   disabled={loadingAlmacenes || saving}
                 >
                   <option value="">-- Selecciona un Almacén --</option>
-                  {almacenes.map(a => (
                     <option key={a.id} value={a.id}>{a.es_general ? '🏬 ' : '📦 '}{a.nombre}</option>
                   ))}
                 </select>

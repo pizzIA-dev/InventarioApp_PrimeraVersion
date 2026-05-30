@@ -47,7 +47,7 @@ class Command(BaseCommand):
             
             # Recopilar datos (Esto asume la serialización de modelos clave)
             # En Django, usamos `serializers.serialize` con un queryset filtrado por empresa.
-            from apps.inventario.models import Producto, Almacen, MovimientoStock
+            from apps.inventario.models import Producto, MovimientoStock
             from apps.clientes.models import Cliente
             from apps.proveedores.models import Proveedor
             from apps.ventas.models import Venta
@@ -55,7 +55,6 @@ class Command(BaseCommand):
             
             models_to_backup = [
                 Producto.objects.filter(empresa=empresa),
-                Almacen.objects.filter(empresa=empresa),
                 Cliente.objects.filter(empresa=empresa),
                 Proveedor.objects.filter(empresa=empresa),
                 Venta.objects.filter(empresa=empresa),

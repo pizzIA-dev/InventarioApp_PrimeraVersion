@@ -121,7 +121,6 @@ class VentaViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         - Si no, descuenta del stock global como antes.
         Bloquea si algún producto no tiene stock suficiente.
         """
-        from apps.inventario.models import Almacen, StockAlmacen
         from django.db.models import F
 
         venta = self.get_object()
@@ -133,44 +132,18 @@ class VentaViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             )
 
         # ── Determinar almacén del colaborador ─────────────────────────────
-        almacen_colaborador = None
-        try:
-            almacen_colaborador = request.user.perfil.almacen
-        except AttributeError:
-            pass
-
-        # Si no tiene asignado, usar almacén general de la empresa
-        if almacen_colaborador is None:
-            try:
-                empresa = request.user.perfil.empresa
-                almacen_colaborador = Almacen.objects.filter(
-                    empresa=empresa, es_general=True, activo=True
-                ).first()
-            except AttributeError:
-                almacen_colaborador = None
-
-        # ── Verificar stock antes de proceder ──────────────────────────────
+        # Verificar stock antes de proceder
         sin_stock = []
         detalles  = list(venta.detalleventa_set.select_related('producto').all())
 
         for detalle in detalles:
             producto = detalle.producto
-
-            if almacen_colaborador:
-                # Verificar vs StockAlmacen del colaborador
-                sa = StockAlmacen.objects.filter(
-                    almacen=almacen_colaborador, producto=producto
-                ).first()
-                disponible = sa.cantidad if sa else 0
-            else:
-                # Fallback: stock global
-                disponible = producto.stock_actual
+            disponible = producto.stock_actual
 
             if disponible < detalle.cantidad:
                 sin_stock.append({
                     'producto_id':        producto.id,
                     'producto':           producto.nombre,
-                    'almacen':            almacen_colaborador.nombre if almacen_colaborador else 'Stock global',
                     'stock_disponible':   float(disponible),
                     'cantidad_requerida': float(detalle.cantidad),
                     'faltante':           float(detalle.cantidad - disponible),
@@ -180,7 +153,6 @@ class VentaViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             return Response(
                 {
                     'error': 'No se puede confirmar la venta: stock insuficiente en los siguientes productos.',
-                    'almacen': almacen_colaborador.nombre if almacen_colaborador else 'Stock global',
                     'productos_sin_stock': sin_stock,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -188,8 +160,6 @@ class VentaViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         # ───────────────────────────────────────────────────────────────────
 
         # Guardar referencia al almacén en la venta para reversión posterior
-        if almacen_colaborador and not venta.almacen_id if hasattr(venta, 'almacen_id') else False:
-            venta.almacen = almacen_colaborador
 
         venta.estado = 'CONFIRMADA'
         venta._skip_auto_historial = True
@@ -197,12 +167,12 @@ class VentaViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
 
         # Solo descontar stock si NO proviene de un fiado
         if not venta.fiado_origen.exists():
-            venta.registrar_salida_stock(almacen=almacen_colaborador)
+            venta.registrar_salida_stock()
 
         # Registrar historial de confirmación
         from .models import MovimientoEstadoVenta
         now_str = timezone.localtime().strftime("%d/%m/%Y a las %H:%M:%S")
-        notas_extra = f" (Almacén: {almacen_colaborador.nombre})" if almacen_colaborador else ''
+        notas_extra = ''
         MovimientoEstadoVenta.objects.create(
             venta=venta,
             estado_anterior='BORRADOR',
@@ -240,35 +210,13 @@ class VentaViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Determinar almacén del colaborador para revertir correctamente
-        from apps.inventario.models import Almacen
-        almacen_colaborador = None
-        try:
-            almacen_colaborador = request.user.perfil.almacen
-            if almacen_colaborador is None:
-                empresa = request.user.perfil.empresa
-                almacen_colaborador = Almacen.objects.filter(
-                    empresa=empresa, es_general=True, activo=True
-                ).first()
-        except AttributeError:
-            pass
+        venta.revertir_stock()
 
-        if venta.estado == 'CONFIRMADA':
-            venta.revertir_stock(almacen=almacen_colaborador)
-
-        estado_anterior = venta.estado
-        venta.estado = 'CANCELADA'
-        venta._skip_auto_historial = True
-        venta.save()
-
-        # Registrar el motivo en el historial (inmutable)
-        from .models import MovimientoEstadoVenta
-        notas_extra = f" (Almacén: {almacen_colaborador.nombre})" if almacen_colaborador else ''
-        MovimientoEstadoVenta.objects.create(
+        HistorialEstadoVenta.objects.create(
             venta=venta,
             estado_anterior=estado_anterior,
             estado_nuevo='CANCELADA',
-            notas=f"{razon_detalle or razon_tag}{notas_extra}",
+            notas=f"{razon_detalle or razon_tag}",
             razon_tag=razon_tag,
             razon_detalle=razon_detalle,
         )

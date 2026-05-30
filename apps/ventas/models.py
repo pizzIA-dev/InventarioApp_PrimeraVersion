@@ -15,7 +15,6 @@ class Venta(models.Model):
     ]
     
     empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='ventas', null=True)
-    almacen = models.ForeignKey('inventario.Almacen', on_delete=models.SET_NULL, null=True, blank=True, related_name='ventas')
     cliente = models.ForeignKey(
         Cliente, 
         on_delete=models.SET_NULL, 
@@ -119,14 +118,12 @@ class Venta(models.Model):
         """Calcula los totales de la venta (Legacy method, now handled in save)"""
         self.save()
     
-    def registrar_salida_stock(self, almacen=None):
+    def registrar_salida_stock(self):
         """
         Registra la salida de inventario para cada producto en la venta.
-        Si la venta tiene un `almacen` asociado, descuenta del StockAlmacen correspondiente.
         """
-        from apps.inventario.models import MovimientoStock, StockAlmacen
+        from apps.inventario.models import MovimientoStock
         
-        target_almacen = getattr(self, 'almacen', None) or almacen
 
         for detalle in self.detalleventa_set.all():
             producto = detalle.producto
@@ -142,25 +139,15 @@ class Venta(models.Model):
                 motivo='VENTA',
                 origen=f'Venta {self.numero_comprobante or self.id}',
                 usuario=self.usuario,
-                almacen=target_almacen,
             )
 
-            if target_almacen:
-                stock_almacen, created = StockAlmacen.objects.get_or_create(
-                    producto=producto,
-                    almacen=target_almacen,
-                    defaults={'cantidad': 0}
-                )
-                stock_almacen.cantidad -= cantidad
-                stock_almacen.save()
 
-    def revertir_stock(self, almacen=None):
+    def revertir_stock(self):
         """
         Revierte la salida de inventario cuando se cancela una venta.
         """
-        from apps.inventario.models import MovimientoStock, StockAlmacen
+        from apps.inventario.models import MovimientoStock
         
-        target_almacen = getattr(self, 'almacen', None) or almacen
         
         for detalle in self.detalleventa_set.all():
             producto = detalle.producto
@@ -176,17 +163,7 @@ class Venta(models.Model):
                 motivo='DEVOLUCION',
                 origen=f'Cancelación Venta {self.numero_comprobante or self.id}',
                 usuario=self.usuario,
-                almacen=target_almacen,
             )
-
-            if target_almacen:
-                stock_almacen, created = StockAlmacen.objects.get_or_create(
-                    producto=producto,
-                    almacen=target_almacen,
-                    defaults={'cantidad': 0}
-                )
-                stock_almacen.cantidad += cantidad
-                stock_almacen.save()
 class DetalleVenta(models.Model):
     """Detalle de productos en una venta"""
     empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='detalles_venta', null=True)

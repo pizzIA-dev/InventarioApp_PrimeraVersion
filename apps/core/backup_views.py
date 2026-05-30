@@ -8,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from apps.core.models import ConfiguracionBackup, RegistroBackup
-from apps.inventario.models import Producto, Almacen, MovimientoStock, StockAlmacen, TrasladoStock
+from apps.inventario.models import Producto, MovimientoStock
 from apps.clientes.models import Cliente
 from apps.proveedores.models import Proveedor
 from apps.ventas.models import Venta
@@ -101,13 +101,11 @@ def restore_backup(request):
             # 1. BORRAR DATOS ACTUALES (Cuidado extremo)
             MovimientoStock.objects.filter(empresa=empresa).delete()
             TrasladoStock.objects.filter(empresa=empresa).delete()
-            StockAlmacen.objects.filter(almacen__empresa=empresa).delete()
             Venta.objects.filter(empresa=empresa).delete()
             Compra.objects.filter(empresa=empresa).delete()
             Producto.objects.filter(empresa=empresa).delete()
             Cliente.objects.filter(empresa=empresa).delete()
             Proveedor.objects.filter(empresa=empresa).delete()
-            Almacen.objects.filter(empresa=empresa).delete()
 
             # 2. INSERTAR DATOS DEL BACKUP
             for obj in objects:

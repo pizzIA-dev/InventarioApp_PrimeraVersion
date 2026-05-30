@@ -64,15 +64,6 @@ class PerfilUsuario(models.Model):
         related_name='perfiles_asignados'
     )
     # AlmacÃ©n asignado --- Solo Gerente puede reasignar
-    almacen = models.ForeignKey(
-        'inventario.Almacen',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='perfiles_asignados',
-        help_text="AlmacÃ©n al que estÃ¡ asignado este colaborador. Gerente puede acceder a todos."
-    )
-
     class Meta:
         db_table = 'core_perfilusuario'
         verbose_name_plural = 'Perfiles de Usuario'

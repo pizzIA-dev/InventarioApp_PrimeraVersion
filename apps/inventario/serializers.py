@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Categoria, Producto, MovimientoStock, Almacen, StockAlmacen, TrasladoStock
+from .models import Categoria, Producto, MovimientoStock
 
 
 class CategoriaSerializer(serializers.ModelSerializer):
@@ -59,7 +59,6 @@ class MovimientoStockSerializer(serializers.ModelSerializer):
     producto_codigo = serializers.CharField(source='producto.codigo', read_only=True)
     usuario_nombre = serializers.SerializerMethodField()
     usuario_rol = serializers.SerializerMethodField()
-    almacen_nombre = serializers.CharField(source='almacen.nombre', read_only=True, default=None)
 
     class Meta:
         model = MovimientoStock
@@ -68,7 +67,7 @@ class MovimientoStockSerializer(serializers.ModelSerializer):
             'tipo', 'origen', 'cantidad', 'stock_anterior', 'stock_nuevo',
             'precio_unitario', 'precio_compra_anterior', 'precio_compra_nuevo',
             'precio_venta_anterior', 'precio_venta_nuevo', 'referencia', 'notas',
-            'activo_nuevo', 'almacen', 'almacen_nombre', 'fecha'
+            'activo_nuevo', 'fecha'
         ]
         read_only_fields = ['stock_anterior', 'stock_nuevo', 'fecha']
 
@@ -106,88 +105,3 @@ class MovimientoStockCreateSerializer(serializers.ModelSerializer):
 
 
 # ── Almacén ───────────────────────────────────────────────────────────────────
-
-class StockAlmacenSerializer(serializers.ModelSerializer):
-    producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)
-    producto_codigo = serializers.CharField(source='producto.codigo', read_only=True)
-    producto_unidad = serializers.CharField(source='producto.unidad_medida', read_only=True)
-    stock_minimo = serializers.DecimalField(
-        source='producto.stock_minimo', max_digits=10, decimal_places=2, read_only=True
-    )
-    stock_bajo = serializers.SerializerMethodField()
-
-    class Meta:
-        model = StockAlmacen
-        fields = [
-            'id', 'almacen', 'producto', 'producto_nombre', 'producto_codigo',
-            'producto_unidad', 'cantidad', 'stock_minimo', 'stock_bajo', 'actualizado_en'
-        ]
-        read_only_fields = ['actualizado_en']
-
-    def get_stock_bajo(self, obj):
-        return obj.cantidad <= obj.producto.stock_minimo
-
-
-class AlmacenSerializer(serializers.ModelSerializer):
-    stocks = StockAlmacenSerializer(many=True, read_only=True)
-    total_colaboradores = serializers.IntegerField(read_only=True)
-
-    class Meta:
-        model = Almacen
-        fields = [
-            'id', 'nombre', 'descripcion', 'es_general', 'activo',
-            'total_colaboradores', 'stocks', 'creado_en', 'actualizado_en'
-        ]
-        read_only_fields = ['creado_en', 'actualizado_en']
-
-
-class AlmacenListSerializer(serializers.ModelSerializer):
-    """Serializer ligero para listas (sin stocks detallados)."""
-    total_colaboradores = serializers.IntegerField(read_only=True)
-    total_productos = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Almacen
-        fields = [
-            'id', 'nombre', 'descripcion', 'es_general', 'activo',
-            'total_colaboradores', 'total_productos', 'creado_en', 'actualizado_en'
-        ]
-        read_only_fields = ['creado_en', 'actualizado_en']
-
-    def get_total_productos(self, obj):
-        return obj.stocks.filter(cantidad__gt=0).count()
-
-
-class TrasladoStockSerializer(serializers.ModelSerializer):
-    producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)
-    almacen_origen_nombre = serializers.CharField(source='almacen_origen.nombre', read_only=True, default=None)
-    almacen_destino_nombre = serializers.CharField(source='almacen_destino.nombre', read_only=True, default=None)
-    usuario_nombre = serializers.SerializerMethodField()
-
-    class Meta:
-        model = TrasladoStock
-        fields = [
-            'id', 'tipo', 'producto', 'producto_nombre',
-            'almacen_origen', 'almacen_origen_nombre',
-            'almacen_destino', 'almacen_destino_nombre',
-            'cantidad', 'notas', 'usuario', 'usuario_nombre', 'fecha'
-        ]
-        read_only_fields = ['fecha', 'usuario']
-
-    def get_usuario_nombre(self, obj):
-        if obj.usuario:
-            return obj.usuario.username
-        return 'Sistema'
-
-    def validate(self, data):
-        origen = data.get('almacen_origen')
-        destino = data.get('almacen_destino')
-        if origen and destino and origen == destino:
-            raise serializers.ValidationError(
-                "El almacén de origen y destino no pueden ser el mismo."
-            )
-        if not origen and not destino:
-            raise serializers.ValidationError(
-                "Debes especificar al menos un almacén de origen o destino."
-            )
-        return data

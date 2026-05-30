@@ -266,17 +266,6 @@ export const rolesAPI = {
   eliminar: (id) => api.delete(`/auth/roles/${id}/`),
 };
 
-export const almacenesAPI = {
-  listar: (params) => api.get('/productos/almacenes/', { params }),
-  getById: (id) => api.get(`/productos/almacenes/${id}/`),
-  crear: (data) => api.post('/productos/almacenes/', data),
-  actualizar: (id, data) => api.patch(`/productos/almacenes/${id}/`, data),
-  desactivar: (id) => api.delete(`/productos/almacenes/${id}/`),
-  miAlmacen: () => api.get('/productos/almacenes/mi-almacen/'),
-  getStockAlmacen: (params) => api.get('/productos/stock-almacen/', { params }),
-  getTraslados: (params) => api.get('/productos/traslados/', { params }),
-  crearTraslado: (data) => api.post('/productos/traslados/', data),
-};
 
 export const backupsAPI = {
   generar: () => api.post('/backups/generar/'),

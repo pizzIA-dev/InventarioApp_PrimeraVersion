@@ -19,7 +19,6 @@ class Compra(models.Model):
     ]
     
     empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='compras_empresa', null=True)
-    almacen = models.ForeignKey('inventario.Almacen', on_delete=models.SET_NULL, null=True, blank=True, related_name='compras_almacen')
     proveedor = models.ForeignKey(
         Proveedor, 
         on_delete=models.SET_NULL, 
@@ -120,8 +119,7 @@ class Compra(models.Model):
     def registrar_stock(self):
         """Registra el ingreso de stock por esta compra"""
         if self.estado == 'CONFIRMADA':
-            from apps.inventario.models import MovimientoStock, StockAlmacen
-            target_almacen = getattr(self, 'almacen', None)
+            from apps.inventario.models import MovimientoStock
             
             for detalle in self.detallecompra_set.all():
                 MovimientoStock.objects.create(
@@ -136,24 +134,13 @@ class Compra(models.Model):
                     precio_venta_anterior=detalle.producto.precio_venta,
                     precio_venta_nuevo=detalle.producto.precio_venta,
                     referencia=f"Compra #{self.id}",
-                    almacen=target_almacen
                 )
                 
-                if target_almacen:
-                    stock_almacen, created = StockAlmacen.objects.get_or_create(
-                        producto=detalle.producto,
-                        almacen=target_almacen,
-                        defaults={'cantidad': 0}
-                    )
-                    stock_almacen.cantidad += detalle.cantidad
-                    stock_almacen.save()
 
     def revertir_stock(self):
         """Revierte los movimientos de stock asociados a esta compra"""
         from django.db.models import Q
-        from apps.inventario.models import MovimientoStock, StockAlmacen
         
-        target_almacen = getattr(self, 'almacen', None)
         
         referencia_nueva = f"Compra #{self.id}"
         query = Q(referencia=referencia_nueva)
@@ -167,18 +154,8 @@ class Compra(models.Model):
             producto = mov.producto
             if mov.tipo == 'ENTRADA':
                 producto.stock_actual -= mov.cantidad
-                if target_almacen:
-                    stock_almacen = StockAlmacen.objects.filter(producto=producto, almacen=target_almacen).first()
-                    if stock_almacen:
-                        stock_almacen.cantidad -= mov.cantidad
-                        stock_almacen.save()
             else:
                 producto.stock_actual += mov.cantidad
-                if target_almacen:
-                    stock_almacen = StockAlmacen.objects.filter(producto=producto, almacen=target_almacen).first()
-                    if stock_almacen:
-                        stock_almacen.cantidad += mov.cantidad
-                        stock_almacen.save()
             
             producto.save()
             mov.delete()

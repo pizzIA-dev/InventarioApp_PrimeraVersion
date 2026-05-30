@@ -13,13 +13,11 @@ from django.core.exceptions import ValidationError
 # Importar Permisos RBAC
 from apps.core.permissions import HasRBACScope, IsGerente
 
-from .models import Categoria, Producto, MovimientoStock, Almacen, StockAlmacen, TrasladoStock
+from .models import Categoria, Producto, MovimientoStock
 from .serializers import (
     CategoriaSerializer,
     ProductoSerializer, ProductoCreateSerializer,
     MovimientoStockSerializer, MovimientoStockCreateSerializer,
-    AlmacenSerializer, AlmacenListSerializer,
-    StockAlmacenSerializer, TrasladoStockSerializer
 )
 from apps.core.mixins import SoloGerenteDestroyMixin
 
@@ -175,7 +173,7 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         for mov in movimientos:
             fecha_str = mov.fecha.strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
             cantidad_str = f"+{float(mov.cantidad)}" if mov.tipo == 'ENTRADA' else f"-{float(mov.cantidad)}"
-            almacen_str = mov.almacen.nombre if mov.almacen else 'General'
+            almacen_str = 'General'
             
             # Build the estado string for this row
             if mov.activo_nuevo is True:
@@ -237,7 +235,6 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             return Response({'error': 'Motivo de ajuste inválido.'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Validación de almacén basada en rol
-        from apps.inventario.models import Almacen
         almacen_obj = None
         if user_perfil.rol == 'GERENTE':
             # El Gerente debe mandar explicitamente a qué almacén ajusta
@@ -261,7 +258,6 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
 
         # Validación que no deje saldo negativo el sub-almacén si es salida
         if tipo == 'SALIDA':
-            from apps.inventario.models import StockAlmacen
             sa = StockAlmacen.objects.filter(almacen=almacen_obj, producto=producto).first()
             disp = sa.cantidad if sa else 0
             if disp < float(cantidad_ajuste):
@@ -396,7 +392,7 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
         for mov in queryset:
             fecha_str = mov.fecha.strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
             cantidad_str = f"+{float(mov.cantidad)}" if mov.tipo == 'ENTRADA' else f"-{float(mov.cantidad)}"
-            almacen_str = mov.almacen.nombre if mov.almacen else 'General'
+            almacen_str = 'General'
             
             # Build the estado string for this row
             if mov.activo_nuevo is True:
@@ -442,150 +438,3 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
 # ═══════════════════════════════════════════════════════════════════════════════
 #  ALMACENES / CAJAS
 # ═══════════════════════════════════════════════════════════════════════════════
-
-class AlmacenViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
-    """
-    CRUD de Almacenes. Escritura solo para Gerentes.
-    Los colaboradores pueden leer para saber a qué almacén están asignados.
-    """
-    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['nombre']
-    ordering_fields = ['nombre', 'es_general', 'creado_en']
-
-    def get_queryset(self):
-        return Almacen.objects.filter(activo=True).prefetch_related('stocks__producto')
-
-    def get_serializer_class(self):
-        if self.action == 'retrieve':
-            return AlmacenSerializer  # Con stocks detallados
-        return AlmacenListSerializer  # Ligero para lista
-
-    def perform_create(self, serializer):
-        # Asignar empresa del usuario autenticado
-        empresa = None
-        try:
-            empresa = self.request.user.perfil.empresa
-        except AttributeError:
-            pass
-        serializer.save(empresa=empresa)
-
-    def perform_update(self, serializer):
-        if not (
-            self.request.user.is_superuser
-            or getattr(self.request.user.perfil, 'rol', '') == 'GERENTE'
-        ):
-            from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied('Solo el Gerente puede modificar almacenes.')
-        serializer.save()
-
-    @action(detail=False, methods=['get'], url_path='mi-almacen')
-    def mi_almacen(self, request):
-        """
-        Devuelve el almacén asignado al colaborador autenticado.
-        Si es Gerente, devuelve el almacén general.
-        """
-        try:
-            perfil = request.user.perfil
-        except AttributeError:
-            return Response({'error': 'Perfil no encontrado.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        if perfil.almacen:
-            almacen = perfil.almacen
-        else:
-            # Fallback: almacén general de la empresa
-            empresa = perfil.empresa
-            almacen = Almacen.objects.filter(empresa=empresa, es_general=True).first()
-
-        if not almacen:
-            return Response({'error': 'No hay almacén asignado.'}, status=status.HTTP_404_NOT_FOUND)
-
-        return Response(AlmacenSerializer(almacen).data)
-
-
-class StockAlmacenViewSet(viewsets.ReadOnlyModelViewSet):
-    """
-    Vista de solo lectura del stock por almacén.
-    El frontend usa esto para mostrar el stock disponible en el almacén del colaborador.
-    """
-    serializer_class = StockAlmacenSerializer
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
-    filterset_fields = ['almacen', 'producto']
-    search_fields = ['producto__nombre', 'producto__codigo']
-
-    def get_queryset(self):
-        return StockAlmacen.objects.select_related(
-            'almacen', 'producto'
-        ).filter(almacen__activo=True)
-
-
-class TrasladoStockViewSet(viewsets.ModelViewSet):
-    """
-    Traslados de stock entre almacenes.
-    - Escritura (POST): solo Gerentes.
-    - Lectura: todos los autenticados.
-    - DELETE: bloqueado (registro inmutable).
-    - PUT/PATCH: bloqueado (registro inmutable).
-    """
-    serializer_class = TrasladoStockSerializer
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['tipo', 'producto', 'almacen_origen', 'almacen_destino']
-    ordering_fields = ['fecha']
-
-    def get_queryset(self):
-        return TrasladoStock.objects.select_related(
-            'producto', 'almacen_origen', 'almacen_destino', 'usuario'
-        ).all()
-
-    def create(self, request, *args, **kwargs):
-        """Ejecutar traslado de forma atómica via TrasladoStock.ejecutar()."""
-        # Solo Gerentes pueden crear traslados
-        try:
-            perfil = request.user.perfil
-        except AttributeError:
-            return Response({'error': 'Perfil no encontrado.'}, status=status.HTTP_403_FORBIDDEN)
-
-        if not (request.user.is_superuser or perfil.rol == 'GERENTE'):
-            return Response(
-                {'error': 'Solo el Gerente puede realizar traslados de stock.'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
-        try:
-            traslado = TrasladoStock.ejecutar(
-                tipo=data['tipo'],
-                producto=data['producto'],
-                origen=data.get('almacen_origen'),
-                destino=data.get('almacen_destino'),
-                cantidad=data['cantidad'],
-                usuario=request.user,
-                notas=data.get('notas', ''),
-            )
-        except ValidationError as e:
-            return Response(
-                {'error': str(e.message) if hasattr(e, 'message') else str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        return Response(
-            TrasladoStockSerializer(traslado).data,
-            status=status.HTTP_201_CREATED
-        )
-
-    def update(self, request, *args, **kwargs):
-        return Response(
-            {'error': 'Los traslados son registros inmutables y no pueden modificarse.'},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED
-        )
-
-    def partial_update(self, request, *args, **kwargs):
-        return self.update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        return Response(
-            {'error': 'Los traslados son registros contables inmutables. No se pueden eliminar.'},
-            status=status.HTTP_405_METHOD_NOT_ALLOWED
-        )

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { comprasAPI, proveedoresAPI, productosAPI, comprasServiciosAPI, serviciosAPI, almacenesAPI } from '../services/api';
+import { comprasAPI, proveedoresAPI, productosAPI, comprasServiciosAPI, serviciosAPI } from '../services/api';
 import { 
   PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined,
   OrderedListOutlined, EyeOutlined, DownloadOutlined, HistoryOutlined

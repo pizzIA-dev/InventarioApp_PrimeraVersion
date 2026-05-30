@@ -7,7 +7,7 @@ from rest_framework.routers import DefaultRouter
 from apps.core.auth_views import CustomTokenObtainPairView, logout_view, forgot_password, reset_password_confirm
 from apps.core.user_views import (
     listar_usuarios, crear_usuario, toggle_usuario,
-    cambiar_password, RolPersonalizadoViewSet, my_profile, asignar_almacen, actualizar_empresa
+    cambiar_password, RolPersonalizadoViewSet, my_profile, actualizar_empresa
 )
 from apps.core.backup_views import manage_backup_config, list_backups, restore_backup
 from django.conf.urls.static import static
@@ -41,7 +41,6 @@ urlpatterns = [
     path('api/auth/usuarios/crear/', crear_usuario, name='crear_usuario'),
     path('api/auth/usuarios/<int:user_id>/toggle/', toggle_usuario, name='toggle_usuario'),
     path('api/auth/usuarios/<int:user_id>/password/', cambiar_password, name='cambiar_password'),
-    path('api/auth/usuarios/<int:user_id>/asignar-almacen/', asignar_almacen, name='asignar_almacen'),
     path('api/core/empresa/update/', actualizar_empresa, name='actualizar_empresa'),
     
     # Backups

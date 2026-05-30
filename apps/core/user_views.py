@@ -15,7 +15,7 @@ from apps.core.constants import ROLES_COLABORADOR
 def my_profile(request):
     """
     Ruta para la carga inicial de React.
-    Devuelve los datos de la cuenta logueada, la metadata del Tenant y el almacén asignado.
+    Devuelve los datos de la cuenta logueada, la metadata del Tenant y el almac├®n asignado.
     """
     try:
         perfil = request.user.perfil
@@ -30,24 +30,6 @@ def my_profile(request):
                 'logo': request.build_absolute_uri(empresa.logo.url) if empresa.logo else None,
             }
 
-        almacen_data = None
-        if perfil.almacen:
-            almacen_data = {
-                'id': perfil.almacen.id,
-                'nombre': perfil.almacen.nombre,
-                'es_general': perfil.almacen.es_general,
-            }
-        elif empresa:
-            # Fallback: buscar almacén general de la empresa
-            from apps.inventario.models import Almacen
-            almacen_gral = Almacen.objects.filter(empresa=empresa, es_general=True).first()
-            if almacen_gral:
-                almacen_data = {
-                    'id': almacen_gral.id,
-                    'nombre': almacen_gral.nombre,
-                    'es_general': True,
-                }
-
         data = {
             'id': request.user.id,
             'username': request.user.username,
@@ -56,7 +38,7 @@ def my_profile(request):
             'rol_display': perfil.get_rol_display(),
             'rol_custom_nombre': perfil.rol_custom.nombre if perfil.rol_custom else None,
             'empresa': empresa_data,
-            'almacen': almacen_data,
+            'empresa_nombre': empresa.nombre if empresa else None,
         }
         return Response(data)
     except Exception as e:
@@ -104,7 +86,7 @@ def actualizar_empresa(request):
 class RolPersonalizadoViewSet(viewsets.ModelViewSet):
     """
     CRUD completo para los roles.
-    Solamente disponible para Gerentes, y bloqueado de raíz si no es Plan Empresario (Upsell Wall).
+    Solamente disponible para Gerentes, y bloqueado de ra├¡z si no es Plan Empresario (Upsell Wall).
     """
     queryset = RolPersonalizado.objects.all()
     serializer_class = RolPersonalizadoSerializer
@@ -115,12 +97,12 @@ class RolPersonalizadoViewSet(viewsets.ModelViewSet):
 @permission_classes([IsGerente])
 def listar_usuarios(request):
     """
-    Lista todos los colaboradores del tenant con su almacén asignado.
+    Lista todos los colaboradores del tenant con su almac├®n asignado.
     Solo accesible por GERENTE.
     """
     perfiles = (
         PerfilUsuario.objects
-        .select_related('user', 'rol_custom', 'almacen')
+        .select_related('user', 'rol_custom')
         .filter(rol__in=['VENDEDOR', 'COLABORADOR'])
     )
     data = [
@@ -133,9 +115,6 @@ def listar_usuarios(request):
             'rol_display': p.get_rol_display(),
             'rol_custom_nombre': p.rol_custom.nombre if p.rol_custom else None,
             'rol_custom_id': p.rol_custom.id if p.rol_custom else None,
-            'almacen_id': p.almacen.id if p.almacen else None,
-            'almacen_nombre': p.almacen.nombre if p.almacen else None,
-            'almacen_es_general': p.almacen.es_general if p.almacen else None,
             'date_joined': p.user.date_joined.strftime('%Y-%m-%d'),
         }
         for p in perfiles
@@ -147,24 +126,22 @@ def listar_usuarios(request):
 @permission_classes([IsGerente])
 def crear_usuario(request):
     """
-    Crea un nuevo colaborador y le asocia opcionalmente un Rol Personalizado y un Almacén.
-    Body: { username, password, email?, rol_custom_id?, almacen_id? }
+    Crea un nuevo colaborador y le asocia opcionalmente un Rol Personalizado y un Almac├®n.
     """
     username = request.data.get('username', '').strip()
     password = request.data.get('password', '').strip()
     email = request.data.get('email', '').strip()
     rol_custom_id = request.data.get('rol_custom_id', None)
-    almacen_id = request.data.get('almacen_id', None)
 
     if not username or not password:
         return Response(
-            {'error': 'El nombre de usuario y la contraseña son obligatorios.'},
+            {'error': 'El nombre de usuario y la contrase├▒a son obligatorios.'},
             status=status.HTTP_400_BAD_REQUEST
         )
 
     if len(password) < 6:
         return Response(
-            {'error': 'La contraseña debe tener al menos 6 caracteres.'},
+            {'error': 'La contrase├▒a debe tener al menos 6 caracteres.'},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -184,20 +161,11 @@ def crear_usuario(request):
         except RolPersonalizado.DoesNotExist:
             pass
 
-    # Almacén opcional
-    almacen_obj = None
-    if almacen_id:
-        from apps.inventario.models import Almacen
-        try:
-            almacen_obj = Almacen.objects.get(id=almacen_id, activo=True)
-        except Almacen.DoesNotExist:
-            pass
 
     perfil = PerfilUsuario.objects.create(
         user=user,
         rol='COLABORADOR',
         rol_custom=rol_obj,
-        almacen=almacen_obj,
     )
 
     return Response(
@@ -209,8 +177,6 @@ def crear_usuario(request):
             'rol': 'COLABORADOR',
             'rol_display': perfil.get_rol_display(),
             'rol_custom_nombre': rol_obj.nombre if rol_obj else None,
-            'almacen_id': almacen_obj.id if almacen_obj else None,
-            'almacen_nombre': almacen_obj.nombre if almacen_obj else None,
             'date_joined': user.date_joined.strftime('%Y-%m-%d'),
         },
         status=status.HTTP_201_CREATED
@@ -249,7 +215,7 @@ def toggle_usuario(request, user_id):
 @permission_classes([IsGerente])
 def cambiar_password(request, user_id):
     """
-    Permite al Gerente resetear la contraseña de un Colaborador.
+    Permite al Gerente resetear la contrase├▒a de un Colaborador.
     Body: { new_password }
     """
     try:
@@ -260,59 +226,12 @@ def cambiar_password(request, user_id):
     new_password = request.data.get('new_password', '').strip()
     if len(new_password) < 6:
         return Response(
-            {'error': 'La nueva contraseña debe tener al menos 6 caracteres.'},
+            {'error': 'La nueva contrase├▒a debe tener al menos 6 caracteres.'},
             status=status.HTTP_400_BAD_REQUEST
         )
 
     user.set_password(new_password)
     user.save()
-    return Response({'detail': 'Contraseña actualizada correctamente.'})
+    return Response({'detail': 'Contrase├▒a actualizada correctamente.'})
 
 
-@api_view(['PATCH'])
-@permission_classes([IsGerente])
-def asignar_almacen(request, user_id):
-    """
-    Asigna o reasigna el almacén de un colaborador.
-    Body: { almacen_id }  (null para desasignar)
-    Solo accesible por GERENTE.
-    El historial de reasignación se guarda en HistorialAsignacionAlmacen.
-    """
-    try:
-        perfil = PerfilUsuario.objects.select_related('user', 'almacen').get(user_id=user_id)
-    except PerfilUsuario.DoesNotExist:
-        return Response({'error': 'Perfil de usuario no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
-
-    almacen_id = request.data.get('almacen_id', None)
-    almacen_anterior = perfil.almacen
-
-    almacen_nuevo = None
-    if almacen_id:
-        from apps.inventario.models import Almacen
-        try:
-            almacen_nuevo = Almacen.objects.get(id=almacen_id, activo=True)
-        except Almacen.DoesNotExist:
-            return Response(
-                {'error': f'Almacén con id={almacen_id} no encontrado o inactivo.'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-    perfil.almacen = almacen_nuevo
-    perfil.save()
-
-    # Guardar historial de asignación
-    from apps.inventario.models import HistorialAsignacionAlmacen
-    HistorialAsignacionAlmacen.objects.create(
-        usuario=perfil.user,
-        almacen_anterior=almacen_anterior,
-        almacen_nuevo=almacen_nuevo,
-        asignado_por=request.user,
-    )
-
-    return Response({
-        'id': perfil.user.id,
-        'username': perfil.user.username,
-        'almacen_id': almacen_nuevo.id if almacen_nuevo else None,
-        'almacen_nombre': almacen_nuevo.nombre if almacen_nuevo else None,
-        'detail': 'Almacén actualizado correctamente.',
-    })
