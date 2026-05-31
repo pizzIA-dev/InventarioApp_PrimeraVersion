@@ -133,16 +133,32 @@ export default function Landing({ view }) {
     setLoading(false);
   };
 
+  const cargarCulqi = () => new Promise((resolve) => {
+    if (typeof window.Culqi !== 'undefined') { resolve(true); return; }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.culqi.com/js/v4';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.head.appendChild(script);
+  });
+
   const onFinishRegistro = async (values) => {
     const culqiKey = import.meta.env.VITE_CULQI_PUBLIC_KEY || 'pk_test_placeholder';
 
-    // Sandbox bypass: sin clave real o Culqi.js no disponible
-    if (culqiKey === 'pk_test_placeholder' || typeof window.Culqi === 'undefined') {
+    // Sin clave de Culqi configurada -> sandbox directo
+    if (culqiKey === 'pk_test_placeholder') {
       await registrarConToken(values, '');
       return;
     }
 
-    // API correcta de Culqi Checkout v4
+    // Cargar Culqi on-demand (evita iframes invisibles al montar)
+    const culqiOk = await cargarCulqi();
+    if (!culqiOk || typeof window.Culqi === 'undefined') {
+      message.warning('Cargando pasarela de pago... intenta de nuevo en un momento');
+      return;
+    }
+
+    // Abrir checkout con API correcta de Culqi v4
     try {
       window.Culqi.publicKey = culqiKey;
       window.Culqi.settings({
@@ -152,39 +168,26 @@ export default function Landing({ view }) {
         amount:      currency === 'USD' ? 1200 : 3900,
         order:       `reg_${Date.now()}`,
       });
-      window.Culqi.options({ lang: 'auto', installments: false });
 
-      // Callback global que Culqi llama al completar el pago
       window.culqi = async () => {
         if (window.Culqi.token) {
           const tokenId = window.Culqi.token.id;
           window.Culqi.close();
           await registrarConToken(values, tokenId);
         } else if (window.Culqi.error) {
-          const errMsg = window.Culqi.error.user_message || 'Error en el pago';
-          message.error(errMsg);
+          message.error(window.Culqi.error.user_message || 'Error en el pago');
         }
       };
 
       window.Culqi.open();
     } catch (err) {
-      console.error('[Culqi] Error al abrir checkout:', err);
-      // Fallback a sandbox si Culqi falla
+      console.error('[Culqi] Error:', err);
       await registrarConToken(values, '');
     }
   };
 
 
-  // Cargar el script de Culqi Checkout v4 al montar la pagina
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src   = 'https://checkout.culqi.com/js/v4';
-    script.async = true;
-    document.head.appendChild(script);
-    return () => {
-      try { document.head.removeChild(script); } catch (_) {}
-    };
-  }, []);
+  // Culqi se carga on-demand en onFinishRegistro
   return (
     <div style={{
       backgroundColor: darkBg, minHeight: '100vh', color: '#fff',
