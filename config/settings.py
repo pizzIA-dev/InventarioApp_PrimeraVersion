@@ -285,6 +285,11 @@ if not DEBUG:
 BASE_DOMAIN = config('BASE_DOMAIN', default='localhost')
 FRONTEND_URL = config('FRONTEND_URL', default=f'http://localhost:5175')
 
+
+# === Culqi Payment Gateway ===
+CULQI_SECRET_KEY = config('CULQI_SECRET_KEY', default='sk_test_placeholder')
+CULQI_PUBLIC_KEY  = config('CULQI_PUBLIC_KEY',  default='pk_test_placeholder')
+
 # === Planes y Precios de NegocIA ===
 # Usado por RegistroSaaSAPIView para procesar pagos y crear suscripciones
 PLAN_PRECIOS = {
