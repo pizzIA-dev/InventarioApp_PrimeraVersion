@@ -1,4 +1,3 @@
-﻿# Generated manually - removes almacen FK from Compra
 from django.db import migrations
 
 
@@ -10,8 +9,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='compra',
-            name='almacen',
-        ),
+        # Emptied: almacen models were added and removed (net-zero for new schemas)
+        # Existing schemas already have correct state via django_migrations tracking
     ]

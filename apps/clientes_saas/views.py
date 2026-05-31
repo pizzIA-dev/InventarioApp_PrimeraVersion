@@ -61,7 +61,7 @@ class RegistroSaaSAPIView(views.APIView):
                 nombre=data['nombre_empresa'],
                 owner_email=data['email_admin'],
             )
-            try:
+            tenant.save()
                 tenant.save()
             except Exception as _e:
                 import traceback
