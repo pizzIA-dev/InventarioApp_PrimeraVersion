@@ -508,16 +508,44 @@ export default function Landing({ view }) {
               Crear Espacio de Trabajo
             </Title>
             <Card style={{ background: cardBg, border: `1px solid ${neonCyan}`, borderRadius: '12px', boxShadow: neonGlow }}>
-              <Form layout="vertical" form={registroForm} onFinish={onFinishRegistro}>
-                {[
-                  { label: 'Nombre del Negocio', name: 'empresa', placeholder: 'Ej: Bodega El Sol', required: true, onChange: onNombreEmpresaChange },
-                  { label: 'Correo Gerencia',     name: 'email',   placeholder: 'gerente@empresa.com', required: true, type: 'email' },
-                ].map(f => (
-                  <Form.Item key={f.name} label={<span style={{ color: '#fff', fontWeight: 500 }}>{f.label}</span>}
-                    name={f.name} rules={[{ required: f.required, type: f.type }]}>
-                    <Input size="large" placeholder={f.placeholder} onChange={f.onChange} style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
-                  </Form.Item>
-                ))}
+              <Form
+                layout="vertical"
+                form={registroForm}
+                onFinish={onFinishRegistro}
+                onFinishFailed={({ errorFields }) => {
+                  const names = errorFields.map(e => e.name.join('.')).join(', ');
+                  message.error(`Completa los campos: ${names}`);
+                }}
+              >
+                {/* Campo: Nombre del Negocio */}
+                <Form.Item
+                  label={<span style={{ color: '#fff', fontWeight: 500 }}>Nombre del Negocio</span>}
+                  name="empresa"
+                  rules={[{ required: true, message: 'El nombre del negocio es requerido' }]}
+                >
+                  <Input
+                    size="large"
+                    placeholder="Ej: Bodega El Sol"
+                    onChange={onNombreEmpresaChange}
+                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }}
+                  />
+                </Form.Item>
+
+                {/* Campo: Correo */}
+                <Form.Item
+                  label={<span style={{ color: '#fff', fontWeight: 500 }}>Correo Gerencia</span>}
+                  name="email"
+                  rules={[
+                    { required: true, message: 'El correo es requerido' },
+                    { type: 'email', message: 'Ingresa un correo válido' },
+                  ]}
+                >
+                  <Input
+                    size="large"
+                    placeholder="gerente@empresa.com"
+                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }}
+                  />
+                </Form.Item>
 
                 <Form.Item
                   label={<span style={{ color: '#fff', fontWeight: 500 }}>Identificador de URL</span>}
