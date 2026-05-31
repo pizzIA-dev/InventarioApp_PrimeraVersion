@@ -61,7 +61,14 @@ class RegistroSaaSAPIView(views.APIView):
                 nombre=data['nombre_empresa'],
                 owner_email=data['email_admin'],
             )
-            tenant.save()
+            try:
+                tenant.save()
+            except Exception as _e:
+                import traceback
+                return __import__("rest_framework.response", fromlist=["Response"]).Response(
+                    {"error": str(_e), "traceback": traceback.format_exc()},
+                    status=500
+                )
 
             # Dominio (mantenemos por compatibilidad con django-tenants)
             base_domain = django_settings.BASE_DOMAIN
