@@ -152,7 +152,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 WHITENOISE_MANIFEST_STRICT = False  # Evita error por fonts faltantes en DRF
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'  # whitenoise middleware sirve los archivos
 
 # Media files
 MEDIA_URL = 'media/'
