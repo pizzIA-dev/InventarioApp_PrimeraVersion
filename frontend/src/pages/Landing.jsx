@@ -17,6 +17,14 @@ export default function Landing({ view }) {
   const [showNegocio, setShowNegocio] = useState(false);
   const [registroForm] = Form.useForm();
   const [slugPreview, setSlugPreview] = React.useState('');
+  // Observar valores del formulario para habilitar/deshabilitar el botón
+  const watchedValues = Form.useWatch([], registroForm);
+  const isFormComplete = Boolean(
+    watchedValues?.empresa?.trim() &&
+    watchedValues?.email?.trim() &&
+    watchedValues?.subdominio?.trim() &&
+    watchedValues?.password?.trim()
+  );
   const [subInput, setSubInput]       = useState('');
   const [negocios, setNegocios]       = useState(null); // null=sin buscar, []= resultado
   const popoverRef                    = useRef(null);
@@ -133,57 +141,63 @@ export default function Landing({ view }) {
     setLoading(false);
   };
 
-  const cargarCulqi = () => new Promise((resolve) => {
+  const cargarCulqi = (timeoutMs = 5000) => new Promise((resolve) => {
     if (typeof window.Culqi !== 'undefined') { resolve(true); return; }
     const script = document.createElement('script');
     script.src = 'https://checkout.culqi.com/js/v4';
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
+    const timer = setTimeout(() => resolve(false), timeoutMs);
+    script.onload = () => { clearTimeout(timer); resolve(true); };
+    script.onerror = () => { clearTimeout(timer); resolve(false); };
     document.head.appendChild(script);
   });
 
   const onFinishRegistro = async (values) => {
+    // Mostrar loading inmediatamente para dar feedback al usuario
+    setLoading(true);
     const culqiKey = import.meta.env.VITE_CULQI_PUBLIC_KEY || 'pk_test_placeholder';
 
-    // Sin clave de Culqi configurada -> sandbox directo
+    // Sin clave real -> sandbox directo
     if (culqiKey === 'pk_test_placeholder') {
       await registrarConToken(values, '');
       return;
     }
 
-    // Cargar Culqi on-demand (evita iframes invisibles al montar)
-    const culqiOk = await cargarCulqi();
-    if (!culqiOk || typeof window.Culqi === 'undefined') {
-      message.warning('Cargando pasarela de pago... intenta de nuevo en un momento');
-      return;
-    }
-
-    // Abrir checkout con API correcta de Culqi v4
+    // Intentar abrir Culqi (con timeout de 5s)
     try {
-      window.Culqi.publicKey = culqiKey;
-      window.Culqi.settings({
-        title:       'NegocIA — Plan Emprendedor',
-        currency:    currency || 'PEN',
-        description: `Plan Emprendedor - ${values.empresa}`,
-        amount:      currency === 'USD' ? 1200 : 3900,
-        order:       `reg_${Date.now()}`,
-      });
+      const culqiOk = await cargarCulqi(5000);
 
-      window.culqi = async () => {
-        if (window.Culqi.token) {
-          const tokenId = window.Culqi.token.id;
-          window.Culqi.close();
-          await registrarConToken(values, tokenId);
-        } else if (window.Culqi.error) {
-          message.error(window.Culqi.error.user_message || 'Error en el pago');
-        }
-      };
+      if (culqiOk && typeof window.Culqi !== 'undefined') {
+        // Culqi disponible: abrir modal de pago
+        window.Culqi.publicKey = culqiKey;
+        window.Culqi.settings({
+          title:       'NegocIA — Plan Emprendedor',
+          currency:    currency || 'PEN',
+          description: `Plan Emprendedor - ${values.empresa}`,
+          amount:      currency === 'USD' ? 1200 : 3900,
+          order:       `reg_${Date.now()}`,
+        });
 
-      window.Culqi.open();
+        window.culqi = async () => {
+          if (window.Culqi.token) {
+            const tokenId = window.Culqi.token.id;
+            window.Culqi.close();
+            await registrarConToken(values, tokenId);
+          } else if (window.Culqi.error) {
+            setLoading(false);
+            message.error(window.Culqi.error.user_message || 'Pago rechazado');
+          }
+        };
+
+        setLoading(false); // quitar loading mientras el modal de Culqi esta abierto
+        window.Culqi.open();
+        return;
+      }
     } catch (err) {
-      console.error('[Culqi] Error:', err);
-      await registrarConToken(values, '');
+      console.warn('[Culqi] No disponible, usando sandbox:', err);
     }
+
+    // Fallback: proceder sin pago (sandbox/modo prueba)
+    await registrarConToken(values, '');
   };
 
 
@@ -515,9 +529,10 @@ export default function Landing({ view }) {
                 layout="vertical"
                 form={registroForm}
                 onFinish={onFinishRegistro}
+                validateTrigger={["onChange", "onBlur"]}
                 onFinishFailed={({ errorFields }) => {
-                  const names = errorFields.map(e => e.name.join('.')).join(', ');
-                  message.error(`Completa los campos: ${names}`);
+                  const names = errorFields.map(e => e.name.join('')).join(', ');
+                  message.error(`Revisa los campos marcados en rojo`);
                 }}
               >
                 {/* Campo: Nombre del Negocio */}
@@ -597,9 +612,26 @@ export default function Landing({ view }) {
                   </Upload>
                 </Form.Item>
 
-                <Button type="primary" size="large" block htmlType="submit" loading={loading}
-                  style={{ marginTop: '12px', background: neonCyan, color: darkBg, fontWeight: 'bold', boxShadow: neonGlow, border: 'none', height: '48px' }}>
-                  REGISTRAR MI NEGOCIO
+                <Button
+                  type="primary"
+                  size="large"
+                  block
+                  htmlType="submit"
+                  loading={loading}
+                  disabled={!isFormComplete}
+                  style={{
+                    marginTop: '12px', height: '52px', border: 'none',
+                    fontWeight: 800, fontSize: '15px', letterSpacing: '1px',
+                    transition: 'all 0.3s ease',
+                    background: isFormComplete
+                      ? `linear-gradient(135deg, ${neonCyan}, #0088cc)`
+                      : 'rgba(0,210,255,0.15)',
+                    color: isFormComplete ? darkBg : 'rgba(0,210,255,0.4)',
+                    boxShadow: isFormComplete ? neonGlow : 'none',
+                    cursor: isFormComplete ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {loading ? 'Procesando...' : isFormComplete ? 'REGISTRAR MI NEGOCIO' : 'Completa todos los campos'}
                 </Button>
                 <Button type="link" block onClick={() => navigate('/planes')} style={{ marginTop: '10px', color: '#a0c0e0' }}>
                   ← Volver a los planes
