@@ -20,19 +20,11 @@ function VentaFormModal({
     numero_comprobante: '',
     numero_comprobante_simple: '',
     estado: 'BORRADOR',
-    almacen: '',
     detalle: [],
     descuento: 0,
     impuesto: 0,
     notas: ''
   });
-
-
-  useEffect(() => {
-    const fetchAlmacenes = async () => {
-    };
-    fetchAlmacenes();
-  }, []);
   const [errors, setErrors] = useState({});
   const [clienteAlias, setClienteAlias] = useState('');
   const [calcularIgv, setCalcularIgv] = useState(false);
@@ -79,7 +71,6 @@ function VentaFormModal({
           numero_comprobante: initialData.numero_comprobante || '',
           numero_comprobante_simple: initialData.numero_comprobante_simple || '',
           estado: initialData.estado || 'BORRADOR',
-          almacen: initialData.almacen || '',
           detalle: detalles,
           descuento: Number(initialData.descuento || 0),
           impuesto: Number(initialData.impuesto || 0),
@@ -104,7 +95,6 @@ function VentaFormModal({
           numero_comprobante: '',
           numero_comprobante_simple: '',
           estado: 'BORRADOR',
-    almacen: '',
           detalle: [],
           descuento: 0,
           impuesto: 0,
@@ -328,14 +318,7 @@ function VentaFormModal({
                 <input type="text" name="numero_comprobante" className="form-input" value={formData.tipo_comprobante === 'SIMPLE' ? formData.numero_comprobante_simple : formData.numero_comprobante} readOnly style={{ background: 'var(--bg-input)', opacity: 0.8 }} />
               </div>
               
-              <div className="form-group">
-                <label className="form-label">Almacén/Caja</label>
-                <select name="almacen" className="form-input" value={formData.almacen || ''} onChange={handleChange}>
-                  <option value="">General (Sin Almacén)</option>
-                    <option key={a.id} value={a.id}>{a.nombre}</option>
-                  ))}
-                </select>
-              </div>
+              
               <div className="form-group">
                 <label className="form-label">Estado</label>
                 <select name="estado" className="form-input" value={formData.estado} onChange={handleChange}>

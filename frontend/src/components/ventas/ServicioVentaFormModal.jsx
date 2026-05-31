@@ -27,13 +27,6 @@ function ServicioVentaFormModal({
     estado: 'PENDIENTE',
     notas: ''
   });
-
-
-  useEffect(() => {
-    const fetchAlmacenes = async () => {
-    };
-    fetchAlmacenes();
-  }, []);
   const [errors, setErrors] = useState({});
   const [clienteAlias, setClienteAlias] = useState('');
   const [calcularIgv, setCalcularIgv] = useState(false);
@@ -323,14 +316,7 @@ function ServicioVentaFormModal({
             </div>
             <div className="grid grid-2">
                
-              <div className="form-group">
-                <label className="form-label">Almacén/Caja</label>
-                <select name="almacen" className="form-input" value={formData.almacen || ''} onChange={handleChange}>
-                  <option value="">General (Sin Almacén)</option>
-                    <option key={a.id} value={a.id}>{a.nombre}</option>
-                  ))}
-                </select>
-              </div>
+              
               <div className="form-group">
                 <label className="form-label">Estado</label>
                   <select
