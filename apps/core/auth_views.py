@@ -28,11 +28,16 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         if self.user.is_superuser and not perfil:
             rol = 'GERENTE'
 
+        empresa_nombre = None
+        if perfil and getattr(perfil, 'empresa', None):
+            empresa_nombre = perfil.empresa.nombre
+
         data['user'] = {
             'id':       self.user.id,
             'username': self.user.username,
             'email':    self.user.email,
             'rol':      rol,
+            'empresa_nombre': empresa_nombre,
         }
         return data
 

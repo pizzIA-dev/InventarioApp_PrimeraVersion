@@ -1,4 +1,4 @@
-﻿import React, { useState, useContext } from 'react';
+import React, { useState, useContext } from 'react';
 import {
   Form, Input, Button, Card, Typography, Alert,
   message, Layout, Checkbox, Modal, Divider
@@ -7,6 +7,7 @@ import {
   UserOutlined, LockOutlined, MailOutlined, KeyOutlined
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
+import NegocIALogo from '../components/NegocIALogo';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../ThemeContext';
 import axios from 'axios';

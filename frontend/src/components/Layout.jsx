@@ -1,6 +1,7 @@
-﻿import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../ThemeContext';
+import NegocIALogo from './NegocIALogo';
 import { AuthContext } from '../context/AuthContext';
 import { Modal } from 'antd';
 import {

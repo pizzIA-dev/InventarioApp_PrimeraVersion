@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Button, Card, Col, Row, Typography, Input, Form, message, Upload } from 'antd';
 import { RocketOutlined, TrophyOutlined, CheckCircleOutlined, MailOutlined, PhoneOutlined, UploadOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import PizzIALogo from '../components/PizzIALogo';
+import NegocIALogo from '../components/NegocIALogo';
 
 const { Title, Paragraph } = Typography;
 
@@ -151,7 +151,7 @@ export default function Landing({ view }) {
             style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', paddingRight: '24px' }}
             onClick={() => navigate('/planes')}
           >
-            <PizzIALogo width={30} height={30} />
+            <NegocIALogo width={30} height={30} />
             <Title level={3} style={{ margin: 0, fontWeight: 800, lineHeight: 1 }}>
               <span style={{ color: '#fff' }}>Negoc</span><span style={{ color: neonCyan, textShadow: neonTextGlow }}>IA</span>
             </Title>
@@ -362,7 +362,7 @@ export default function Landing({ view }) {
                     <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Inventario y Ventas Completo</p>
                     <p style={{ marginBottom: '12px', fontWeight: 'bold' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} /><span style={{ color: neonCyan }}>Vendedores Ilimitados</span></p>
                     <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Múltiples Cajas y Movimientos</p>
-                    <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Dominio privado (ej. mitienda.negocia.dev)</p>
+                    <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Dominio privado (ej. mitienda.negociav2.app)</p>
                   </div>
                   <Button type="primary" size="large" block
                     style={{ height: '48px', background: 'transparent', borderColor: neonCyan, color: neonCyan, fontWeight: 'bold', boxShadow: neonGlow }}
@@ -399,7 +399,7 @@ export default function Landing({ view }) {
                   </div>
                   <Button type="primary" size="large" block
                     style={{ height: '48px', background: neonCyan, color: darkBg, fontWeight: 'bold', boxShadow: neonGlow, border: 'none' }}
-                    onClick={() => message.info('Contacte a corporativo@negocia.dev para recibir su cotización personalizada')}>
+                    onClick={() => message.info('Contacte a pizzia.peru@gmail.com para recibir su cotización personalizada')}>
                     Solicitar Cotización Exacta
                   </Button>
                 </Card>
@@ -456,7 +456,7 @@ export default function Landing({ view }) {
                 ))}
 
                 <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>Subdominio URL</span>} name="subdominio" rules={[{ required: true }]}>
-                  <Input size="large" addonAfter={<span style={{ color: neonCyan }}>.negocia.dev</span>} placeholder="miempresa"
+                  <Input size="large" addonAfter={<span style={{ color: neonCyan }}>.negociav2.app</span>} placeholder="miempresa"
                     style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
                 </Form.Item>
 
