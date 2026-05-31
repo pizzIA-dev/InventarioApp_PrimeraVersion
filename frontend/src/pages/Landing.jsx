@@ -17,6 +17,8 @@ export default function Landing({ view }) {
   const [showNegocio, setShowNegocio] = useState(false);
   const [registroForm] = Form.useForm();
   const [slugPreview, setSlugPreview] = React.useState('');
+  const [registroError, setRegistroError] = React.useState('');
+  const [slugError, setSlugError] = React.useState('');
   // Observar valores del formulario para habilitar/deshabilitar el botón
   const watchedValues = Form.useWatch([], registroForm);
   const isFormComplete = Boolean(
@@ -112,6 +114,7 @@ export default function Landing({ view }) {
     // Flujo de 2 pasos: 1) datos del negocio, 2) pago con Culqi
   const registrarConToken = async (values, culqiToken) => {
     setLoading(true);
+    setRegistroError('');
     try {
       const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       const formData = new FormData();
@@ -130,13 +133,26 @@ export default function Landing({ view }) {
       const data = await response.json();
 
       if (response.ok) {
-        message.success(data.mensaje);
+        message.success('Negocio creado exitosamente');
         navigate(`/registro/exitoso?schema=${data.schema}&empresa=${encodeURIComponent(values.empresa)}`);
       } else {
-        message.error('Error: ' + (data.error || JSON.stringify(data)));
+        // Mostrar error inline (no desaparece)
+        if (data.subdominio) {
+          const msg = Array.isArray(data.subdominio) ? data.subdominio[0] : data.subdominio;
+          setSlugError(msg);
+          setRegistroError('El identificador de URL ya está en uso. Cambia el nombre y vuelve a intentarlo.');
+        } else if (data.error) {
+          setRegistroError(data.error);
+        } else if (data.email_admin) {
+          setRegistroError('Error con el correo: ' + (Array.isArray(data.email_admin) ? data.email_admin[0] : data.email_admin));
+        } else {
+          setRegistroError('Error en el registro. Verifica los datos e intenta de nuevo.');
+          console.error('API error:', data);
+        }
       }
-    } catch {
-      message.error('Error de conexion');
+    } catch (err) {
+      setRegistroError('Error de conexión con el servidor. Verifica tu internet e intenta de nuevo.');
+      console.error('Network error:', err);
     }
     setLoading(false);
   };
@@ -152,12 +168,13 @@ export default function Landing({ view }) {
   });
 
   const onFinishRegistro = async (values) => {
-    // Mostrar loading inmediatamente para dar feedback al usuario
+    // Mostrar loading inmediatamente
     setLoading(true);
-    const culqiKey = import.meta.env.VITE_CULQI_PUBLIC_KEY || 'pk_test_placeholder';
+    setRegistroError('');
+    const culqiKey = import.meta.env.VITE_CULQI_PUBLIC_KEY || '';
 
-    // Sin clave real -> sandbox directo
-    if (culqiKey === 'pk_test_placeholder') {
+    // Claves de prueba (pk_test_) o sin clave -> registro directo sin pago
+    if (!culqiKey || culqiKey.startsWith('pk_test_') || culqiKey === 'pk_test_placeholder') {
       await registrarConToken(values, '');
       return;
     }
@@ -611,6 +628,30 @@ export default function Landing({ view }) {
                     </Button>
                   </Upload>
                 </Form.Item>
+
+                {/* Error inline visible */}
+                {registroError && (
+                  <div style={{
+                    background: 'rgba(255,59,48,0.12)',
+                    border: '1px solid rgba(255,59,48,0.5)',
+                    borderRadius: 8, padding: '10px 14px',
+                    marginBottom: 12, color: '#ff6b6b',
+                    fontSize: 13, lineHeight: 1.5,
+                  }}>
+                    ⚠️ {registroError}
+                  </div>
+                )}
+
+                {slugError && (
+                  <div style={{
+                    background: 'rgba(255,165,0,0.1)',
+                    border: '1px solid rgba(255,165,0,0.4)',
+                    borderRadius: 8, padding: '8px 14px',
+                    marginBottom: 8, color: '#ffa500', fontSize: 12,
+                  }}>
+                    💡 Prueba con otro identificador, ej: <strong>{watchedValues?.subdominio}-2</strong>
+                  </div>
+                )}
 
                 <Button
                   type="primary"
