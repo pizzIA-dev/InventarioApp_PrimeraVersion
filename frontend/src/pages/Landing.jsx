@@ -16,6 +16,7 @@ export default function Landing({ view }) {
   const [currency, setCurrency]       = useState('PEN');
   const [showNegocio, setShowNegocio] = useState(false);
   const [registroForm] = Form.useForm();
+  const [slugPreview, setSlugPreview] = React.useState('');
   const [subInput, setSubInput]       = useState('');
   const [negocios, setNegocios]       = useState(null); // null=sin buscar, []= resultado
   const popoverRef                    = useRef(null);
@@ -88,6 +89,7 @@ export default function Landing({ view }) {
   const onNombreEmpresaChange = (e) => {
     const slug = generarSlug(e.target.value);
     registroForm.setFieldValue('subdominio', slug);
+    setSlugPreview(slug);
   };
 
 
@@ -134,29 +136,42 @@ export default function Landing({ view }) {
   const onFinishRegistro = async (values) => {
     const culqiKey = import.meta.env.VITE_CULQI_PUBLIC_KEY || 'pk_test_placeholder';
 
-    // Si no hay clave Culqi real o Culqi.js no cargó, ir directo (sandbox)
-    if (culqiKey === 'pk_test_placeholder' || !window.Culqi) {
+    // Sandbox bypass: sin clave real o Culqi.js no disponible
+    if (culqiKey === 'pk_test_placeholder' || typeof window.Culqi === 'undefined') {
       await registrarConToken(values, '');
       return;
     }
 
-    // Abrir el modal de Culqi
-    const culqiInstance = new window.Culqi({
-      publicKey:   culqiKey,
-      title:       'NegocIA — Plan Emprendedor',
-      currency:    currency || 'PEN',
-      description: `Suscripcion mensual - ${values.empresa}`,
-      amount:      currency === 'USD' ? 1200 : 3900,
-      order:       `reg_${Date.now()}`,
-      options:     { lang: 'auto', installments: false },
-    });
+    // API correcta de Culqi Checkout v4
+    try {
+      window.Culqi.publicKey = culqiKey;
+      window.Culqi.settings({
+        title:       'NegocIA — Plan Emprendedor',
+        currency:    currency || 'PEN',
+        description: `Plan Emprendedor - ${values.empresa}`,
+        amount:      currency === 'USD' ? 1200 : 3900,
+        order:       `reg_${Date.now()}`,
+      });
+      window.Culqi.options({ lang: 'auto', installments: false });
 
-    window.culqi = async (token) => {
-      culqiInstance.close();
-      await registrarConToken(values, token.id);
-    };
+      // Callback global que Culqi llama al completar el pago
+      window.culqi = async () => {
+        if (window.Culqi.token) {
+          const tokenId = window.Culqi.token.id;
+          window.Culqi.close();
+          await registrarConToken(values, tokenId);
+        } else if (window.Culqi.error) {
+          const errMsg = window.Culqi.error.user_message || 'Error en el pago';
+          message.error(errMsg);
+        }
+      };
 
-    culqiInstance.open();
+      window.Culqi.open();
+    } catch (err) {
+      console.error('[Culqi] Error al abrir checkout:', err);
+      // Fallback a sandbox si Culqi falla
+      await registrarConToken(values, '');
+    }
   };
 
 
@@ -513,10 +528,9 @@ export default function Landing({ view }) {
                   ]}
                   extra={
                     <span style={{ color: 'rgba(0,210,255,0.55)', fontSize: 12 }}>
-                      Auto-generado desde el nombre · Tu URL: <strong style={{ color: neonCyan }}>
-                        negociav2.vercel.app/t/<Form.Item noStyle name="subdominio">
-                          <span/>
-                        </Form.Item>
+                      Tu URL de acceso:{' '}
+                      <strong style={{ color: neonCyan }}>
+                        negociav2.vercel.app/t/{slugPreview || 'mi-empresa'}/login
                       </strong>
                     </span>
                   }
@@ -530,6 +544,7 @@ export default function Landing({ view }) {
                     onChange={e => {
                       const clean = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
                       registroForm.setFieldValue('subdominio', clean);
+                      setSlugPreview(clean);
                     }}
                   />
                 </Form.Item>
