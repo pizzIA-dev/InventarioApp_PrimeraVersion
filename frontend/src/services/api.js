@@ -1,4 +1,4 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 
 // Multi-tenant: construir la URL del API desde el hostname actual del navegador
 // Ej: emprendedor.localhost:5173 â†’ emprendedor.localhost:8000/api
@@ -32,9 +32,11 @@ api.interceptors.response.use(
       // Opcionalmente redirigir al login
       localStorage.removeItem('access_token');
       localStorage.removeItem('user_data');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
+      const schema = localStorage.getItem('tenant_schema');
+        const loginPath = schema ? `/t/${schema}/login` : '/planes';
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = loginPath;
+        }
     }
     return Promise.reject(error);
   }

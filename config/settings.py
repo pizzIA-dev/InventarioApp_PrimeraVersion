@@ -65,7 +65,7 @@ TENANT_DOMAIN_MODEL = "clientes_saas.Domain"
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',         # CORS primero — responde OPTIONS antes de tenant routing
-    'django_tenants.middleware.main.TenantMainMiddleware',
+    'config.tenant_middleware.TenantFromPathMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

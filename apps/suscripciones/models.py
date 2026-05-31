@@ -28,5 +28,13 @@ class Suscripcion(models.Model):
     # Facturación por asientos
     asientos_contratados = models.PositiveIntegerField(default=1)
 
+    # Pago con Culqi
+    culqi_charge_id = models.CharField(max_length=120, blank=True, null=True)
+    estado_pago = models.CharField(
+        max_length=20,
+        choices=[('PENDIENTE','Pendiente'),('PAGADO','Pagado'),('FALLIDO','Fallido'),('SANDBOX','Sandbox')],
+        default='SANDBOX'
+    )
+
     def __str__(self):
         return f"{self.cliente.nombre} - {self.plan.nombre}"

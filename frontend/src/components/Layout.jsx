@@ -53,6 +53,7 @@ const adminItems = [
 ];
 
 function Layout() {
+  const { schema } = useParams();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -117,8 +118,8 @@ function Layout() {
             {allowedMenuItems.map((item) => (
               <Link
                 key={item.path}
-                to={item.path}
-                className={`menu-item ${location.pathname === item.path ? 'active' : ''}`}
+                to={`/t/${schema}${item.path === '/' ? '' : item.path}`}
+                className={`menu-item ${location.pathname === `/t/${schema}${item.path === '/' ? '' : item.path}` ? 'active' : ''}`}
               >
                 <span className="menu-icon">{item.icon}</span>
                 {!collapsed && <span>{item.label}</span>}
@@ -137,8 +138,8 @@ function Layout() {
                 {adminItems.map((item) => (
                   <Link
                     key={item.path}
-                    to={item.path}
-                    className={`menu-item ${location.pathname === item.path ? 'active' : ''}`}
+                    to={`/t/${schema}${item.path === '/' ? '' : item.path}`}
+                    className={`menu-item ${location.pathname === `/t/${schema}${item.path === '/' ? '' : item.path}` ? 'active' : ''}`}
                   >
                     <span className="menu-icon">{item.icon}</span>
                     {!collapsed && <span style={{ fontSize: '12px' }}>{item.label}</span>}

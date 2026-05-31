@@ -35,3 +35,5 @@ openpyxl>=3.1.0         # Export a Excel
 # No requiere dependencia extra: Django incluye smtp backend nativo
 # Para envío con SendGrid API (alternativa más robusta al SMTP):
 # sendgrid>=6.11.0
+
+culqi>=2.0.0

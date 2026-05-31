@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect } from 'react';
+import { TenantProvider } from './TenantContext';
 import axios from 'axios';
 
 
@@ -61,18 +62,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user_data');
-    sessionStorage.removeItem('access_token');
-    sessionStorage.removeItem('refresh_token');
-    sessionStorage.removeItem('user_data');
+    ['access_token','refresh_token','user_data'].forEach(k => { localStorage.removeItem(k); sessionStorage.removeItem(k); });
+    localStorage.removeItem('tenant_schema');
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, isVendedor: user?.rol === 'VENDEDOR', isGerente: user?.rol === 'GERENTE' }}>
+    <TenantProvider>
+      <AuthContext.Provider value={{ user, login, logout, loading, isVendedor: user?.rol === 'VENDEDOR', isGerente: user?.rol === 'GERENTE' }}>
       {!loading && children}
-    </AuthContext.Provider>
+      </AuthContext.Provider>
+    </TenantProvider>
   );
 };

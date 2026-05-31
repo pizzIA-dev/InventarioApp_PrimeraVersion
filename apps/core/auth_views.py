@@ -97,14 +97,12 @@ def forgot_password(request):
     import logging
     logger = logging.getLogger(__name__)
 
-    if django_settings.DEBUG:
-        # En dev: el frontend corre en puerto 5175 (u otro de Vite)
-        frontend_host = request.get_host().replace(':8000', ':5175')
-        reset_url = f"http://{frontend_host}/reset-password/{uid}/{token}"
+    frontend_url = django_settings.FRONTEND_URL.rstrip('/')
+    schema_name = getattr(getattr(request, 'tenant', None), 'schema_name', 'public')
+    if schema_name and schema_name != 'public':
+        reset_url = f"{frontend_url}/t/{schema_name}/reset-password/{uid}/{token}"
     else:
-        # En prod: sin puerto, con HTTPS
-        frontend_host = request.get_host().replace(':8000', '')
-        reset_url = f"https://{frontend_host}/reset-password/{uid}/{token}"
+        reset_url = f"{frontend_url}/reset-password/{uid}/{token}"
 
     # Enviar email
     #  - DEV:  EMAIL_BACKEND=console → aparece en la terminal del servidor

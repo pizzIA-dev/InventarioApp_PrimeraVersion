@@ -91,36 +91,77 @@ export default function Landing({ view }) {
   const neonTextGlow = '0 0 8px rgba(0,210,255,0.8)';
 
   /* ── Registro ── */
-  const onFinishRegistro = async (values) => {
+    // Flujo de 2 pasos: 1) datos del negocio, 2) pago con Culqi
+  const registrarConToken = async (values, culqiToken) => {
     setLoading(true);
     try {
-      // VITE_PUBLIC_API_URL en .env de producción: 'https://api.tudominio.com'
-      // En desarrollo: usa localhost:8000 automáticamente
-      const API_BASE = import.meta.env.VITE_PUBLIC_API_URL || 'http://localhost:8000';
+      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       const formData = new FormData();
       formData.append('nombre_empresa', values.empresa);
       formData.append('subdominio',     values.subdominio);
       formData.append('email_admin',    values.email);
       formData.append('password_admin', values.password);
-      formData.append('plan_id',        planId);
+      formData.append('plan_id',        planId || '1');
+      formData.append('culqi_token',    culqiToken || '');
       if (values.ruc) formData.append('ruc', values.ruc);
       if (values.logo?.length > 0) formData.append('logo', values.logo[0].originFileObj);
+
       const response = await fetch(`${API_BASE}/api/public/registro/`, {
         method: 'POST', body: formData,
       });
       const data = await response.json();
+
       if (response.ok) {
         message.success(data.mensaje);
-        setTimeout(() => { window.location.href = data.login_url; }, 1500);
+        navigate(`/registro/exitoso?schema=${data.schema}&empresa=${encodeURIComponent(values.empresa)}`);
       } else {
-        message.error('Error en registro: ' + JSON.stringify(data));
+        message.error('Error: ' + (data.error || JSON.stringify(data)));
       }
     } catch {
-      message.error('Error de conexión');
+      message.error('Error de conexion');
     }
     setLoading(false);
   };
 
+  const onFinishRegistro = async (values) => {
+    const culqiKey = import.meta.env.VITE_CULQI_PUBLIC_KEY || 'pk_test_placeholder';
+
+    // Si no hay clave Culqi real o Culqi.js no cargó, ir directo (sandbox)
+    if (culqiKey === 'pk_test_placeholder' || !window.Culqi) {
+      await registrarConToken(values, '');
+      return;
+    }
+
+    // Abrir el modal de Culqi
+    const culqiInstance = new window.Culqi({
+      publicKey:   culqiKey,
+      title:       'NegocIA — Plan Emprendedor',
+      currency:    currency || 'PEN',
+      description: `Suscripcion mensual - ${values.empresa}`,
+      amount:      currency === 'USD' ? 1200 : 3900,
+      order:       `reg_${Date.now()}`,
+      options:     { lang: 'auto', installments: false },
+    });
+
+    window.culqi = async (token) => {
+      culqiInstance.close();
+      await registrarConToken(values, token.id);
+    };
+
+    culqiInstance.open();
+  };
+
+
+  // Cargar el script de Culqi Checkout v4 al montar la pagina
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src   = 'https://checkout.culqi.com/js/v4';
+    script.async = true;
+    document.head.appendChild(script);
+    return () => {
+      try { document.head.removeChild(script); } catch (_) {}
+    };
+  }, []);
   return (
     <div style={{
       backgroundColor: darkBg, minHeight: '100vh', color: '#fff',

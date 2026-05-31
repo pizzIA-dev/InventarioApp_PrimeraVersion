@@ -6,7 +6,7 @@ import {
 import {
   UserOutlined, LockOutlined, MailOutlined, KeyOutlined
 } from '@ant-design/icons';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import NegocIALogo from '../components/NegocIALogo';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../ThemeContext';
@@ -24,6 +24,7 @@ const Login = () => {
   const [forgotForm]                      = Form.useForm();
 
   const { login }  = useContext(AuthContext);
+  const { schema }  = useParams();
   const navigate   = useNavigate();
   const location   = useLocation();
   const { isDark } = useTheme();
@@ -37,7 +38,7 @@ const Login = () => {
     const result = await login(values.username, values.password, !!values.remember);
     if (result.success) {
       message.success('Sesión iniciada correctamente');
-      navigate(from, { replace: true });
+      navigate(schema ? `/t/${schema}` : from, { replace: true });
     } else {
       setError(result.message);
     }
