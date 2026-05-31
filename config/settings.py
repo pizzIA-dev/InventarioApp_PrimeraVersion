@@ -285,6 +285,22 @@ if not DEBUG:
 BASE_DOMAIN = config('BASE_DOMAIN', default='localhost')
 FRONTEND_URL = config('FRONTEND_URL', default=f'http://localhost:5175')
 
+# === Planes y Precios de NegocIA ===
+# Usado por RegistroSaaSAPIView para procesar pagos y crear suscripciones
+PLAN_PRECIOS = {
+    '1': {
+        'nombre': 'EMPRENDEDOR',
+        'PEN': 3990,   # S/39.90 en centimos para Culqi
+        'USD': 1200,   # $12.00 en centimos
+    },
+    '2': {
+        'nombre': 'EMPRESARIO',
+        'PEN': 7990,   # S/79.90 en centimos
+        'USD': 2400,   # $24.00 en centimos
+    },
+}
+
+
 # Email backend
 # Desarrollo: muestra emails en consola
 # Producción: Gmail SMTP (usa App Password de Google)
