@@ -15,6 +15,7 @@ export default function Landing({ view }) {
   const [loading, setLoading]         = useState(false);
   const [currency, setCurrency]       = useState('PEN');
   const [showNegocio, setShowNegocio] = useState(false);
+  const [registroForm] = Form.useForm();
   const [subInput, setSubInput]       = useState('');
   const [negocios, setNegocios]       = useState(null); // null=sin buscar, []= resultado
   const popoverRef                    = useRef(null);
@@ -46,29 +47,19 @@ export default function Landing({ view }) {
     setLoading(true);
     setNegocios(null);
     try {
-      // Puerto dinámico — funciona aunque Vite use 5173, 5174, 5175, etc.
-      const frontendPort = window.location.port || '5175';
-      const API_BASE = import.meta.env.VITE_PUBLIC_API_URL || 'http://localhost:8000';
+      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       const res = await fetch(`${API_BASE}/api/public/buscar-tenant/`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Origin': window.location.origin,   // enviar origin para que el backend lo lea
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: subInput.trim().toLowerCase() }),
       });
       const data = await res.json();
       if (res.ok && data.found) {
-        // Reemplazar el puerto en los login_url con el puerto real del frontend
-        const negociosConPuerto = data.negocios.map(n => ({
-          ...n,
-          login_url: n.login_url.replace(/:5175|:5173|:5174/, `:${frontendPort}`),
-        }));
-        if (negociosConPuerto.length === 1) {
-          message.success(`Redirigiendo a ${negociosConPuerto[0].nombre}...`);
-          setTimeout(() => { window.location.href = negociosConPuerto[0].login_url; }, 600);
+        if (data.negocios.length === 1) {
+          message.success(`Redirigiendo a ${data.negocios[0].nombre}...`);
+          setTimeout(() => { window.location.href = data.negocios[0].login_url; }, 600);
         } else {
-          setNegocios(negociosConPuerto);
+          setNegocios(data.negocios);
         }
       } else {
         message.error(data.error || 'No encontramos ningún negocio con ese correo.');
@@ -83,6 +74,23 @@ export default function Landing({ view }) {
     setNegocios(null);
     setSubInput('');
   };
+  // Auto-generar el identificador de URL desde el nombre de empresa
+  const generarSlug = (nombre) => {
+    return nombre
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quitar tildes
+      .replace(/[^a-z0-9\s-]/g, '')  // solo alfanumérico
+      .trim()
+      .replace(/\s+/g, '-')           // espacios → guiones
+      .substring(0, 30);
+  };
+
+  const onNombreEmpresaChange = (e) => {
+    const slug = generarSlug(e.target.value);
+    registroForm.setFieldValue('subdominio', slug);
+  };
+
+
 
   const neonCyan     = '#00d2ff';
   const darkBg       = '#0a0e14';
@@ -340,10 +348,10 @@ export default function Landing({ view }) {
                             fontSize: '10px', fontWeight: 700, padding: '1px 8px',
                             borderRadius: '20px', letterSpacing: '0.5px',
                           }}>
-                            {n.rol || n.subdominio}
+                            {n.rol || 'Colaborador'}
                           </span>
                           <span style={{ color: '#4b5563', fontSize: '11px' }}>
-                            {n.subdominio}.negoc.ia
+                            {n.login_url ? new URL(n.login_url).pathname : `/t/${n.schema}/login`}
                           </span>
                         </div>
                       </button>
@@ -485,20 +493,45 @@ export default function Landing({ view }) {
               Crear Espacio de Trabajo
             </Title>
             <Card style={{ background: cardBg, border: `1px solid ${neonCyan}`, borderRadius: '12px', boxShadow: neonGlow }}>
-              <Form layout="vertical" onFinish={onFinishRegistro}>
+              <Form layout="vertical" form={registroForm} onFinish={onFinishRegistro}>
                 {[
-                  { label: 'Nombre del Negocio', name: 'empresa', placeholder: 'Mi Empresa', required: true },
+                  { label: 'Nombre del Negocio', name: 'empresa', placeholder: 'Ej: Bodega El Sol', required: true, onChange: onNombreEmpresaChange },
                   { label: 'Correo Gerencia',     name: 'email',   placeholder: 'gerente@empresa.com', required: true, type: 'email' },
                 ].map(f => (
                   <Form.Item key={f.name} label={<span style={{ color: '#fff', fontWeight: 500 }}>{f.label}</span>}
                     name={f.name} rules={[{ required: f.required, type: f.type }]}>
-                    <Input size="large" placeholder={f.placeholder} style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
+                    <Input size="large" placeholder={f.placeholder} onChange={f.onChange} style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
                   </Form.Item>
                 ))}
 
-                <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>Subdominio URL</span>} name="subdominio" rules={[{ required: true }]}>
-                  <Input size="large" addonAfter={<span style={{ color: neonCyan }}>.negociav2.app</span>} placeholder="miempresa"
-                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
+                <Form.Item
+                  label={<span style={{ color: '#fff', fontWeight: 500 }}>Identificador de URL</span>}
+                  name="subdominio"
+                  rules={[
+                    { required: true, message: 'Requerido' },
+                    { pattern: /^[a-z0-9-]+$/, message: 'Solo letras minúsculas, números y guiones' },
+                  ]}
+                  extra={
+                    <span style={{ color: 'rgba(0,210,255,0.55)', fontSize: 12 }}>
+                      Auto-generado desde el nombre · Tu URL: <strong style={{ color: neonCyan }}>
+                        negociav2.vercel.app/t/<Form.Item noStyle name="subdominio">
+                          <span/>
+                        </Form.Item>
+                      </strong>
+                    </span>
+                  }
+                >
+                  <Input
+                    size="large"
+                    placeholder="mi-empresa"
+                    prefix={<span style={{ color: 'rgba(0,210,255,0.4)', fontSize: 12 }}>/t/</span>}
+                    suffix={<span style={{ color: 'rgba(0,210,255,0.4)', fontSize: 11 }}>/login</span>}
+                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }}
+                    onChange={e => {
+                      const clean = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                      registroForm.setFieldValue('subdominio', clean);
+                    }}
+                  />
                 </Form.Item>
 
                 <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>Contraseña Segura</span>} name="password" rules={[{ required: true }]}>
@@ -520,7 +553,7 @@ export default function Landing({ view }) {
 
                 <Button type="primary" size="large" block htmlType="submit" loading={loading}
                   style={{ marginTop: '12px', background: neonCyan, color: darkBg, fontWeight: 'bold', boxShadow: neonGlow, border: 'none', height: '48px' }}>
-                  CONFIRMAR Y ENTRAR
+                  REGISTRAR MI NEGOCIO
                 </Button>
                 <Button type="link" block onClick={() => navigate('/planes')} style={{ marginTop: '10px', color: '#a0c0e0' }}>
                   ← Volver a los planes
