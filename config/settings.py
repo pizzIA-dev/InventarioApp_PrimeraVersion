@@ -266,7 +266,8 @@ X_FRAME_OPTIONS             = 'DENY'
 # ── Seguridad adicional para HTTPS en PRODUCCIÓN ──────────────────────────────
 # Estos se activan automáticamente cuando DEBUG=False (producción)
 if not DEBUG:
-    SECURE_SSL_REDIRECT          = True   # HTTP → HTTPS redirect
+    SECURE_SSL_REDIRECT          = False  # Railway proxy handles SSL termination
+    SECURE_PROXY_SSL_HEADER      = ('HTTP_X_FORWARDED_PROTO', 'https')  # Trust Railway proxy SSL header
     SESSION_COOKIE_SECURE        = True   # Cookie de sesión solo por HTTPS
     CSRF_COOKIE_SECURE           = True   # CSRF cookie solo por HTTPS
     SECURE_HSTS_SECONDS          = 31536000  # 1 año de HSTS
