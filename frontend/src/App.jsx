@@ -17,7 +17,7 @@ const Productos     = lazy(() => import('./pages/Productos'));
 const Proveedores   = lazy(() => import('./pages/Proveedores'));
 const Clientes      = lazy(() => import('./pages/Clientes'));
 const Ventas        = lazy(() => import('./pages/Ventas'));
-const Compras       = lazy(() => import('./pages/Compras'));
+const ComprasMain   = lazy(() => import('./pages/ComprasMain'));
 const Capital       = lazy(() => import('./pages/Capital'));
 const Servicios     = lazy(() => import('./pages/Servicios'));
 const Transacciones = lazy(() => import('./pages/Transacciones'));
@@ -62,7 +62,7 @@ const AppContent = () => {
               <Route path="proveedores"   element={<ProtectedRoute allowedRoles={['GERENTE']}><Proveedores /></ProtectedRoute>} />
               <Route path="clientes"      element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Clientes /></ProtectedRoute>} />
               <Route path="ventas"        element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Ventas /></ProtectedRoute>} />
-              <Route path="compras"       element={<ProtectedRoute allowedRoles={['GERENTE']}><Compras /></ProtectedRoute>} />
+              <Route path="compras"       element={<ProtectedRoute allowedRoles={['GERENTE']}><ComprasMain /></ProtectedRoute>} />
               <Route path="capital"       element={<ProtectedRoute allowedRoles={['GERENTE']}><Capital /></ProtectedRoute>} />
               <Route path="servicios"     element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Servicios /></ProtectedRoute>} />
               <Route path="transacciones" element={<ProtectedRoute allowedRoles={['GERENTE']}><Transacciones /></ProtectedRoute>} />

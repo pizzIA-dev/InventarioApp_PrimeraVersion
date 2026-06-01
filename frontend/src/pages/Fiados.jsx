@@ -1,36 +1,45 @@
 import { useState } from 'react';
+import { Tabs } from 'antd';
+import { CreditCardOutlined, TeamOutlined } from '@ant-design/icons';
 import FiadosOperaciones from '../components/fiados/FiadosOperaciones';
 import FiadosClientes from '../components/fiados/FiadosClientes';
-import { CreditCardOutlined, TeamOutlined } from '@ant-design/icons';
+
+const TAB_ITEMS = [
+  {
+    key: 'operaciones',
+    label: (
+      <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        <CreditCardOutlined />
+        Operaciones / Deudas
+      </span>
+    ),
+    children: <FiadosOperaciones />,
+  },
+  {
+    key: 'clientes',
+    label: (
+      <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        <TeamOutlined />
+        Clientes Fiados
+      </span>
+    ),
+    children: <FiadosClientes />,
+  },
+];
 
 function Fiados() {
   const [activeTab, setActiveTab] = useState('operaciones');
 
   return (
     <div>
-
-
-      <div className="tabs">
-        <button 
-          className={`tab ${activeTab === 'operaciones' ? 'active' : ''}`}
-          onClick={() => setActiveTab('operaciones')}
-        >
-          <CreditCardOutlined style={{ marginRight: '8px' }} />
-          Operaciones / Deudas
-        </button>
-        <button 
-          className={`tab ${activeTab === 'clientes' ? 'active' : ''}`}
-          onClick={() => setActiveTab('clientes')}
-        >
-          <TeamOutlined style={{ marginRight: '8px' }} />
-          Clientes Fiados
-        </button>
-      </div>
-
-      <div className="tab-content" style={{ marginTop: '20px' }}>
-        {activeTab === 'operaciones' && <FiadosOperaciones />}
-        {activeTab === 'clientes' && <FiadosClientes />}
-      </div>
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={TAB_ITEMS}
+        size="large"
+        style={{ marginBottom: 0 }}
+        tabBarStyle={{ marginBottom: 20 }}
+      />
     </div>
   );
 }
