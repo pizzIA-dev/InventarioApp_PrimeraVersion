@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Multi-tenant: construir la URL del API desde el hostname actual del navegador
-// Ej: emprendedor.localhost:5173 â†’ emprendedor.localhost:8000/api
+// Ej: emprendedor.localhost:5173 Ã¢â€ â€™ emprendedor.localhost:8000/api
 const _host    = window.location.hostname;
 const _port    = import.meta.env.VITE_API_PORT || '8000';
 const _apiBase = import.meta.env.VITE_API_URL  || `http://${_host}:${_port}`;
@@ -224,7 +224,7 @@ export const reportesAPI = {
   exportarReporteMensualDetalle: (params) => api.get('/reportes/reporte-mensual/exportar/', { params, responseType: 'blob' }),
 };
 
-// Fiados (CrÃ©ditos)
+// Fiados (CrÃƒÂ©ditos)
 export const fiadosAPI = {
   // Clientes Fiados
   getClientes: (params) => api.get('/fiados/clientes-fiados/', { params }),
@@ -252,7 +252,7 @@ export const fiadosAPI = {
 };
 
 
-// GestiÃ³n de Usuarios (solo Gerente)
+// GestiÃƒÂ³n de Usuarios (solo Gerente)
 export const usuariosAPI = {
   listar: () => api.get('/auth/usuarios/'),
   crear: (data) => api.post('/auth/usuarios/crear/', data),

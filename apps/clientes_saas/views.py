@@ -1,9 +1,10 @@
 from rest_framework import views, status
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
 from django.db import transaction
 from django.conf import settings as django_settings
-from django_tenants.utils import tenant_context
+from django_tenants.utils import tenant_context, schema_context
 from django.contrib.auth import get_user_model
 from apps.clientes_saas.models import Cliente, Domain
 from apps.suscripciones.models import Suscripcion
@@ -11,6 +12,24 @@ from .serializers import RegistroSaaSSerializer
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _crear_usuario_plataforma(email, password):
+    """
+    Crea o actualiza el usuario de plataforma en el schema PUBLIC.
+    Se llama desde el registro para garantizar que el usuario pueda
+    hacer login en la landing con sus credenciales del negocio.
+    """
+    User = get_user_model()
+    pub_user, created = User.objects.get_or_create(
+        username=email,
+        defaults={'email': email}
+    )
+    pub_user.email = email
+    pub_user.set_password(password)
+    pub_user.save()
+    logger.info(f"Usuario plataforma {'creado' if created else 'actualizado'}: {email}")
+    return pub_user
 
 
 class RegistroSaaSAPIView(views.APIView):
@@ -31,7 +50,7 @@ class RegistroSaaSAPIView(views.APIView):
         schema_slug = data['subdominio']
         if Cliente.objects.filter(schema_name=schema_slug).exists():
             return Response(
-                {'subdominio': ['Este identificador ya esta en uso. Elige otro.']},
+                {'subdominio': ['Este subdominio ya esta en uso.']},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -109,6 +128,13 @@ class RegistroSaaSAPIView(views.APIView):
                 from apps.core.signals import ensure_defaults_for_empresa
                 ensure_defaults_for_empresa(empresa_interna)
 
+            # === NUEVO: Crear usuario de plataforma (schema publico) ===
+            # Permite que el usuario haga login en la landing con las mismas credenciales
+            try:
+                _crear_usuario_plataforma(data['email_admin'], data['password_admin'])
+            except Exception as e:
+                logger.warning(f"No se pudo crear usuario plataforma: {e}")
+
         # === PASO 4: Email de bienvenida ===
         login_url = f"{frontend_url}/t/{schema_slug}/login"
         try:
@@ -184,3 +210,66 @@ class BuscarTenantPorEmailAPIView(views.APIView):
             'found': False,
             'error': 'No encontramos ningun negocio asociado a ese correo.'
         }, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def tenant_token_view(request):
+    """
+    Emite un JWT de tenant sin pedir contraseña nuevamente.
+    Requiere: Platform JWT (login en schema publico).
+    Body: { "schema": "pizzia" }
+    Retorna: JWT del tenant + datos del usuario en ese negocio.
+    """
+    schema = request.data.get('schema', '').strip().lower()
+    if not schema:
+        return Response({'error': 'El campo schema es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    platform_email = request.user.email or request.user.username
+
+    try:
+        tenant = Cliente.objects.get(schema_name=schema)
+    except Cliente.DoesNotExist:
+        return Response({'error': 'Negocio no encontrado.'}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        with schema_context(schema):
+            User = get_user_model()
+            tenant_user = (
+                User.objects.filter(email__iexact=platform_email).first() or
+                User.objects.filter(username__iexact=platform_email).first()
+            )
+            if not tenant_user:
+                return Response({'error': 'No tienes acceso a este negocio.'}, status=status.HTTP_403_FORBIDDEN)
+
+            if not tenant_user.is_active:
+                return Response({'error': 'Usuario inactivo en este negocio.'}, status=status.HTTP_403_FORBIDDEN)
+
+            # Generar JWT del tenant
+            from rest_framework_simplejwt.tokens import RefreshToken
+            refresh = RefreshToken.for_user(tenant_user)
+
+            # Datos del perfil en el tenant
+            rol = 'GERENTE'
+            empresa_nombre = tenant.nombre
+            try:
+                rol = tenant_user.perfil.rol
+                empresa_nombre = tenant_user.perfil.empresa.nombre
+            except Exception:
+                pass
+
+            return Response({
+                'access':  str(refresh.access_token),
+                'refresh': str(refresh),
+                'schema':  schema,
+                'user': {
+                    'id':             tenant_user.id,
+                    'username':       tenant_user.username,
+                    'email':          tenant_user.email,
+                    'rol':            rol,
+                    'empresa_nombre': empresa_nombre,
+                },
+            })
+    except Exception as e:
+        logger.error(f"tenant_token_view error para schema={schema}: {e}")
+        return Response({'error': 'Error interno al acceder al negocio.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

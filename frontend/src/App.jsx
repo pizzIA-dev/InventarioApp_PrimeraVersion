@@ -44,17 +44,18 @@ const AppContent = () => {
       <Router>
         <Suspense fallback={<PageLoader />}>
           <Routes>
-            {/* ── Rutas Publicas / Landing ── */}
+            {/* â”€â”€ Rutas Publicas / Landing â”€â”€ */}
             <Route path="/"                  element={<Landing view="planes" />} />
             <Route path="/planes"            element={<Landing view="planes" />} />
+            <Route path="/acceder"           element={<Landing view="acceder" />} />
             <Route path="/registro/:planId"  element={<Landing view="registro" />} />
             <Route path="/registro/exitoso"  element={<RegistroExitoso />} />
 
-            {/* ── Rutas de Tenant (path-based: /t/:schema/) ── */}
+            {/* â”€â”€ Rutas de Tenant (path-based: /t/:schema/) â”€â”€ */}
             <Route path="/t/:schema/login"                          element={<Login />} />
             <Route path="/t/:schema/reset-password/:uid/:token"     element={<ResetPassword />} />
 
-            {/* App privada del tenant — todas bajo /t/:schema/ */}
+            {/* App privada del tenant â€” todas bajo /t/:schema/ */}
             <Route path="/t/:schema" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route index                element={<ProtectedRoute allowedRoles={['GERENTE']}><Dashboard /></ProtectedRoute>} />
               <Route path="productos"     element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Productos /></ProtectedRoute>} />

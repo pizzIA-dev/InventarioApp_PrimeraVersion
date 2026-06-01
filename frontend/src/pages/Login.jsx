@@ -31,13 +31,13 @@ const Login = () => {
 
   const from = location.state?.from?.pathname || '/';
 
-  // ─── Login ─────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Login â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const onFinish = async (values) => {
     setLoading(true);
     setError(null);
-    const result = await login(values.email, values.password, !!values.remember);
+    const result = await login(values.email, values.password, !!values.remember, schema);
     if (result.success) {
-      message.success('Sesión iniciada correctamente');
+      message.success('SesiÃ³n iniciada correctamente');
       navigate(schema ? `/t/${schema}` : from, { replace: true });
     } else {
       setError(result.message);
@@ -45,7 +45,7 @@ const Login = () => {
     setLoading(false);
   };
 
-  // ─── Forgot Password ────────────────────────────────────────────────────
+  // â”€â”€â”€ Forgot Password â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const onForgotSubmit = async (values) => {
     setForgotLoading(true);
     setForgotError(null);
@@ -61,12 +61,12 @@ const Login = () => {
       }
       setForgotSuccess(msg);
     } catch (err) {
-      setForgotError(err.response?.data?.error || 'Error al enviar. Intenta más tarde.');
+      setForgotError(err.response?.data?.error || 'Error al enviar. Intenta mÃ¡s tarde.');
     }
     setForgotLoading(false);
   };
 
-  // ─── Shared card styles ─────────────────────────────────────────────────
+  // â”€â”€â”€ Shared card styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const cardBg = isDark
     ? 'rgba(255,255,255,0.04)'
     : 'rgba(255,255,255,0.85)';
@@ -103,7 +103,7 @@ const Login = () => {
         }}
         bordered={false}
       >
-        {/* Logo / Título */}
+        {/* Logo / TÃ­tulo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -162,14 +162,14 @@ const Login = () => {
             />
           </Form.Item>
 
-          {/* Contraseña */}
+          {/* ContraseÃ±a */}
           <Form.Item
             name="password"
-            rules={[{ required: true, message: 'Ingresa tu contraseña' }]}
+            rules={[{ required: true, message: 'Ingresa tu contraseÃ±a' }]}
           >
             <Input.Password
               prefix={<LockOutlined style={{ color: '#1677ff' }} />}
-              placeholder="Contraseña"
+              placeholder="ContraseÃ±a"
               autoComplete="current-password"
               style={{ borderRadius: 10, height: 46 }}
             />
@@ -180,7 +180,7 @@ const Login = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Form.Item name="remember" valuePropName="checked" noStyle>
                 <Checkbox style={{ color: isDark ? 'rgba(255,255,255,0.65)' : undefined }}>
-                  Mantener sesión iniciada
+                  Mantener sesiÃ³n iniciada
                 </Checkbox>
               </Form.Item>
               <span
@@ -192,12 +192,12 @@ const Login = () => {
                 }}
                 style={{ fontSize: 13, color: '#1677ff', cursor: 'pointer', userSelect: 'none' }}
               >
-                ¿Olvidaste tu contraseña?
+                Â¿Olvidaste tu contraseÃ±a?
               </span>
             </div>
           </Form.Item>
 
-          {/* Botón Entrar */}
+          {/* BotÃ³n Entrar */}
           <Form.Item style={{ marginBottom: 0 }}>
             <Button
               type="primary"
@@ -221,11 +221,11 @@ const Login = () => {
 
         <Divider style={{ margin: '22px 0 12px', opacity: 0.2 }} />
         <Text style={{ fontSize: 12, display: 'block', textAlign: 'center', color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)' }}>
-          Accede desde el subdominio de tu empresa · NegocIA SaaS
+          Accede desde el subdominio de tu empresa Â· NegocIA SaaS
         </Text>
       </Card>
 
-      {/* ── Modal: Olvidé mi contraseña ─────────────────────────────── */}
+      {/* â”€â”€ Modal: OlvidÃ© mi contraseÃ±a â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Modal
         open={forgotOpen}
         onCancel={() => setForgotOpen(false)}
@@ -233,14 +233,14 @@ const Login = () => {
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <KeyOutlined style={{ color: '#1677ff' }} />
-            Restablecer contraseña
+            Restablecer contraseÃ±a
           </div>
         }
         centered
         destroyOnClose
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          Ingresa el email asociado a tu cuenta. Recibirás un enlace para restablecer tu contraseña.
+          Ingresa el email asociado a tu cuenta. RecibirÃ¡s un enlace para restablecer tu contraseÃ±a.
         </Text>
 
         {forgotSuccess && (
@@ -268,7 +268,7 @@ const Login = () => {
               name="email"
               rules={[
                 { required: true, message: 'Ingresa tu email' },
-                { type: 'email', message: 'Ingresa un email válido' },
+                { type: 'email', message: 'Ingresa un email vÃ¡lido' },
               ]}
             >
               <Input

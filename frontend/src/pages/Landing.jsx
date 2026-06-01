@@ -1,10 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Button, Card, Col, Row, Typography, Input, Form, message, Upload } from 'antd';
-import { RocketOutlined, TrophyOutlined, CheckCircleOutlined, MailOutlined, PhoneOutlined, UploadOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useRef, useContext } from 'react';
+import { Button, Card, Col, Row, Typography, Input, Form, message, Upload, Spin } from 'antd';
+import {
+  RocketOutlined, TrophyOutlined, CheckCircleOutlined,
+  MailOutlined, PhoneOutlined, UploadOutlined, ArrowRightOutlined,
+  LockOutlined, ShopOutlined, LoginOutlined, LoadingOutlined,
+} from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import NegocIALogo from '../components/NegocIALogo';
+import { AuthContext } from '../context/AuthContext';
 
-const { Title, Paragraph } = Typography;
+const { Title, Paragraph, Text } = Typography;
 
 const normFile = (e) => {
   if (Array.isArray(e)) return e;
@@ -12,111 +17,81 @@ const normFile = (e) => {
 };
 
 export default function Landing({ view }) {
-  const [loading, setLoading]         = useState(false);
-  const [currency, setCurrency]       = useState('PEN');
-  const [showNegocio, setShowNegocio] = useState(false);
-  const [registroForm] = Form.useForm();
-  const [slugPreview, setSlugPreview] = React.useState('');
-  const [registroError, setRegistroError] = React.useState('');
-  const [slugError, setSlugError] = React.useState('');
-  // Observar valores del formulario para habilitar/deshabilitar el botón
+  const [loading, setLoading]             = useState(false);
+  const [currency, setCurrency]           = useState('PEN');
+  const [registroForm]                    = Form.useForm();
+  const [slugPreview, setSlugPreview]     = useState('');
+  const [registroError, setRegistroError] = useState('');
+  const [slugError, setSlugError]         = useState('');
   const watchedValues = Form.useWatch([], registroForm);
   const isFormComplete = Boolean(
     watchedValues?.empresa?.trim() &&
     watchedValues?.email?.trim() &&
     watchedValues?.subdominio?.trim() &&
-    watchedValues?.password?.trim()
+    watchedValues?.password?.trim() &&
+    watchedValues?.confirmar_password?.trim()
   );
-  const [subInput, setSubInput]       = useState('');
-  const [negocios, setNegocios]       = useState(null); // null=sin buscar, []= resultado
-  const popoverRef                    = useRef(null);
-  const { planId }                    = useParams();
-  const navigate                      = useNavigate();
+  const [accederStep, setAccederStep]           = useState('form');
+  const [platformError, setPlatformError]       = useState('');
+  const [misNegocios, setMisNegocios]           = useState([]);
+  const [accederLoadingId, setAccederLoadingId] = useState(null);
+  const [accederForm]                           = Form.useForm();
+  const { planId }  = useParams();
+  const navigate    = useNavigate();
+  const { platformLogin, accessTenant } = useContext(AuthContext);
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   useEffect(() => {
     fetch('https://get.geojs.io/v1/ip/country.json')
-      .then(res => res.json())
-      .then(data => setCurrency(data.country === 'PE' ? 'PEN' : 'USD'))
+      .then(r => r.json())
+      .then(d => setCurrency(d.country === 'PE' ? 'PEN' : 'USD'))
       .catch(() => setCurrency('PEN'));
   }, []);
 
-  // Cerrar popover al hacer clic fuera
   useEffect(() => {
-    const handler = (e) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
-        setShowNegocio(false);
-        setNegocios(null);
-        setSubInput('');
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+    if (view !== 'acceder') {
+      setAccederStep('form'); setPlatformError('');
+      setMisNegocios([]); accederForm.resetFields();
+    }
+  }, [view]);
 
-  const goToNegocio = async () => {
-    if (!subInput.trim()) return;
-    setLoading(true);
-    setNegocios(null);
+  const onPlatformLogin = async (values) => {
+    setAccederStep('loading'); setPlatformError('');
+    const result = await platformLogin(values.email, values.password);
+    if (!result.success) {
+      setPlatformError(result.message || 'Credenciales incorrectas');
+      setAccederStep('form'); return;
+    }
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const res = await fetch(`${API_BASE}/api/public/buscar-tenant/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: subInput.trim().toLowerCase() }),
+      const res = await fetch(API_BASE + '/api/public/buscar-tenant/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: values.email.toLowerCase() }),
       });
       const data = await res.json();
-      if (res.ok && data.found) {
-        if (data.negocios.length === 1) {
-          message.success(`Redirigiendo a ${data.negocios[0].nombre}...`);
-          setTimeout(() => { window.location.href = data.negocios[0].login_url; }, 600);
-        } else {
-          setNegocios(data.negocios);
-        }
-      } else {
-        message.error(data.error || 'No encontramos ningún negocio con ese correo.');
-      }
-    } catch {
-      message.error('Error de conexión al buscar el negocio.');
-    }
-    setLoading(false);
+      if (res.ok && data.found) { setMisNegocios(data.negocios); setAccederStep('negocios'); }
+      else { setPlatformError(data.error || 'No encontramos negocios con ese correo.'); setAccederStep('form'); }
+    } catch { setPlatformError('Error de conexion.'); setAccederStep('form'); }
   };
 
-  const resetPopover = () => {
-    setNegocios(null);
-    setSubInput('');
+  const onAccessTenant = async (schema) => {
+    setAccederLoadingId(schema);
+    const result = await accessTenant(schema, false);
+    if (result.success) { message.success('Accediendo...'); navigate('/t/' + schema); }
+    else { message.error(result.message || 'No se pudo acceder.'); setAccederLoadingId(null); }
   };
-  // Auto-generar el identificador de URL desde el nombre de empresa
-  const generarSlug = (nombre) => {
-    return nombre
-      .toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quitar tildes
-      .replace(/[^a-z0-9\s-]/g, '')  // solo alfanumérico
-      .trim()
-      .replace(/\s+/g, '-')           // espacios → guiones
-      .substring(0, 30);
-  };
+
+  const generarSlug = (nombre) =>
+    nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').substring(0, 30);
 
   const onNombreEmpresaChange = (e) => {
     const slug = generarSlug(e.target.value);
-    registroForm.setFieldValue('subdominio', slug);
-    setSlugPreview(slug);
+    registroForm.setFieldValue('subdominio', slug); setSlugPreview(slug);
   };
 
-
-
-  const neonCyan     = '#00d2ff';
-  const darkBg       = '#0a0e14';
-  const cardBg       = '#111822';
-  const neonGlow     = '0 0 10px rgba(0,210,255,0.5)';
-  const neonTextGlow = '0 0 8px rgba(0,210,255,0.8)';
-
-  /* ── Registro ── */
-    // Flujo de 2 pasos: 1) datos del negocio, 2) pago con Culqi
   const registrarConToken = async (values, culqiToken) => {
-    setLoading(true);
-    setRegistroError('');
+    setLoading(true); setRegistroError('');
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       const formData = new FormData();
       formData.append('nombre_empresa', values.empresa);
       formData.append('subdominio',     values.subdominio);
@@ -126,595 +101,355 @@ export default function Landing({ view }) {
       formData.append('culqi_token',    culqiToken || '');
       if (values.ruc) formData.append('ruc', values.ruc);
       if (values.logo?.length > 0) formData.append('logo', values.logo[0].originFileObj);
-
-      const response = await fetch(`${API_BASE}/api/public/registro/`, {
-        method: 'POST', body: formData,
-      });
+      const response = await fetch(API_BASE + '/api/public/registro/', { method: 'POST', body: formData });
       const data = await response.json();
-
       if (response.ok) {
         message.success('Negocio creado exitosamente');
-        navigate(`/registro/exitoso?schema=${data.schema}&empresa=${encodeURIComponent(values.empresa)}`);
+        navigate('/registro/exitoso?schema=' + data.schema + '&empresa=' + encodeURIComponent(values.empresa));
       } else {
-        // Mostrar error inline (no desaparece)
         if (data.subdominio) {
           const msg = Array.isArray(data.subdominio) ? data.subdominio[0] : data.subdominio;
-          setSlugError(msg);
-          setRegistroError('El identificador de URL ya está en uso. Cambia el nombre y vuelve a intentarlo.');
-        } else if (data.error) {
-          setRegistroError(data.error);
-        } else if (data.email_admin) {
-          setRegistroError('Error con el correo: ' + (Array.isArray(data.email_admin) ? data.email_admin[0] : data.email_admin));
-        } else {
-          setRegistroError('Error en el registro. Verifica los datos e intenta de nuevo.');
-          console.error('API error:', data);
-        }
+          setSlugError(msg); setRegistroError('El identificador ya esta en uso.');
+        } else setRegistroError(data.error || 'Error en el registro.');
       }
-    } catch (err) {
-      setRegistroError('Error de conexión con el servidor. Verifica tu internet e intenta de nuevo.');
-      console.error('Network error:', err);
-    }
+    } catch { setRegistroError('Error de conexion con el servidor.'); }
     setLoading(false);
   };
 
-  const cargarCulqi = (timeoutMs = 5000) => new Promise((resolve) => {
+  const cargarCulqi = (t = 5000) => new Promise((resolve) => {
     if (typeof window.Culqi !== 'undefined') { resolve(true); return; }
-    const script = document.createElement('script');
-    script.src = 'https://checkout.culqi.com/js/v4';
-    const timer = setTimeout(() => resolve(false), timeoutMs);
-    script.onload = () => { clearTimeout(timer); resolve(true); };
-    script.onerror = () => { clearTimeout(timer); resolve(false); };
-    document.head.appendChild(script);
+    const s = document.createElement('script'); s.src = 'https://checkout.culqi.com/js/v4';
+    const timer = setTimeout(() => resolve(false), t);
+    s.onload = () => { clearTimeout(timer); resolve(true); };
+    s.onerror = () => { clearTimeout(timer); resolve(false); };
+    document.head.appendChild(s);
   });
 
   const onFinishRegistro = async (values) => {
-    // Mostrar loading inmediatamente
-    setLoading(true);
-    setRegistroError('');
+    setLoading(true); setRegistroError('');
     const culqiKey = import.meta.env.VITE_CULQI_PUBLIC_KEY || '';
-
-    // Claves de prueba (pk_test_) o sin clave -> registro directo sin pago
     if (!culqiKey || culqiKey.startsWith('pk_test_') || culqiKey === 'pk_test_placeholder') {
-      await registrarConToken(values, '');
-      return;
+      await registrarConToken(values, ''); return;
     }
-
-    // Intentar abrir Culqi (con timeout de 5s)
     try {
-      const culqiOk = await cargarCulqi(5000);
-
-      if (culqiOk && typeof window.Culqi !== 'undefined') {
-        // Culqi disponible: abrir modal de pago
+      const ok = await cargarCulqi(5000);
+      if (ok && typeof window.Culqi !== 'undefined') {
         window.Culqi.publicKey = culqiKey;
-        window.Culqi.settings({
-          title:       'NegocIA — Plan Emprendedor',
-          currency:    currency || 'PEN',
-          description: `Plan Emprendedor - ${values.empresa}`,
-          amount:      currency === 'USD' ? 1200 : 3900,
-          order:       `reg_${Date.now()}`,
-        });
-
+        window.Culqi.settings({ title: 'NegocIA', currency: currency || 'PEN',
+          description: 'Plan Emprendedor - ' + values.empresa,
+          amount: currency === 'USD' ? 1200 : 3900, order: 'reg_' + Date.now() });
         window.culqi = async () => {
-          if (window.Culqi.token) {
-            const tokenId = window.Culqi.token.id;
-            window.Culqi.close();
-            await registrarConToken(values, tokenId);
-          } else if (window.Culqi.error) {
-            setLoading(false);
-            message.error(window.Culqi.error.user_message || 'Pago rechazado');
-          }
+          if (window.Culqi.token) { window.Culqi.close(); await registrarConToken(values, window.Culqi.token.id); }
+          else if (window.Culqi.error) { setLoading(false); message.error(window.Culqi.error.user_message || 'Pago rechazado'); }
         };
-
-        setLoading(false); // quitar loading mientras el modal de Culqi esta abierto
-        window.Culqi.open();
-        return;
+        setLoading(false); window.Culqi.open(); return;
       }
-    } catch (err) {
-      console.warn('[Culqi] No disponible, usando sandbox:', err);
-    }
-
-    // Fallback: proceder sin pago (sandbox/modo prueba)
+    } catch {}
     await registrarConToken(values, '');
   };
 
+  const neonCyan = '#00d2ff', darkBg = '#0a0e14', cardBg = '#111822';
+  const neonGlow = '0 0 10px rgba(0,210,255,0.5)', neonTextGlow = '0 0 8px rgba(0,210,255,0.8)';
 
-  // Culqi se carga on-demand en onFinishRegistro
+  const NavTab = ({ label, route, active }) => (
+    <div onClick={() => navigate(route)} style={{
+        alignSelf: 'stretch', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', padding: '0 20px', cursor: 'pointer',
+        borderBottom: active ? '3px solid ' + neonCyan : '3px solid transparent',
+        borderTop: '3px solid transparent',
+        background: active ? 'rgba(0,210,255,0.07)' : 'transparent',
+        transition: 'background 0.2s, border-color 0.2s',
+      }}
+      onMouseEnter={e => { if (!active) { e.currentTarget.style.background='rgba(0,210,255,0.05)'; e.currentTarget.style.borderBottomColor='rgba(0,210,255,0.4)'; }}}
+      onMouseLeave={e => { if (!active) { e.currentTarget.style.background='transparent'; e.currentTarget.style.borderBottomColor='transparent'; }}}
+    >
+      <span style={{ color: active ? neonCyan : '#c9d1d9', fontWeight: 600, fontSize: '14px',
+        letterSpacing: '0.6px', textShadow: active ? '0 0 8px rgba(0,210,255,0.6)' : 'none',
+        transition: 'color 0.2s', userSelect: 'none' }}>{label}</span>
+    </div>
+  );
+
   return (
-    <div style={{
-      backgroundColor: darkBg, minHeight: '100vh', color: '#fff',
+    <div style={{ backgroundColor: darkBg, minHeight: '100vh', color: '#fff',
       fontFamily: 'Inter, sans-serif',
-      backgroundImage: `linear-gradient(rgba(0,210,255,0.05) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(0,210,255,0.05) 1px, transparent 1px)`,
-      backgroundSize: '40px 40px',
-      display: 'flex', flexDirection: 'column',
-    }}>
+      backgroundImage: 'linear-gradient(rgba(0,210,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,210,255,0.05) 1px, transparent 1px)',
+      backgroundSize: '40px 40px', display: 'flex', flexDirection: 'column' }}>
 
-      {/* ══════════════════════════════════════
-          HEADER
-      ══════════════════════════════════════ */}
-      <header style={{
-        padding: '0 40px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'stretch',
-        minHeight: '56px',
-        background: 'rgba(10,14,20,0.88)',
-        backdropFilter: 'blur(12px)',
-        borderBottom: `1px solid ${neonCyan}`,
+      <header style={{ padding: '0 40px', display: 'flex', justifyContent: 'space-between',
+        alignItems: 'stretch', minHeight: '56px',
+        background: 'rgba(10,14,20,0.88)', backdropFilter: 'blur(12px)',
+        borderBottom: '1px solid ' + neonCyan,
         boxShadow: '0 2px 12px rgba(0,210,255,0.2)',
-        position: 'sticky', top: 0, zIndex: 100,
-      }}>
-        {/* ── IZQUIERDA: Logo + nav links ── */}
-        <div style={{ display: 'flex', alignItems: 'center', alignSelf: 'stretch', gap: '0' }}>
-          {/* Logo */}
-          <div
-            style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', paddingRight: '24px' }}
-            onClick={() => navigate('/planes')}
-          >
+        position: 'sticky', top: 0, zIndex: 100 }}>
+        <div style={{ display: 'flex', alignItems: 'center', alignSelf: 'stretch', gap: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', paddingRight: '24px' }}
+            onClick={() => navigate('/planes')}>
             <NegocIALogo width={30} height={30} />
             <Title level={3} style={{ margin: 0, fontWeight: 800, lineHeight: 1 }}>
               <span style={{ color: '#fff' }}>Negoc</span><span style={{ color: neonCyan, textShadow: neonTextGlow }}>IA</span>
             </Title>
           </div>
-
-          {/* ── "Planes" como tab full-height ── */}
-          <div
-            onClick={() => navigate('/planes')}
-            style={{
-              // Bloque que estira hasta el borde superior e inferior del header
-              alignSelf: 'stretch',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              padding: '0 20px',
-              cursor: 'pointer',
-              position: 'relative',
-              // Borde inferior activo (indicador de sección actual)
-              borderBottom: view === 'planes'
-                ? `3px solid ${neonCyan}`
-                : '3px solid transparent',
-              // Borde superior complementario para que se vea como tab
-              borderTop: view === 'planes'
-                ? '3px solid transparent'
-                : '3px solid transparent',
-              // Fondo sutil cuando está activo
-              background: view === 'planes'
-                ? 'rgba(0,210,255,0.07)'
-                : 'transparent',
-              transition: 'background 0.2s, border-color 0.2s',
-            }}
-            onMouseEnter={e => {
-              if (view !== 'planes') {
-                e.currentTarget.style.background = 'rgba(0,210,255,0.05)';
-                e.currentTarget.style.borderBottomColor = 'rgba(0,210,255,0.4)';
-              }
-            }}
-            onMouseLeave={e => {
-              if (view !== 'planes') {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.borderBottomColor = 'transparent';
-              }
-            }}
-          >
-            <span style={{
-              color: view === 'planes' ? neonCyan : '#c9d1d9',
-              fontWeight: 600,
-              fontSize: '14px',
-              letterSpacing: '0.6px',
-              textShadow: view === 'planes' ? `0 0 8px rgba(0,210,255,0.6)` : 'none',
-              transition: 'color 0.2s, text-shadow 0.2s',
-              userSelect: 'none',
-            }}>
-              Planes
-            </span>
-          </div>
-
+          <NavTab label='Planes'  route='/planes'  active={view === 'planes'} />
+          <NavTab label='Acceder' route='/acceder' active={view === 'acceder'} />
         </div>
-
-        {/* ── DERECHA: Ir a mi Negocio con popover de email ── */}
-        <div ref={popoverRef} style={{ position: 'relative', alignSelf: 'center' }}>
-          <Button
-            icon={<ArrowRightOutlined />}
-            onClick={() => setShowNegocio(v => !v)}
-            style={{
-              background: neonCyan, color: darkBg, border: 'none',
-              fontWeight: 700, boxShadow: neonGlow, fontSize: '13px',
-            }}
-          >
-            Ir a mi Negocio
+        <div style={{ alignSelf: 'center' }}>
+          <Button icon={<RocketOutlined />} onClick={() => navigate('/registro/1')}
+            style={{ background: view==='registro'?neonCyan:'transparent', color: view==='registro'?darkBg:neonCyan,
+              borderColor: neonCyan, fontWeight: 700, boxShadow: neonGlow, fontSize: '13px' }}>
+            Registrar Negocio
           </Button>
-
-          {showNegocio && (
-            <div style={{
-              position: 'absolute', top: 'calc(100% + 10px)', right: 0,
-              background: '#0d1520', border: `1px solid ${neonCyan}`,
-              borderRadius: '10px', padding: '18px', width: '300px',
-              boxShadow: `0 8px 24px rgba(0,0,0,0.5), 0 0 20px rgba(0,210,255,0.15)`,
-              zIndex: 200,
-            }}>
-
-              {/* ── Estado A: formulario de email ── */}
-              {!negocios && (
-                <>
-                  <p style={{ color: neonCyan, fontWeight: 700, fontSize: '13px', margin: '0 0 4px' }}>
-                    Ir a mi Negocio
-                  </p>
-                  <p style={{ color: '#8b949e', fontSize: '12px', margin: '0 0 12px', lineHeight: '1.5' }}>
-                    Ingresa el correo con el que te registraste y te llevamos directo.
-                  </p>
-                  <Input
-                    placeholder="gerente@miempresa.com"
-                    type="email"
-                    value={subInput}
-                    onChange={e => setSubInput(e.target.value)}
-                    onPressEnter={goToNegocio}
-                    style={{ background: '#050a12', borderColor: 'rgba(0,210,255,0.3)', color: '#fff' }}
-                    autoFocus
-                  />
-                  <Button
-                    block type="primary" onClick={goToNegocio}
-                    loading={loading}
-                    style={{ marginTop: '10px', background: neonCyan, color: darkBg, border: 'none', fontWeight: 700 }}
-                  >
-                    Buscar mis negocios →
-                  </Button>
-                </>
-              )}
-
-              {/* ── Estado B: lista de negocios encontrados ── */}
-              {negocios && negocios.length > 0 && (
-                <>
-                  <p style={{ color: neonCyan, fontWeight: 700, fontSize: '13px', margin: '0 0 4px' }}>
-                    Tus negocios
-                  </p>
-                  <p style={{ color: '#8b949e', fontSize: '12px', margin: '0 0 12px' }}>
-                    Elige a cuál quieres ingresar:
-                  </p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '220px', overflowY: 'auto' }}>
-                    {negocios.map((n, i) => (
-                      <button
-                        key={i}
-                        onClick={() => { window.location.href = n.login_url; }}
-                        style={{
-                          display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                          background: 'rgba(0,210,255,0.06)',
-                          border: '1px solid rgba(0,210,255,0.2)',
-                          borderRadius: '8px', padding: '10px 14px',
-                          cursor: 'pointer', width: '100%', textAlign: 'left',
-                          transition: 'background 0.2s, border-color 0.2s',
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.background = 'rgba(0,210,255,0.13)';
-                          e.currentTarget.style.borderColor = neonCyan;
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.background = 'rgba(0,210,255,0.06)';
-                          e.currentTarget.style.borderColor = 'rgba(0,210,255,0.2)';
-                        }}
-                      >
-                        <span style={{ color: '#fff', fontWeight: 600, fontSize: '13px' }}>
-                          {n.nombre}
-                        </span>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
-                          <span style={{
-                            background: 'rgba(0,210,255,0.15)', color: neonCyan,
-                            fontSize: '10px', fontWeight: 700, padding: '1px 8px',
-                            borderRadius: '20px', letterSpacing: '0.5px',
-                          }}>
-                            {n.rol || 'Colaborador'}
-                          </span>
-                          <span style={{ color: '#4b5563', fontSize: '11px' }}>
-                            {n.login_url ? new URL(n.login_url).pathname : `/t/${n.schema}/login`}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    onClick={resetPopover}
-                    style={{
-                      marginTop: '12px', background: 'none', border: 'none',
-                      color: '#6b7280', fontSize: '12px', cursor: 'pointer', padding: 0,
-                    }}
-                  >
-                    ← Buscar con otro correo
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-
         </div>
       </header>
 
-
-      {/* ══════════════════════════════════════
-          MAIN
-      ══════════════════════════════════════ */}
       <main style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '60px 20px', flex: 1 }}>
 
-        {/* ── PLANES ── */}
         {view === 'planes' && (
           <div style={{ textAlign: 'center', animation: 'fadeIn 0.8s' }}>
-            <Title style={{ color: '#fff', fontSize: '3.2rem', marginBottom: '15px' }}>
-              Crece sin límites de personal
-            </Title>
+            <Title style={{ color: '#fff', fontSize: '3.2rem', marginBottom: '15px' }}>Crece sin limites de personal</Title>
             <Paragraph style={{ color: '#a0c0e0', fontSize: '1.15rem', maxWidth: '680px', margin: '0 auto 60px', lineHeight: '1.7' }}>
-              Pensamos en el emprendedor. Una plataforma que no te castiga por crecer: afilia a tantas
-              cuentas de vendedores como necesites sin cambiar tu tarifa principal.
+              Pensamos en el emprendedor. Una plataforma que no te castiga por crecer: afilia a tantas cuentas de vendedores como necesites.
             </Paragraph>
-
-            <Row gutter={[40, 40]} justify="center">
-              {/* Plan Emprendedor */}
+            <Row gutter={[40, 40]} justify='center'>
               <Col xs={24} md={10}>
-                <Card
-                  hoverable
-                  style={{ background: cardBg, border: '1px solid rgba(0,210,255,0.3)', borderRadius: '12px', transition: 'all 0.3s' }}
+                <Card hoverable style={{ background: cardBg, border: '1px solid rgba(0,210,255,0.3)', borderRadius: '12px', transition: 'all 0.3s' }}
                   bodyStyle={{ padding: '40px' }}
-                  onMouseEnter={e => e.currentTarget.style.boxShadow = neonGlow}
-                  onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
-                >
-                  <RocketOutlined style={{ fontSize: '44px', color: neonCyan, marginBottom: '18px', filter: `drop-shadow(0 0 8px ${neonCyan})` }} />
+                  onMouseEnter={e => e.currentTarget.style.boxShadow=neonGlow}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow='none'}>
+                  <RocketOutlined style={{ fontSize: '44px', color: neonCyan, marginBottom: '18px', filter: 'drop-shadow(0 0 8px ' + neonCyan + ')' }} />
                   <Title level={2} style={{ color: '#fff' }}>Emprendedor</Title>
                   <Title level={1} style={{ color: neonCyan, margin: '12px 0 30px', textShadow: neonTextGlow }}>
-                    {currency === 'PEN' ? 'S/ 39' : '$ 12'}
-                    <span style={{ fontSize: '1rem', color: '#8b949e', textShadow: 'none' }}> / mes</span>
+                    {currency === 'PEN' ? 'S/ 39' : '$ 12'}<span style={{ fontSize: '1rem', color: '#8b949e', textShadow: 'none' }}> / mes</span>
                   </Title>
                   <div style={{ textAlign: 'left', marginBottom: '36px', fontSize: '15px', color: '#e6edf3' }}>
                     <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Inventario y Ventas Completo</p>
                     <p style={{ marginBottom: '12px', fontWeight: 'bold' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} /><span style={{ color: neonCyan }}>Vendedores Ilimitados</span></p>
-                    <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Múltiples Cajas y Movimientos</p>
+                    <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Multiples Cajas y Movimientos</p>
                     <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Dominio privado (ej. mitienda.negociav2.app)</p>
                   </div>
-                  <Button type="primary" size="large" block
+                  <Button type='primary' size='large' block
                     style={{ height: '48px', background: 'transparent', borderColor: neonCyan, color: neonCyan, fontWeight: 'bold', boxShadow: neonGlow }}
-                    onClick={() => navigate('/registro/1')}>
-                    Elegir Plan Emprendedor
-                  </Button>
+                    onClick={() => navigate('/registro/1')}>Elegir Plan Emprendedor</Button>
                 </Card>
               </Col>
-
-              {/* Plan Empresario */}
               <Col xs={24} md={10}>
-                <Card
-                  hoverable
-                  style={{ background: cardBg, border: `2px solid ${neonCyan}`, borderRadius: '12px', position: 'relative', boxShadow: neonGlow }}
-                  bodyStyle={{ padding: '40px' }}
-                >
-                  <div style={{
-                    position: 'absolute', top: '-14px', right: '28px',
-                    background: darkBg, color: neonCyan, border: `1px solid ${neonCyan}`,
-                    boxShadow: neonGlow, padding: '4px 18px', borderRadius: '20px',
-                    fontWeight: 'bold', textShadow: neonTextGlow, fontSize: '12px',
-                  }}>CORPORATIVO</div>
-
-                  <TrophyOutlined style={{ fontSize: '44px', color: neonCyan, marginBottom: '18px', filter: `drop-shadow(0 0 8px ${neonCyan})` }} />
+                <Card hoverable style={{ background: cardBg, border: '2px solid ' + neonCyan, borderRadius: '12px', position: 'relative', boxShadow: neonGlow }}
+                  bodyStyle={{ padding: '40px' }}>
+                  <div style={{ position: 'absolute', top: '-14px', right: '28px', background: darkBg, color: neonCyan,
+                    border: '1px solid ' + neonCyan, boxShadow: neonGlow, padding: '4px 18px', borderRadius: '20px',
+                    fontWeight: 'bold', textShadow: neonTextGlow, fontSize: '12px' }}>CORPORATIVO</div>
+                  <TrophyOutlined style={{ fontSize: '44px', color: neonCyan, marginBottom: '18px', filter: 'drop-shadow(0 0 8px ' + neonCyan + ')' }} />
                   <Title level={2} style={{ color: '#fff' }}>Empresario</Title>
-                  <Title level={1} style={{ margin: '12px 0 30px', textShadow: neonTextGlow }}>
-                    A <span style={{ color: neonCyan }}>Medida</span>
-                  </Title>
+                  <Title level={1} style={{ margin: '12px 0 30px', textShadow: neonTextGlow }}>A <span style={{ color: neonCyan }}>Medida</span></Title>
                   <div style={{ textAlign: 'left', marginBottom: '36px', fontSize: '15px', color: '#e6edf3' }}>
                     <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Todo lo del plan emprendedor</p>
-                    <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Jerarquías, Roles y Permisos estrictos</p>
+                    <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Jerarquias, Roles y Permisos</p>
                     <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Escalado masivo y APIs dedicadas</p>
-                    <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: '#8b949e', marginRight: '8px' }} /><i>Estructura de cobro variable (cotización)</i></p>
                   </div>
-                  <Button type="primary" size="large" block
+                  <Button type='primary' size='large' block
                     style={{ height: '48px', background: neonCyan, color: darkBg, fontWeight: 'bold', boxShadow: neonGlow, border: 'none' }}
-                    onClick={() => message.info('Contacte a pizzia.peru@gmail.com para recibir su cotización personalizada')}>
-                    Solicitar Cotización Exacta
-                  </Button>
+                    onClick={() => message.info('Contacte a pizzia.peru@gmail.com para cotizacion')}>Solicitar Cotizacion Exacta</Button>
                 </Card>
               </Col>
             </Row>
-
-            {/* ── SECCIÓN CONTACTO ── */}
-            <div style={{
-              marginTop: '80px', padding: '44px 40px',
+            <div style={{ marginTop: '80px', padding: '44px 40px',
               background: 'linear-gradient(135deg, rgba(0,162,255,0.07), rgba(0,210,255,0.03))',
               border: '1px solid rgba(0,210,255,0.22)', borderRadius: '16px',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px',
-            }}>
-              <Title level={3} style={{ color: '#fff', margin: 0 }}>
-                ¿Tienes dudas? <span style={{ color: neonCyan }}>Escríbenos</span>
-              </Title>
-              <Paragraph style={{ color: '#8b949e', margin: 0 }}>
-                Estamos en Perú · Respondemos rápido por correo y teléfono.
-              </Paragraph>
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+              <Title level={3} style={{ color: '#fff', margin: 0 }}>Tienes dudas? <span style={{ color: neonCyan }}>Escribenos</span></Title>
               <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                <a href="mailto:pizzia.peru@gmail.com" style={{ textDecoration: 'none' }}>
-                  <Button size="large" icon={<MailOutlined />}
-                    style={{ background: neonCyan, color: darkBg, border: 'none', fontWeight: 'bold', boxShadow: neonGlow, height: '48px', paddingInline: '28px' }}>
-                    pizzia.peru@gmail.com
-                  </Button>
+                <a href='mailto:pizzia.peru@gmail.com' style={{ textDecoration: 'none' }}>
+                  <Button size='large' icon={<MailOutlined />} style={{ background: neonCyan, color: darkBg, border: 'none', fontWeight: 'bold', boxShadow: neonGlow, height: '48px', paddingInline: '28px' }}>pizzia.peru@gmail.com</Button>
                 </a>
-                <a href="tel:+51948413244" style={{ textDecoration: 'none' }}>
-                  <Button size="large" icon={<PhoneOutlined />}
-                    style={{ background: 'transparent', color: neonCyan, borderColor: neonCyan, fontWeight: 'bold', boxShadow: neonGlow, height: '48px', paddingInline: '28px' }}>
-                    +51 948 413 244
-                  </Button>
+                <a href='tel:+51948413244' style={{ textDecoration: 'none' }}>
+                  <Button size='large' icon={<PhoneOutlined />} style={{ background: 'transparent', color: neonCyan, borderColor: neonCyan, fontWeight: 'bold', boxShadow: neonGlow, height: '48px', paddingInline: '28px' }}>+51 948 413 244</Button>
                 </a>
               </div>
             </div>
           </div>
         )}
 
-        {/* ── REGISTRO ── */}
+        {view === 'acceder' && (
+          <div style={{ animation: 'fadeIn 0.5s' }}>
+
+            {accederStep === 'form' && (
+              <div style={{ maxWidth: '440px', margin: '0 auto' }}>
+                <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: 64, height: 64, borderRadius: 16,
+                    background: 'linear-gradient(135deg, ' + neonCyan + ', #0088cc)',
+                    marginBottom: 18, boxShadow: '0 4px 24px rgba(0,210,255,0.5)' }}>
+                    <LoginOutlined style={{ fontSize: 30, color: '#000' }} />
+                  </div>
+                  <Title level={2} style={{ color: '#fff', margin: 0 }}>Accede a tus negocios</Title>
+                  <Text style={{ color: '#8b949e', fontSize: 14 }}>Inicia sesion para ver todos los negocios que administras</Text>
+                </div>
+                <Card style={{ background: cardBg, border: '1px solid ' + neonCyan, borderRadius: 14, boxShadow: neonGlow }}>
+                  <Form form={accederForm} layout='vertical' onFinish={onPlatformLogin} size='large'>
+                    <Form.Item name='email' label={<span style={{ color: '#fff' }}>Correo electronico</span>}
+                      rules={[{ required: true, message: 'Ingresa tu correo' }, { type: 'email' }]}>
+                      <Input prefix={<MailOutlined style={{ color: neonCyan }} />} placeholder='tu@correo.com' type='email'
+                        style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.3)', color: '#fff' }} />
+                    </Form.Item>
+                    <Form.Item name='password' label={<span style={{ color: '#fff' }}>Contrasena</span>}
+                      rules={[{ required: true, message: 'Ingresa tu contrasena' }]}>
+                      <Input.Password prefix={<LockOutlined style={{ color: neonCyan }} />} placeholder='........'
+                        style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.3)', color: '#fff' }} />
+                    </Form.Item>
+                    {platformError && (
+                      <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.4)',
+                        borderRadius: 8, padding: '10px 14px', marginBottom: 12, color: '#ff6b6b', fontSize: 13 }}>
+                        {platformError}
+                      </div>
+                    )}
+                    <Button type='primary' htmlType='submit' block style={{
+                      height: 48, background: 'linear-gradient(135deg, ' + neonCyan + ', #0088cc)',
+                      color: '#000', border: 'none', fontWeight: 800, fontSize: 15,
+                      boxShadow: neonGlow, borderRadius: 10 }}>Entrar</Button>
+                  </Form>
+                  <div style={{ marginTop: 16, textAlign: 'center' }}>
+                    <Text style={{ color: '#8b949e', fontSize: 13 }}>No tienes negocio? </Text>
+                    <Button type='link' onClick={() => navigate('/registro/1')} style={{ color: neonCyan, padding: '0 4px', fontSize: 13 }}>Crear uno</Button>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {accederStep === 'loading' && (
+              <div style={{ textAlign: 'center', padding: '80px 0' }}>
+                <Spin indicator={<LoadingOutlined style={{ fontSize: 48, color: neonCyan }} spin />} />
+                <div style={{ color: '#8b949e', marginTop: 24, fontSize: 15 }}>Buscando tus negocios...</div>
+              </div>
+            )}
+
+            {accederStep === 'negocios' && (
+              <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+                <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+                  <Title level={2} style={{ color: '#fff', margin: 0 }}>Tus <span style={{ color: neonCyan }}>Negocios</span></Title>
+                  <Text style={{ color: '#8b949e', fontSize: 14 }}>Haz clic en el negocio al que quieres acceder</Text>
+                </div>
+                <Row gutter={[24, 24]} justify='center'>
+                  {misNegocios.map((neg, i) => (
+                    <Col xs={24} sm={12} md={8} key={i}>
+                      <Card hoverable
+                        style={{ background: cardBg, border: '1px solid rgba(0,210,255,0.3)', borderRadius: 14,
+                          textAlign: 'center', cursor: 'pointer', transition: 'all 0.25s' }}
+                        bodyStyle={{ padding: '32px 24px' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor=neonCyan; e.currentTarget.style.boxShadow=neonGlow; e.currentTarget.style.transform='translateY(-4px)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(0,210,255,0.3)'; e.currentTarget.style.boxShadow='none'; e.currentTarget.style.transform='translateY(0)'; }}>
+                        <div style={{ width: 56, height: 56, borderRadius: 14, margin: '0 auto 16px',
+                          background: 'linear-gradient(135deg, rgba(0,210,255,0.2), rgba(0,136,204,0.15))',
+                          border: '1px solid rgba(0,210,255,0.3)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <ShopOutlined style={{ fontSize: 26, color: neonCyan }} />
+                        </div>
+                        <Title level={4} style={{ color: '#fff', margin: '0 0 4px' }}>{neg.nombre}</Title>
+                        <Text style={{ color: '#8b949e', fontSize: 12, display: 'block', marginBottom: 20 }}>{neg.rol}</Text>
+                        <Button type='primary' block loading={accederLoadingId === neg.schema}
+                          onClick={() => onAccessTenant(neg.schema)}
+                          icon={<ArrowRightOutlined />}
+                          style={{ background: 'linear-gradient(135deg, ' + neonCyan + ', #0088cc)',
+                            border: 'none', color: '#000', fontWeight: 700, height: 40, borderRadius: 8 }}>Acceder</Button>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+                <div style={{ textAlign: 'center', marginTop: 32 }}>
+                  <Button type='link' onClick={() => { setAccederStep('form'); accederForm.resetFields(); }}
+                    style={{ color: '#8b949e', fontSize: 13 }}>Usar otro correo</Button>
+                  <span style={{ color: '#374151', margin: '0 12px' }}>·</span>
+                  <Button type='link' onClick={() => navigate('/registro/1')} style={{ color: neonCyan, fontSize: 13 }}>+ Crear otro negocio</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {view === 'registro' && (
           <div style={{ maxWidth: '460px', margin: '0 auto', animation: 'fadeIn 0.5s' }}>
-            <Title level={2} style={{ color: '#fff', textAlign: 'center', marginBottom: '28px' }}>
-              Crear Espacio de Trabajo
-            </Title>
-            <Card style={{ background: cardBg, border: `1px solid ${neonCyan}`, borderRadius: '12px', boxShadow: neonGlow }}>
-              <Form
-                layout="vertical"
-                form={registroForm}
-                onFinish={onFinishRegistro}
-                validateTrigger={["onChange", "onBlur"]}
-                onFinishFailed={({ errorFields }) => {
-                  const names = errorFields.map(e => e.name.join('')).join(', ');
-                  message.error(`Revisa los campos marcados en rojo`);
-                }}
-              >
-                {/* Campo: Nombre del Negocio */}
-                <Form.Item
-                  label={<span style={{ color: '#fff', fontWeight: 500 }}>Nombre del Negocio</span>}
-                  name="empresa"
-                  rules={[{ required: true, message: 'El nombre del negocio es requerido' }]}
-                >
-                  <Input
-                    size="large"
-                    placeholder="Ej: Bodega El Sol"
-                    onChange={onNombreEmpresaChange}
-                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }}
-                  />
+            <Title level={2} style={{ color: '#fff', textAlign: 'center', marginBottom: '28px' }}>Crear Espacio de Trabajo</Title>
+            <Card style={{ background: cardBg, border: '1px solid ' + neonCyan, borderRadius: '12px', boxShadow: neonGlow }}>
+              <Form layout='vertical' form={registroForm} onFinish={onFinishRegistro} validateTrigger={['onChange','onBlur']}>
+
+                <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>Nombre del Negocio</span>}
+                  name='empresa' rules={[{ required: true, message: 'El nombre es requerido' }]}>
+                  <Input size='large' placeholder='Ej: Bodega El Sol' onChange={onNombreEmpresaChange}
+                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
                 </Form.Item>
 
-                {/* Campo: Correo */}
-                <Form.Item
-                  label={<span style={{ color: '#fff', fontWeight: 500 }}>Correo Gerencia</span>}
-                  name="email"
-                  rules={[
-                    { required: true, message: 'El correo es requerido' },
-                    { type: 'email', message: 'Ingresa un correo válido' },
-                  ]}
-                >
-                  <Input
-                    size="large"
-                    placeholder="gerente@empresa.com"
-                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }}
-                  />
+                <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>Correo Gerencia</span>}
+                  name='email' rules={[{ required: true, message: 'El correo es requerido' }, { type: 'email', message: 'Correo invalido' }]}>
+                  <Input size='large' placeholder='gerente@empresa.com'
+                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
                 </Form.Item>
 
-                <Form.Item
-                  label={<span style={{ color: '#fff', fontWeight: 500 }}>Identificador de URL</span>}
-                  name="subdominio"
-                  rules={[
-                    { required: true, message: 'Requerido' },
-                    { pattern: /^[a-z0-9-]+$/, message: 'Solo letras minúsculas, números y guiones' },
-                  ]}
-                  extra={
-                    <span style={{ color: 'rgba(0,210,255,0.55)', fontSize: 12 }}>
-                      Tu URL de acceso:{' '}
-                      <strong style={{ color: neonCyan }}>
-                        negociav2.vercel.app/t/{slugPreview || 'mi-empresa'}/login
-                      </strong>
-                    </span>
-                  }
-                >
-                  <Input
-                    size="large"
-                    placeholder="mi-empresa"
+                <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>Identificador de URL</span>}
+                  name='subdominio'
+                  rules={[{ required: true, message: 'Requerido' }, { pattern: /^[a-z0-9-]+$/, message: 'Solo minusculas, numeros y guiones' }]}
+                  extra={<span style={{ color: 'rgba(0,210,255,0.55)', fontSize: 12 }}>Tu URL: <strong style={{ color: neonCyan }}>negociav2.vercel.app/t/{slugPreview||'mi-empresa'}/login</strong></span>}>
+                  <Input size='large' placeholder='mi-empresa'
                     prefix={<span style={{ color: 'rgba(0,210,255,0.4)', fontSize: 12 }}>/t/</span>}
                     suffix={<span style={{ color: 'rgba(0,210,255,0.4)', fontSize: 11 }}>/login</span>}
                     style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }}
-                    onChange={e => {
-                      const clean = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
-                      registroForm.setFieldValue('subdominio', clean);
-                      setSlugPreview(clean);
-                    }}
-                  />
+                    onChange={e => { const c=e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,''); registroForm.setFieldValue('subdominio',c); setSlugPreview(c); }} />
                 </Form.Item>
 
-                <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>Contraseña Segura</span>} name="password" rules={[{ required: true }]}>
-                  <Input.Password size="large" style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
+                <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>Contrasena Segura</span>}
+                  name='password' rules={[{ required: true, message: 'La contrasena es requerida' }, { min: 8, message: 'Minimo 8 caracteres' }]}>
+                  <Input.Password size='large' placeholder='Minimo 8 caracteres'
+                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
                 </Form.Item>
 
-                <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>RUC (Opcional)</span>} name="ruc">
-                  <Input size="large" placeholder="20123456789" style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
+                <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>Confirmar Contrasena</span>}
+                  name='confirmar_password' dependencies={['password']}
+                  rules={[{ required: true, message: 'Confirma tu contrasena' },
+                    ({ getFieldValue }) => ({ validator(_, value) {
+                      if (!value || getFieldValue('password') === value) return Promise.resolve();
+                      return Promise.reject(new Error('Las contrasenas no coinciden'));
+                    }}),
+                  ]}>
+                  <Input.Password size='large' placeholder='Repite la contrasena'
+                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
                 </Form.Item>
 
-                <Form.Item name="logo" label={<span style={{ color: '#fff', fontWeight: 500 }}>Logotipo (Opcional)</span>}
-                  valuePropName="fileList" getValueFromEvent={normFile}>
-                  <Upload beforeUpload={() => false} maxCount={1} accept="image/*">
-                    <Button icon={<UploadOutlined />} style={{ background: 'transparent', color: neonCyan, borderColor: neonCyan }}>
-                      Seleccionar imagen
-                    </Button>
+                <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>RUC (Opcional)</span>} name='ruc'>
+                  <Input size='large' placeholder='20123456789' style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
+                </Form.Item>
+
+                <Form.Item name='logo' label={<span style={{ color: '#fff', fontWeight: 500 }}>Logotipo (Opcional)</span>}
+                  valuePropName='fileList' getValueFromEvent={normFile}>
+                  <Upload beforeUpload={() => false} maxCount={1} accept='image/*'>
+                    <Button icon={<UploadOutlined />} style={{ background: 'transparent', color: neonCyan, borderColor: neonCyan }}>Seleccionar imagen</Button>
                   </Upload>
                 </Form.Item>
 
-                {/* Error inline visible */}
-                {registroError && (
-                  <div style={{
-                    background: 'rgba(255,59,48,0.12)',
-                    border: '1px solid rgba(255,59,48,0.5)',
-                    borderRadius: 8, padding: '10px 14px',
-                    marginBottom: 12, color: '#ff6b6b',
-                    fontSize: 13, lineHeight: 1.5,
-                  }}>
-                    ⚠️ {registroError}
-                  </div>
-                )}
+                {registroError && (<div style={{ background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.5)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, color: '#ff6b6b', fontSize: 13 }}>{registroError}</div>)}
+                {slugError && (<div style={{ background: 'rgba(255,165,0,0.1)', border: '1px solid rgba(255,165,0,0.4)', borderRadius: 8, padding: '8px 14px', marginBottom: 8, color: '#ffa500', fontSize: 12 }}>Prueba: <strong>{watchedValues?.subdominio}-2</strong></div>)}
 
-                {slugError && (
-                  <div style={{
-                    background: 'rgba(255,165,0,0.1)',
-                    border: '1px solid rgba(255,165,0,0.4)',
-                    borderRadius: 8, padding: '8px 14px',
-                    marginBottom: 8, color: '#ffa500', fontSize: 12,
-                  }}>
-                    💡 Prueba con otro identificador, ej: <strong>{watchedValues?.subdominio}-2</strong>
-                  </div>
-                )}
-
-                <Button
-                  type="primary"
-                  size="large"
-                  block
-                  htmlType="submit"
-                  loading={loading}
-                  disabled={!isFormComplete}
-                  style={{
-                    marginTop: '12px', height: '52px', border: 'none',
-                    fontWeight: 800, fontSize: '15px', letterSpacing: '1px',
-                    transition: 'all 0.3s ease',
-                    background: isFormComplete
-                      ? `linear-gradient(135deg, ${neonCyan}, #0088cc)`
-                      : 'rgba(0,210,255,0.15)',
-                    color: isFormComplete ? darkBg : 'rgba(0,210,255,0.4)',
-                    boxShadow: isFormComplete ? neonGlow : 'none',
-                    cursor: isFormComplete ? 'pointer' : 'not-allowed',
-                  }}
-                >
+                <Button type='primary' size='large' block htmlType='submit' loading={loading} disabled={!isFormComplete}
+                  style={{ marginTop: '12px', height: '52px', border: 'none', fontWeight: 800, fontSize: '15px', letterSpacing: '1px',
+                    background: isFormComplete?'linear-gradient(135deg,' + neonCyan + ',#0088cc)':'rgba(0,210,255,0.15)',
+                    color: isFormComplete?darkBg:'rgba(0,210,255,0.4)', boxShadow: isFormComplete?neonGlow:'none' }}>
                   {loading ? 'Procesando...' : isFormComplete ? 'REGISTRAR MI NEGOCIO' : 'Completa todos los campos'}
                 </Button>
-                <Button type="link" block onClick={() => navigate('/planes')} style={{ marginTop: '10px', color: '#a0c0e0' }}>
-                  ← Volver a los planes
-                </Button>
+                <Button type='link' block onClick={() => navigate('/planes')} style={{ marginTop: '10px', color: '#a0c0e0' }}>Volver a los planes</Button>
               </Form>
             </Card>
           </div>
         )}
       </main>
 
-      {/* ══════════════════════════════════════
-          FOOTER
-      ══════════════════════════════════════ */}
-      <footer style={{
-        borderTop: '1px solid rgba(0,210,255,0.14)',
-        background: 'rgba(4,7,13,0.97)',
-        padding: '20px 40px',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px',
-      }}>
+      <footer style={{ borderTop: '1px solid rgba(0,210,255,0.14)', background: 'rgba(4,7,13,0.97)',
+        padding: '20px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#6b7280' }}>
           <span>Producto desarrollado por</span>
-          <a href="https://pizzia.org" target="_blank" rel="noopener noreferrer"
-            style={{ color: neonCyan, fontWeight: 700, textDecoration: 'none', textShadow: '0 0 6px rgba(0,210,255,0.5)' }}>
-            PizzIA
-          </a>
+          <a href='https://pizzia.org' target='_blank' rel='noopener noreferrer' style={{ color: neonCyan, fontWeight: 700, textDecoration: 'none' }}>PizzIA</a>
           <span>·</span>
-          <a href="https://pizzia.org" target="_blank" rel="noopener noreferrer"
-            style={{ color: '#6b7280', textDecoration: 'underline' }}>
-            pizzia.org
-          </a>
+          <a href='https://pizzia.org' target='_blank' rel='noopener noreferrer' style={{ color: '#6b7280', textDecoration: 'underline' }}>pizzia.org</a>
         </div>
-        <div style={{ fontSize: '12px', color: '#374151' }}>
-          © {new Date().getFullYear()} PizzIA — Todos los Derechos Reservados
-        </div>
+        <div style={{ fontSize: '12px', color: '#374151' }}>© {new Date().getFullYear()} PizzIA - Todos los Derechos Reservados</div>
       </footer>
 
-      <style>{`
-        @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-        .ant-input::placeholder { color: rgba(0,210,255,0.3) !important; }
-        .ant-input-password input::placeholder { color: rgba(0,210,255,0.3) !important; }
-        .ant-input-group-addon { background:#0a0e14!important; border-color:rgba(0,210,255,0.3)!important; color:#00d2ff!important; }
-      `}</style>
+      <style>{@keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } } .ant-input::placeholder { color: rgba(0,210,255,0.3) !important; } .ant-input-password input::placeholder { color: rgba(0,210,255,0.3) !important; }}</style>
     </div>
   );
 }

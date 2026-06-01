@@ -1,7 +1,8 @@
 from django.urls import path
-from .views import RegistroSaaSAPIView, BuscarTenantPorEmailAPIView
+from .views import RegistroSaaSAPIView, BuscarTenantPorEmailAPIView, tenant_token_view
 
 urlpatterns = [
-    path('registro/', RegistroSaaSAPIView.as_view(), name='saas-registro'),
+    path('registro/',      RegistroSaaSAPIView.as_view(),        name='saas-registro'),
     path('buscar-tenant/', BuscarTenantPorEmailAPIView.as_view(), name='saas-buscar-tenant'),
+    path('tenant-token/',  tenant_token_view,                     name='saas-tenant-token'),
 ]
