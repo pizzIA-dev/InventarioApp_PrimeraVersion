@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useParams } from 'react-router-dom';
 import { useTheme } from '../ThemeContext';
 import NegocIALogo from './NegocIALogo';
 import { AuthContext } from '../context/AuthContext';
@@ -45,7 +45,7 @@ const menuItems = [
   { path: '/reportes',      icon: <BarChartOutlined />,     label: 'Reportes',           rolesOnly: ['GERENTE'] },
 ];
 
-// Seccion admin — solo Gerente
+// Seccion admin â€” solo Gerente
 const adminItems = [
   { path: '/usuarios',  icon: <UserOutlined />,               label: 'Colaboradores' },
   { path: '/roles',     icon: <SafetyCertificateOutlined />,  label: 'Roles Corporativos' },
@@ -62,8 +62,8 @@ function Layout() {
 
   const handleLogoutClick = () => {
     Modal.confirm({
-      title: '¿Cerrar sesion?',
-      content: '¿Estas seguro que deseas salir del sistema?',
+      title: 'Â¿Cerrar sesion?',
+      content: 'Â¿Estas seguro que deseas salir del sistema?',
       okText: 'Si, cerrar sesion',
       cancelText: 'Cancelar',
       okButtonProps: { danger: true },
