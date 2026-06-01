@@ -136,7 +136,7 @@ class RegistroSaaSAPIView(views.APIView):
                 logger.warning(f"No se pudo crear usuario plataforma: {e}")
 
         # === PASO 4: Email de bienvenida ===
-        login_url = f"{frontend_url}/t/{schema_slug}/login"
+        acceder_url = f"{django_settings.FRONTEND_URL.rstrip('/')}/acceder"
         try:
             from django.core.mail import send_mail
             send_mail(
@@ -144,8 +144,8 @@ class RegistroSaaSAPIView(views.APIView):
                 message=(
                     f'Hola,\n\n'
                     f'Tu negocio "{data["nombre_empresa"]}" fue creado exitosamente.\n\n'
-                    f'Accede a tu panel: {login_url}\n\n'
-                    f'Usuario: {data["email_admin"]}\n\n'
+                    f'Accede a todos tus negocios en: {acceder_url}\n'
+                    f'Correo: {data["email_admin"]}\n\n'
                     f'El equipo de NegocIA'
                 ),
                 from_email=django_settings.DEFAULT_FROM_EMAIL,
@@ -157,8 +157,8 @@ class RegistroSaaSAPIView(views.APIView):
 
         return Response({
             'mensaje': 'Registro exitoso. Tu negocio ha sido creado.',
-            'login_url': login_url,
             'schema': schema_slug,
+
         }, status=status.HTTP_201_CREATED)
 
 
@@ -185,7 +185,7 @@ class BuscarTenantPorEmailAPIView(views.APIView):
                     User.objects.filter(username__iexact=email).exists()
                 )
                 if match:
-                    login_url = f"{frontend_url}/t/{tenant.schema_name}/login"
+                    login_url = f"{django_settings.FRONTEND_URL.rstrip('/')}/acceder"
                     user_obj = (
                         User.objects.filter(email__iexact=email).first() or
                         User.objects.filter(username__iexact=email).first()
@@ -216,7 +216,7 @@ class BuscarTenantPorEmailAPIView(views.APIView):
 @permission_classes([IsAuthenticated])
 def tenant_token_view(request):
     """
-    Emite un JWT de tenant sin pedir contraseÃ±a nuevamente.
+    Emite un JWT de tenant sin pedir contraseÃƒÂ±a nuevamente.
     Requiere: Platform JWT (login en schema publico).
     Body: { "schema": "pizzia" }
     Retorna: JWT del tenant + datos del usuario en ese negocio.

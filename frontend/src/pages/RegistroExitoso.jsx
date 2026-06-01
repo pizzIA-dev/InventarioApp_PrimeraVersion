@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button, Typography } from 'antd';
-import { CheckCircleFilled, RocketOutlined } from '@ant-design/icons';
+import { CheckCircleFilled, ArrowRightOutlined } from '@ant-design/icons';
 import NegocIALogo from '../components/NegocIALogo';
 
 const { Title, Paragraph } = Typography;
@@ -9,21 +9,7 @@ const { Title, Paragraph } = Typography;
 export default function RegistroExitoso() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const schema  = searchParams.get('schema') || '';
   const empresa = searchParams.get('empresa') || 'Tu negocio';
-  const loginUrl = schema ? `/t/${schema}/login` : '/planes';
-
-  const [countdown, setCountdown] = useState(8);
-
-  useEffect(() => {
-    const t = setInterval(() => {
-      setCountdown(c => {
-        if (c <= 1) { clearInterval(t); navigate(loginUrl); }
-        return c - 1;
-      });
-    }, 1000);
-    return () => clearInterval(t);
-  }, [loginUrl, navigate]);
 
   const neonCyan = '#00d2ff';
   const neonGlow = '0 0 24px rgba(0,210,255,0.45)';
@@ -35,9 +21,9 @@ export default function RegistroExitoso() {
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
       padding: '40px 20px', fontFamily: 'Inter, sans-serif',
-      backgroundImage: `radial-gradient(ellipse at 50% 0%, rgba(0,210,255,0.12) 0%, transparent 70%)`,
+      backgroundImage: 'radial-gradient(ellipse at 50% 0%, rgba(0,210,255,0.12) 0%, transparent 70%)',
     }}>
-      <NegocIALogo width={80} height={80} style={{ marginBottom: 32 }} />
+      <NegocIALogo width={72} height={72} style={{ marginBottom: 32 }} />
 
       <CheckCircleFilled style={{
         fontSize: 72, color: neonCyan,
@@ -51,7 +37,7 @@ export default function RegistroExitoso() {
         background: `linear-gradient(90deg, ${neonCyan}, #ffffff)`,
         WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
       }}>
-        ¡Bienvenido a NegocIA!
+        ¡Negocio creado!
       </Title>
 
       <Title level={3} style={{ color: '#a0c8e8', fontWeight: 500, marginTop: 0, textAlign: 'center' }}>
@@ -59,27 +45,34 @@ export default function RegistroExitoso() {
       </Title>
 
       <Paragraph style={{
-        color: '#6b8fa8', fontSize: 16, textAlign: 'center',
-        maxWidth: 480, lineHeight: 1.7, marginBottom: 40,
+        color: '#6b8fa8', fontSize: 15, textAlign: 'center',
+        maxWidth: 460, lineHeight: 1.8, marginBottom: 40,
       }}>
-        Revisa tu correo — te enviamos las credenciales de acceso.
-        Serás redirigido automáticamente en{' '}
-        <strong style={{ color: neonCyan }}>{countdown}s</strong>.
+        Ahora puedes acceder a tu negocio desde la landing usando
+        el correo y contraseña que acabas de registrar.
+        Si tienes varios negocios, aparecerán todos en una sola pantalla.
       </Paragraph>
 
       <Button
         type="primary"
         size="large"
-        icon={<RocketOutlined />}
-        onClick={() => navigate(loginUrl)}
+        icon={<ArrowRightOutlined />}
+        onClick={() => navigate('/acceder')}
         style={{
           height: 52, paddingInline: 40, fontWeight: 700, fontSize: 16,
           background: `linear-gradient(135deg, ${neonCyan}, #0080cc)`,
           border: 'none', borderRadius: 12, boxShadow: neonGlow,
         }}
       >
-        Ir a mi panel ahora
+        Acceder a mi negocio
       </Button>
+
+      <button
+        onClick={() => navigate('/planes')}
+        style={{ marginTop: 16, background: 'none', border: 'none',
+          color: '#6b7280', cursor: 'pointer', fontSize: 13 }}>
+        ← Volver a los planes
+      </button>
     </div>
   );
 }
