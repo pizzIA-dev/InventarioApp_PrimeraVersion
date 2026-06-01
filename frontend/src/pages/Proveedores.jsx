@@ -259,16 +259,16 @@ function Proveedores() {
       <ConfirmDialog
         visible={confirmDialog.visible}
         title="Eliminar Proveedor"
-        message={`Â¿EstÃ¡s seguro de que deseas eliminar "${confirmDialog.nombre}"? Esta acciÃ³n no se puede deshacer.`}
+        message={`¿Estás seguro de que deseas eliminar "${confirmDialog.nombre}"? Esta acción no se puede deshacer.`}
         onConfirm={handleDelete}
         onCancel={() => setConfirmDialog({ visible: false, id: null, nombre: '' })}
-        confirmText="SÃ­, eliminar"
+        confirmText="Sí, eliminar"
         danger={true}
       />
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">Proveedores</h1>
-          <p className="page-subtitle">GestiÃ³n de proveedores y histÃ³rico de modificaciones</p>
+          <p className="page-subtitle">Gestión de proveedores y histórico de modificaciones</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <ExportDropdown onExport={handleExportDiario} label="Exportar Historial Global" />
@@ -362,12 +362,12 @@ function Proveedores() {
               <tr>
                 <th>Nombre</th>
                 <th>Documento</th>
-                <th>CategorÃ­a</th>
+                <th>Categoría</th>
                 <th>Contrato</th>
                 <th>Contacto</th>
                 <th>Email</th>
-                <th>TelÃ©fono</th>
-                <th>CrÃ©dito</th>
+                <th>Teléfono</th>
+                <th>Crédito</th>
                 <th>Estado</th>
                 <th>Acciones</th>
               </tr>
@@ -391,7 +391,7 @@ function Proveedores() {
                   </td>
                   <td>
                     <span className={`badge ${p.tiene_contrato ? 'badge-success' : 'badge-secondary'}`}>
-                      {p.tiene_contrato ? 'SÃ­' : 'No'}
+                      {p.tiene_contrato ? 'Sí' : 'No'}
                     </span>
                   </td>
                   <td>{p.contacto || '-'}</td>
@@ -399,7 +399,7 @@ function Proveedores() {
                   <td>{p.telefono || '-'}</td>
                   <td>
                     {p.limite_credito > 0 
-                      ? `S/. ${p.limite_credito} (${p.dias_credito} dÃ­as)`
+                      ? `S/. ${p.limite_credito} (${p.dias_credito} días)`
                       : '-'
                     }
                   </td>
@@ -529,7 +529,7 @@ function Proveedores() {
                         <thead style={{ position: 'sticky', top: 0, zIndex: 1, backgroundColor: 'var(--bg-card, #fff)' }}>
                           <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                             <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>Fecha</th>
-                            <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>AcciÃ³n</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>Acción</th>
                             <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Detalle</th>
                             <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Estado</th>
                             <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Contrato</th>
@@ -553,11 +553,11 @@ function Proveedores() {
                                       {(() => {
                                         const typeMap = {
                                           'CREACION': 'Registro Inicial',
-                                          'ESTADO_ACTIVO': 'ActivaciÃ³n',
-                                          'ESTADO_INACTIVO': 'DesactivaciÃ³n',
+                                          'ESTADO_ACTIVO': 'Activación',
+                                          'ESTADO_INACTIVO': 'Desactivación',
                                           'CONTRATO_SI': 'Contrato Registrado',
                                           'CONTRATO_NO': 'Contrato Retirado',
-                                          'OTRO': 'ModificaciÃ³n'
+                                          'OTRO': 'Modificación'
                                         };
                                         return typeMap[mov.tipo] || mov.tipo;
                                       })()}
@@ -571,7 +571,7 @@ function Proveedores() {
                                   </td>
                                   <td>
                                     <span style={{ color: mov.contrato_nuevo ? '#52c41a' : '#faad14', fontWeight: 'bold', fontSize: '11px' }}>
-                                      {mov.contrato_nuevo ? 'SÃ­' : 'No'}
+                                      {mov.contrato_nuevo ? 'Sí' : 'No'}
                                     </span>
                                   </td>
                                   <td style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
@@ -602,7 +602,7 @@ function Proveedores() {
                         Anterior
                       </button>
                       <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                        PÃ¡gina {historyPage} de {historyTotalPages}
+                        Página {historyPage} de {historyTotalPages}
                       </span>
                       <button 
                         className="btn btn-secondary" 
@@ -629,7 +629,7 @@ function Proveedores() {
                             <th>Comprobante</th>
                             <th>Proveedor</th>
                             <th>Producto</th>
-                            <th>CÃ³digo de Producto</th>
+                            <th>Código de Producto</th>
                             <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Cantidad</th>
                             <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Precio de compra</th>
                             <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Descuento</th>
@@ -685,7 +685,7 @@ function Proveedores() {
                         Anterior
                       </button>
                       <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                        PÃ¡gina {productosPage} de {productosTotalPages}
+                        Página {productosPage} de {productosTotalPages}
                       </span>
                       <button 
                         className="btn btn-secondary" 

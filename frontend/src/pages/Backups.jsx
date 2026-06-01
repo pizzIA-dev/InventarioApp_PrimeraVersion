@@ -57,10 +57,10 @@ function Backups() {
     e.preventDefault();
     try {
       await backupsAPI.saveConfig({ frecuencia, hora_ejecucion: hora, activo });
-      alert('ConfiguraciÃ³n guardada exitosamente.');
+      alert('Configuración guardada exitosamente.');
       fetchData();
     } catch (error) {
-      alert('Error al guardar configuraciÃ³n.');
+      alert('Error al guardar configuración.');
     }
   };
 
@@ -74,17 +74,17 @@ function Backups() {
       setConfirmVisible(false);
       setRestoring(true);
       const res = await backupsAPI.restaurar({ backup_id: selectedBackupId });
-      alert(res.data.message || 'restauraciÃ³n completada con Ã©xito.');
+      alert(res.data.message || 'restauración completada con éxito.');
       window.location.reload(); // Reload to refresh all application state
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.error || 'Error crÃ­tico al restaurar el backup.');
+      alert(error.response?.data?.error || 'Error crítico al restaurar el backup.');
     } finally {
       setRestoring(false);
     }
   };
 
-  if (loading) return <LoadingScreen message="Cargando configuraciÃ³n de respaldos..." />;
+  if (loading) return <LoadingScreen message="Cargando configuración de respaldos..." />;
 
   return (
     <div>
@@ -92,8 +92,8 @@ function Backups() {
       
       <ConfirmDialog
         visible={confirmVisible}
-        title="âš ï¸ ADVERTENCIA CRÃTICA: restauraciÃ³n de Backup"
-        message="EstÃ¡s a punto de restaurar la base de datos a un estado anterior. Â¡ESTO BORRARÃ TODOS LOS DATOS ACTUALES DE TU EMPRESA DE FORMA IRREVERSIBLE! Todas las ventas, clientes y cambios realizados despuÃ©s de este backup se perderÃ¡n para siempre. Â¿EstÃ¡s absolutamente seguro?"
+        title="âš ï¸ ADVERTENCIA CRÃTICA: restauración de Backup"
+        message="Estás a punto de restaurar la base de datos a un estado anterior. ¡ESTO BORRARÃ TODOS LOS DATOS ACTUALES DE TU EMPRESA DE FORMA IRREVERSIBLE! Todas las ventas, clientes y cambios realizados después de este backup se perderán para siempre. ¿Estás absolutamente seguro?"
         onConfirm={processRestore}
         onCancel={() => setConfirmVisible(false)}
         confirmText="SÃ, DESTRUIR DATOS ACTUALES Y RESTAURAR"
@@ -101,11 +101,11 @@ function Backups() {
       />
 
       <div className="page-header">
-        <h1 className="page-title"><CloudServerOutlined /> Backups y restauraciÃ³n</h1>
+        <h1 className="page-title"><CloudServerOutlined /> Backups y restauración</h1>
         <button className="btn btn-primary" onClick={handleGenerar} disabled={generando}>
           {generando ? 'Generando...' : '+ Generar Backup Ahora'}
         </button>
-        <p className="page-subtitle">Protege tu informaciÃ³n y programa respaldos periÃ³dicos seguros en la nube.</p>
+        <p className="page-subtitle">Protege tu información y programa respaldos periódicos seguros en la nube.</p>
       </div>
 
       <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
@@ -113,11 +113,11 @@ function Backups() {
         {/* CONFIGURATION CARD */}
         <div className="card" style={{ flex: 1, minWidth: '300px' }}>
           <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <SettingOutlined /> ConfiguraciÃ³n AutomÃ¡tica
+            <SettingOutlined /> Configuración Automática
           </h3>
           <form onSubmit={saveConfig}>
             <div className="form-group">
-              <label className="form-label">Estado del Respaldo AutomÃ¡tico</label>
+              <label className="form-label">Estado del Respaldo Automático</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <input 
                   type="checkbox" 
@@ -126,7 +126,7 @@ function Backups() {
                   style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                 />
                 <span style={{ fontSize: '14px', color: activo ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                  {activo ? 'Activo (Generando respaldos)' : 'Inactivo (No se generarÃ¡n respaldos)'}
+                  {activo ? 'Activo (Generando respaldos)' : 'Inactivo (No se generarán respaldos)'}
                 </span>
               </div>
             </div>
@@ -141,7 +141,7 @@ function Backups() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Hora de EjecuciÃ³n (Horario de baja carga recomendado)</label>
+              <label className="form-label">Hora de Ejecución (Horario de baja carga recomendado)</label>
               <input 
                 type="time" 
                 className="form-input" 
@@ -152,20 +152,20 @@ function Backups() {
             </div>
 
             <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '10px' }}>
-              Guardar ConfiguraciÃ³n
+              Guardar Configuración
             </button>
           </form>
         </div>
 
         {/* LIST OF BACKUPS CARD */}
         <div className="card" style={{ flex: 2, minWidth: '400px' }}>
-          <h3 style={{ marginBottom: '16px' }}>Historial de Respaldos (RetenciÃ³n de 7 dÃ­as)</h3>
+          <h3 style={{ marginBottom: '16px' }}>Historial de Respaldos (Retención de 7 días)</h3>
           
           <div className="table-container">
             <table>
               <thead>
                 <tr>
-                  <th>Fecha de CreaciÃ³n</th>
+                  <th>Fecha de Creación</th>
                   <th>Estado</th>
                   <th>Notas</th>
                   <th>Acciones</th>
@@ -202,7 +202,7 @@ function Backups() {
                 {backups.length === 0 && (
                   <tr>
                     <td colSpan="4" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
-                      No hay respaldos generados todavÃ­a.
+                      No hay respaldos generados todavía.
                     </td>
                   </tr>
                 )}
@@ -212,7 +212,7 @@ function Backups() {
           <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid #ef4444', borderRadius: '4px' }}>
             <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-primary)' }}>
               <WarningOutlined style={{ color: '#ef4444', marginRight: '8px' }} />
-              <strong>AtenciÃ³n:</strong> La restauraciÃ³n sobreescribirÃ¡ los datos actuales de tu negocio. Si necesitas recuperar solo un registro (ej. una factura borrada), es mejor descargar el ZIP y buscarlo manualmente en el archivo JSON.
+              <strong>Atención:</strong> La restauración sobreescribirá los datos actuales de tu negocio. Si necesitas recuperar solo un registro (ej. una factura borrada), es mejor descargar el ZIP y buscarlo manualmente en el archivo JSON.
             </p>
           </div>
         </div>
