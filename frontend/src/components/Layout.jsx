@@ -54,7 +54,7 @@ const GROUPS = [
     alwaysOpen: false,
     items: [
       { path: '/productos',  icon: <ShoppingOutlined />, label: 'Productos' },
-      { path: '/servicios',  icon: <ToolOutlined />,     label: 'Servicios' },
+      { path: '/servicios',  icon: <SettingOutlined />,     label: 'Servicios' },
     ],
   },
   {
