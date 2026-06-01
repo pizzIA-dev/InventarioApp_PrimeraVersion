@@ -356,7 +356,7 @@ export default function Landing({ view }) {
                 <div style={{ textAlign: 'center', marginTop: 32 }}>
                   <Button type='link' onClick={() => { setAccederStep('form'); accederForm.resetFields(); }}
                     style={{ color: '#8b949e', fontSize: 13 }}>Usar otro correo</Button>
-                  <span style={{ color: '#374151', margin: '0 12px' }}>Â·</span>
+                  <span style={{ color: '#374151', margin: '0 12px' }}>Ã‚Â·</span>
                   <Button type='link' onClick={() => navigate('/registro/1')} style={{ color: neonCyan, fontSize: 13 }}>+ Crear otro negocio</Button>
                 </div>
               </div>
@@ -366,6 +366,30 @@ export default function Landing({ view }) {
 
         {view === 'registro' && (
           <div style={{ maxWidth: '460px', margin: '0 auto', animation: 'fadeIn 0.5s' }}>
+            {/* Resumen del plan elegido */}
+            {(() => {
+              const planes = {
+                '1': { nombre: 'Emprendedor', precio: currency === 'PEN' ? 'S/ 39 / mes' : '\$ 12 / mes', icon: '🚀' },
+                '2': { nombre: 'Empresario',  precio: 'A Medida', icon: '🏆' },
+              };
+              const plan = planes[planId] || planes['1'];
+              return (
+                <div style={{ background: 'linear-gradient(135deg, rgba(0,210,255,0.12), rgba(0,136,204,0.08))',
+                  border: '1px solid rgba(0,210,255,0.4)', borderRadius: 12,
+                  padding: '14px 20px', marginBottom: 24,
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 28 }}>{plan.icon}</span>
+                    <div>
+                      <div style={{ color: 'rgba(0,210,255,0.7)', fontSize: 11, fontWeight: 600, letterSpacing: 1 }}>PLAN SELECCIONADO</div>
+                      <div style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>{plan.nombre}</div>
+                    </div>
+                  </div>
+                  <div style={{ color: neonCyan, fontWeight: 800, fontSize: 18, textShadow: neonTextGlow }}>{plan.precio}</div>
+                </div>
+              );
+            })()}
+
             <Title level={2} style={{ color: '#fff', textAlign: 'center', marginBottom: '28px' }}>Crear Espacio de Trabajo</Title>
             <Card style={{ background: cardBg, border: '1px solid ' + neonCyan, borderRadius: '12px', boxShadow: neonGlow }}>
               <Form layout='vertical' form={registroForm} onFinish={onFinishRegistro} validateTrigger={['onChange','onBlur']}>
@@ -443,10 +467,10 @@ export default function Landing({ view }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#6b7280' }}>
           <span>Producto desarrollado por</span>
           <a href='https://pizzia.org' target='_blank' rel='noopener noreferrer' style={{ color: neonCyan, fontWeight: 700, textDecoration: 'none' }}>PizzIA</a>
-          <span>Â·</span>
+          <span>Ã‚Â·</span>
           <a href='https://pizzia.org' target='_blank' rel='noopener noreferrer' style={{ color: '#6b7280', textDecoration: 'underline' }}>pizzia.org</a>
         </div>
-        <div style={{ fontSize: '12px', color: '#374151' }}>Â© {new Date().getFullYear()} PizzIA - Todos los Derechos Reservados</div>
+        <div style={{ fontSize: '12px', color: '#374151' }}>Ã‚Â© {new Date().getFullYear()} PizzIA - Todos los Derechos Reservados</div>
       </footer>
 
       <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } } .ant-input::placeholder { color: rgba(0,210,255,0.3) !important; } .ant-input-password input::placeholder { color: rgba(0,210,255,0.3) !important; }`}</style>
