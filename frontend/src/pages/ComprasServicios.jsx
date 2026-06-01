@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Tag, Space, message, Modal, Form, Input, Select, DatePicker, InputNumber } from 'antd';
-import { PlusOutlined, CheckOutlined, PlayCircleOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import { Table, Button, Tag, Space, message, Modal, Form, Input, Select, InputNumber } from 'antd';
+import { PlusOutlined, CheckOutlined, PlayCircleOutlined, DeleteOutlined } from '@ant-design/icons';
 import { comprasServiciosAPI, serviciosAPI, proveedoresAPI } from '../services/api';
-import ExportDropdown from '../components/ExportDropdown';
-import SearchableSelect from '../components/SearchableSelect';
-import dayjs from 'dayjs';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -52,11 +49,7 @@ function ComprasServicios() {
 
   const handleCreate = async (values) => {
     try {
-      const payload = {
-        ...values,
-        fecha_programada: values.fecha_programada ? values.fecha_programada.format('YYYY-MM-DD') : null,
-      };
-      await comprasServiciosAPI.create(payload);
+      await comprasServiciosAPI.create(values);
       message.success('Compra de servicio registrada');
       setModalOpen(false);
       form.resetFields();
@@ -134,15 +127,9 @@ function ComprasServicios() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h2 style={{ margin: 0 }}>Compra de Servicios</h2>
-        <Space>
-          <ExportDropdown
-            onExport={(fmt) => comprasServiciosAPI.exportar({ formato: fmt })}
-            formats={['excel', 'csv']}
-          />
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-            Nueva compra
-          </Button>
-        </Space>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+          Nueva compra
+        </Button>
       </div>
 
       <Table
@@ -186,7 +173,14 @@ function ComprasServicios() {
             <InputNumber min={0} precision={2} style={{ width: '100%' }} placeholder="0.00" />
           </Form.Item>
           <Form.Item name="fecha_programada" label="Fecha programada">
-            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+            <input
+              type="date"
+              style={{
+                width: '100%', padding: '7px 11px', borderRadius: 6,
+                border: '1px solid #d9d9d9', fontSize: 14,
+                background: 'transparent', color: 'inherit', outline: 'none',
+              }}
+            />
           </Form.Item>
           <Form.Item name="notas" label="Notas">
             <TextArea rows={3} placeholder="Descripcion o notas adicionales" />
