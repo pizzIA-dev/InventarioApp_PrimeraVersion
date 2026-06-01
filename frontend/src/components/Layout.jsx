@@ -25,6 +25,7 @@ import {
   LogoutOutlined,
   UserOutlined,
   CaretRightOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 
 /* ─── Sidebar group definitions ─────────────────────────────────────────── */
