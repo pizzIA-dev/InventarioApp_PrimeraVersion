@@ -1,11 +1,9 @@
 from django.core.management.base import BaseCommand
-from apps.clientes_saas.models import Cliente
-from django_tenants.utils import schema_context
-from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist
 
 
 class Command(BaseCommand):
-    help = 'Muestra todos los tenants y sus usuarios, y corrige username=email donde no coincidan'
+    help = 'Sincroniza username=email para todos los usuarios en todos los tenant schemas'
 
     def add_arguments(self, parser):
         parser.add_argument('--fix', action='store_true', help='Aplicar correcciones (sin --fix solo muestra)')
@@ -15,25 +13,44 @@ class Command(BaseCommand):
         fix_mode = options['fix']
         schema_filter = options['schema'].lower()
 
+        try:
+            from apps.clientes_saas.models import Cliente
+            from django_tenants.utils import schema_context
+        except ImportError as e:
+            self.stderr.write(f'Import error: {e}')
+            return
+
         tenants = Cliente.objects.exclude(schema_name='public')
         if schema_filter:
             tenants = tenants.filter(schema_name__icontains=schema_filter)
 
-        self.stdout.write(f'Tenants encontrados: {tenants.count()}')
+        self.stdout.write(f'Tenants a procesar: {tenants.count()}')
 
+        fixed = 0
         for tenant in tenants:
-            self.stdout.write(f'\n[TENANT] schema={tenant.schema_name} | nombre={tenant.name}')
-            with schema_context(tenant.schema_name):
-                users = User.objects.all()
-                self.stdout.write(f'  Usuarios: {users.count()}')
-                for u in users:
-                    match = u.username == u.email
-                    status = 'OK' if match else 'MISMATCH'
-                    self.stdout.write(f'  [{status}] id={u.id} | username="{u.username}" | email="{u.email}"')
-                    if not match and fix_mode:
-                        old_username = u.username
-                        u.username = u.email
-                        u.save(update_fields=['username'])
-                        self.stdout.write(f'  -> CORREGIDO: "{old_username}" -> "{u.email}"')
+            self.stdout.write(f'[{tenant.schema_name}] {tenant.name}')
+            try:
+                with schema_context(tenant.schema_name):
+                    from django.contrib.auth.models import User
+                    try:
+                        users = User.objects.all()
+                        for u in users:
+                            if u.username != u.email and u.email:
+                                self.stdout.write(f'  MISMATCH: "{u.username}" != "{u.email}"')
+                                if fix_mode:
+                                    u.username = u.email
+                                    u.save(update_fields=['username'])
+                                    self.stdout.write(f'  -> CORREGIDO a "{u.email}"')
+                                    fixed += 1
+                            else:
+                                self.stdout.write(f'  OK: username="{u.username}"')
+                    except Exception as e:
+                        self.stdout.write(f'  SKIP (tabla no disponible): {e}')
+                        continue
+            except Exception as e:
+                self.stdout.write(f'  SKIP (schema error): {e}')
+                continue
 
-        self.stdout.write('\nListo.')
+        if fix_mode:
+            self.stdout.write(f'Total corregidos: {fixed}')
+        self.stdout.write('Comando completado.')
