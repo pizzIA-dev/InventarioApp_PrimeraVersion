@@ -35,7 +35,7 @@ const Login = () => {
   const onFinish = async (values) => {
     setLoading(true);
     setError(null);
-    const result = await login(values.username, values.password, !!values.remember);
+    const result = await login(values.email, values.password, !!values.remember);
     if (result.success) {
       message.success('Sesión iniciada correctamente');
       navigate(schema ? `/t/${schema}` : from, { replace: true });
@@ -145,15 +145,19 @@ const Login = () => {
           size="large"
           layout="vertical"
         >
-          {/* Usuario */}
+          {/* Correo electronico */}
           <Form.Item
-            name="username"
-            rules={[{ required: true, message: 'Ingresa tu nombre de usuario' }]}
+            name="email"
+            rules={[
+              { required: true, message: 'Ingresa tu correo electronico' },
+              { type: 'email', message: 'Ingresa un correo valido' },
+            ]}
           >
             <Input
-              prefix={<UserOutlined style={{ color: '#1677ff' }} />}
-              placeholder="Usuario"
-              autoComplete="username"
+              prefix={<MailOutlined style={{ color: '#1677ff' }} />}
+              placeholder="Correo electronico"
+              type="email"
+              autoComplete="email"
               style={{ borderRadius: 10, height: 46 }}
             />
           </Form.Item>
