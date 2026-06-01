@@ -19,34 +19,33 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // platformLogin: login en el schema PUBLICO (landing "Acceder")
-  // Guarda un Platform JWT en sessionStorage['platform_access_token']
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────
+  // platformLogin: autentica contra los schemas de tenant donde vive el usuario.
+  // Devuelve Platform JWT + lista de negocios. NO requiere usuario en schema publico.
+  // ─────────────────────────────────────────────────────────────────────
   const platformLogin = async (email, password) => {
     try {
-      const res = await axios.post(`${API_BASE}/api/auth/login/`, { username: email, password });
-      const { access, refresh } = res.data;
+      const res = await axios.post(`${API_BASE}/api/public/platform-login/`, { email, password });
+      const { access, refresh, negocios } = res.data;
       sessionStorage.setItem('platform_access_token',  access);
       sessionStorage.setItem('platform_refresh_token', refresh);
       sessionStorage.setItem('platform_email',         email);
-      return { success: true };
+      return { success: true, negocios };
     } catch (err) {
       return {
         success: false,
-        message: err.response?.data?.detail || 'Credenciales incorrectas',
+        message: err.response?.data?.error || 'Credenciales incorrectas',
       };
     }
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // accessTenant: acceso sin segundo login usando el Platform JWT
-  // Llama a /api/public/tenant-token/ y guarda el Tenant JWT
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────
+  // accessTenant: accede a un negocio sin segundo login usando Platform JWT
+  // ─────────────────────────────────────────────────────────────────────
   const accessTenant = async (schema, remember = false) => {
     const platformToken = sessionStorage.getItem('platform_access_token');
     if (!platformToken) {
-      return { success: false, message: 'Sesión de plataforma no encontrada. Inicia sesión primero.' };
+      return { success: false, message: 'Sesion de plataforma no encontrada.' };
     }
     try {
       const res = await axios.post(
@@ -57,7 +56,6 @@ export const AuthProvider = ({ children }) => {
       const { access, refresh, user: userData, schema: tenantSchema } = res.data;
       const storage = remember ? localStorage : sessionStorage;
 
-      // Limpiar sesiones anteriores
       ['access_token','refresh_token','user_data'].forEach(k => {
         localStorage.removeItem(k); sessionStorage.removeItem(k);
       });
@@ -77,13 +75,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────
   // login: login directo al tenant via /t/{schema}/api/auth/login/
-  // Usado desde Login.jsx (/t/:schema/login)
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────
   const login = async (username, password, remember = false, schema = '') => {
     try {
-      // Tenant-aware: si hay schema usamos /t/{schema}/api/auth/login/
       const loginUrl = schema
         ? `${API_BASE}/t/${schema}/api/auth/login/`
         : `${API_BASE}/api/auth/login/`;
@@ -92,7 +88,6 @@ export const AuthProvider = ({ children }) => {
       const { access, refresh, user: userData } = response.data;
       const storage = remember ? localStorage : sessionStorage;
 
-      // Limpiar el otro storage para evitar conflictos
       ['access_token','refresh_token','user_data'].forEach(k => {
         localStorage.removeItem(k); sessionStorage.removeItem(k);
       });
@@ -100,11 +95,7 @@ export const AuthProvider = ({ children }) => {
       storage.setItem('access_token',  access);
       storage.setItem('refresh_token', refresh);
       storage.setItem('user_data',     JSON.stringify(userData));
-
-      // Guardar schema para que api.js use /t/{schema}/api/ en todas las llamadas
-      if (schema) {
-        localStorage.setItem('tenant_schema', schema);
-      }
+      if (schema) localStorage.setItem('tenant_schema', schema);
 
       setUser(userData);
       return { success: true };

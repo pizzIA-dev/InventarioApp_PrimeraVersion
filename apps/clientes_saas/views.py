@@ -216,7 +216,7 @@ class BuscarTenantPorEmailAPIView(views.APIView):
 @permission_classes([IsAuthenticated])
 def tenant_token_view(request):
     """
-    Emite un JWT de tenant sin pedir contraseña nuevamente.
+    Emite un JWT de tenant sin pedir contraseÃ±a nuevamente.
     Requiere: Platform JWT (login en schema publico).
     Body: { "schema": "pizzia" }
     Retorna: JWT del tenant + datos del usuario en ese negocio.
@@ -273,3 +273,71 @@ def tenant_token_view(request):
     except Exception as e:
         logger.error(f"tenant_token_view error para schema={schema}: {e}")
         return Response({'error': 'Error interno al acceder al negocio.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class PlatformLoginAPIView(views.APIView):
+    """
+    Login de plataforma: autentica contra los schemas de tenant donde existe el usuario.
+    No requiere usuario en el schema publico. Devuelve Platform JWT + lista de negocios.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        email    = request.data.get('email', '').strip().lower()
+        password = request.data.get('password', '')
+        if not email or not password:
+            return Response({'error': 'Email y contrasena son requeridos.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        User = get_user_model()
+        tenants_encontrados = []
+        autenticado = False
+
+        for tenant in Cliente.objects.exclude(schema_name='public'):
+            try:
+                with schema_context(tenant.schema_name):
+                    TenantUser = get_user_model()
+                    tenant_user = (
+                        TenantUser.objects.filter(email__iexact=email).first() or
+                        TenantUser.objects.filter(username__iexact=email).first()
+                    )
+                    if tenant_user and tenant_user.is_active and tenant_user.check_password(password):
+                        autenticado = True
+                        rol = 'Administrador'
+                        try:
+                            rol = tenant_user.perfil.get_rol_display()
+                        except Exception:
+                            rol = 'Administrador' if tenant_user.is_superuser else 'Colaborador'
+                        tenants_encontrados.append({
+                            'nombre': tenant.nombre,
+                            'schema': tenant.schema_name,
+                            'rol':    rol,
+                        })
+            except Exception as e:
+                logger.warning(f"PlatformLogin: error en tenant {tenant.schema_name}: {e}")
+                continue
+
+        if not autenticado or not tenants_encontrados:
+            return Response(
+                {'error': 'Credenciales incorrectas o no tienes negocios asociados.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Crear/actualizar usuario en schema publico para el TenantTokenView
+        try:
+            pub_user = _crear_usuario_plataforma(email, password)
+        except Exception as e:
+            logger.warning(f"PlatformLogin: no se pudo actualizar usuario publico: {e}")
+            # Crear uno temporal sin guardar JWT de tenant
+            pub_user = User.objects.filter(username=email).first()
+
+        if not pub_user:
+            return Response({'error': 'Error interno al crear sesion.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        # Generar Platform JWT
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(pub_user)
+
+        return Response({
+            'access':   str(refresh.access_token),
+            'refresh':  str(refresh),
+            'negocios': tenants_encontrados,
+        })
