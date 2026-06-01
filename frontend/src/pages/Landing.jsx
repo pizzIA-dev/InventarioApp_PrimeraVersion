@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { Button, Card, Col, Row, Typography, Input, Form, message, Upload, Spin } from 'antd';
 import {
   RocketOutlined, TrophyOutlined, CheckCircleOutlined,
@@ -10,25 +10,19 @@ import NegocIALogo from '../components/NegocIALogo';
 import { AuthContext } from '../context/AuthContext';
 
 const { Title, Paragraph, Text } = Typography;
-
-const normFile = (e) => {
-  if (Array.isArray(e)) return e;
-  return e?.fileList;
-};
+const normFile = (e) => { if (Array.isArray(e)) return e; return e?.fileList; };
 
 export default function Landing({ view }) {
-  const [loading, setLoading]             = useState(false);
-  const [currency, setCurrency]           = useState('PEN');
-  const [registroForm]                    = Form.useForm();
-  const [slugPreview, setSlugPreview]     = useState('');
-  const [registroError, setRegistroError] = useState('');
-  const [slugError, setSlugError]         = useState('');
+  const [loading, setLoading]               = useState(false);
+  const [currency, setCurrency]             = useState('PEN');
+  const [registroForm]                      = Form.useForm();
+  const [slugPreview, setSlugPreview]       = useState('');
+  const [registroError, setRegistroError]   = useState('');
+  const [slugError, setSlugError]           = useState('');
   const watchedValues = Form.useWatch([], registroForm);
   const isFormComplete = Boolean(
-    watchedValues?.empresa?.trim() &&
-    watchedValues?.email?.trim() &&
-    watchedValues?.subdominio?.trim() &&
-    watchedValues?.password?.trim() &&
+    watchedValues?.empresa?.trim() && watchedValues?.email?.trim() &&
+    watchedValues?.subdominio?.trim() && watchedValues?.password?.trim() &&
     watchedValues?.confirmar_password?.trim()
   );
   const [accederStep, setAccederStep]           = useState('form');
@@ -36,6 +30,7 @@ export default function Landing({ view }) {
   const [misNegocios, setMisNegocios]           = useState([]);
   const [accederLoadingId, setAccederLoadingId] = useState(null);
   const [accederForm]                           = Form.useForm();
+
   const { planId }  = useParams();
   const navigate    = useNavigate();
   const { platformLogin, accessTenant } = useContext(AuthContext);
@@ -43,25 +38,20 @@ export default function Landing({ view }) {
 
   useEffect(() => {
     fetch('https://get.geojs.io/v1/ip/country.json')
-      .then(r => r.json())
-      .then(d => setCurrency(d.country === 'PE' ? 'PEN' : 'USD'))
+      .then(r => r.json()).then(d => setCurrency(d.country === 'PE' ? 'PEN' : 'USD'))
       .catch(() => setCurrency('PEN'));
   }, []);
 
   useEffect(() => {
     if (view !== 'acceder') {
-      setAccederStep('form'); setPlatformError('');
-      setMisNegocios([]); accederForm.resetFields();
+      setAccederStep('form'); setPlatformError(''); setMisNegocios([]); accederForm.resetFields();
     }
   }, [view]);
 
   const onPlatformLogin = async (values) => {
     setAccederStep('loading'); setPlatformError('');
     const result = await platformLogin(values.email, values.password);
-    if (!result.success) {
-      setPlatformError(result.message || 'Credenciales incorrectas');
-      setAccederStep('form'); return;
-    }
+    if (!result.success) { setPlatformError(result.message || 'Credenciales incorrectas'); setAccederStep('form'); return; }
     try {
       const res = await fetch(API_BASE + '/api/public/buscar-tenant/', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -88,7 +78,6 @@ export default function Landing({ view }) {
     const slug = generarSlug(e.target.value);
     registroForm.setFieldValue('subdominio', slug); setSlugPreview(slug);
   };
-
   const registrarConToken = async (values, culqiToken) => {
     setLoading(true); setRegistroError('');
     try {
@@ -107,10 +96,8 @@ export default function Landing({ view }) {
         message.success('Negocio creado exitosamente');
         navigate('/registro/exitoso?schema=' + data.schema + '&empresa=' + encodeURIComponent(values.empresa));
       } else {
-        if (data.subdominio) {
-          const msg = Array.isArray(data.subdominio) ? data.subdominio[0] : data.subdominio;
-          setSlugError(msg); setRegistroError('El identificador ya esta en uso.');
-        } else setRegistroError(data.error || 'Error en el registro.');
+        if (data.subdominio) { const msg = Array.isArray(data.subdominio) ? data.subdominio[0] : data.subdominio; setSlugError(msg); setRegistroError('El identificador ya esta en uso.'); }
+        else setRegistroError(data.error || 'Error en el registro.');
       }
     } catch { setRegistroError('Error de conexion con el servidor.'); }
     setLoading(false);
@@ -148,167 +135,247 @@ export default function Landing({ view }) {
     await registrarConToken(values, '');
   };
 
+  // Tokens de diseño
   const neonCyan = '#00d2ff', darkBg = '#0a0e14', cardBg = '#111822';
   const neonGlow = '0 0 10px rgba(0,210,255,0.5)', neonTextGlow = '0 0 8px rgba(0,210,255,0.8)';
-
-  const NavTab = ({ label, route, active }) => (
-    <div onClick={() => navigate(route)} style={{
-        alignSelf: 'stretch', display: 'flex', alignItems: 'center',
-        justifyContent: 'center', padding: '0 20px', cursor: 'pointer',
-        borderBottom: active ? '3px solid ' + neonCyan : '3px solid transparent',
-        borderTop: '3px solid transparent',
-        background: active ? 'rgba(0,210,255,0.07)' : 'transparent',
-        transition: 'background 0.2s, border-color 0.2s',
-      }}
-      onMouseEnter={e => { if (!active) { e.currentTarget.style.background='rgba(0,210,255,0.05)'; e.currentTarget.style.borderBottomColor='rgba(0,210,255,0.4)'; }}}
-      onMouseLeave={e => { if (!active) { e.currentTarget.style.background='transparent'; e.currentTarget.style.borderBottomColor='transparent'; }}}
-    >
-      <span style={{ color: active ? neonCyan : '#c9d1d9', fontWeight: 600, fontSize: '14px',
-        letterSpacing: '0.6px', textShadow: active ? '0 0 8px rgba(0,210,255,0.6)' : 'none',
-        transition: 'color 0.2s', userSelect: 'none' }}>{label}</span>
-    </div>
-  );
-
   return (
     <div style={{ backgroundColor: darkBg, minHeight: '100vh', color: '#fff',
       fontFamily: 'Inter, sans-serif',
-      backgroundImage: 'linear-gradient(rgba(0,210,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,210,255,0.05) 1px, transparent 1px)',
+      backgroundImage: 'linear-gradient(rgba(0,210,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,210,255,0.04) 1px, transparent 1px)',
       backgroundSize: '40px 40px', display: 'flex', flexDirection: 'column' }}>
 
+      {/* ══ HEADER: Logo | [espacio] | Acceder (ghost) | Crear negocio (filled) ══ */}
       <header style={{ padding: '0 40px', display: 'flex', justifyContent: 'space-between',
-        alignItems: 'stretch', minHeight: '56px',
-        background: 'rgba(10,14,20,0.88)', backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid ' + neonCyan,
-        boxShadow: '0 2px 12px rgba(0,210,255,0.2)',
+        alignItems: 'center', minHeight: '60px',
+        background: 'rgba(10,14,20,0.92)', backdropFilter: 'blur(16px)',
+        borderBottom: '1px solid rgba(0,210,255,0.2)',
+        boxShadow: '0 2px 20px rgba(0,210,255,0.1)',
         position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ display: 'flex', alignItems: 'center', alignSelf: 'stretch', gap: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', paddingRight: '24px' }}
-            onClick={() => navigate('/planes')}>
-            <NegocIALogo width={30} height={30} />
-            <Title level={3} style={{ margin: 0, fontWeight: 800, lineHeight: 1 }}>
-              <span style={{ color: '#fff' }}>Negoc</span><span style={{ color: neonCyan, textShadow: neonTextGlow }}>IA</span>
-            </Title>
-          </div>
-          <NavTab label='Planes'  route='/planes'  active={view === 'planes'} />
-          <NavTab label='Acceder' route='/acceder' active={view === 'acceder'} />
+
+        {/* Logo - siempre va a /planes */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
+          onClick={() => navigate('/planes')}>
+          <NegocIALogo width={32} height={32} />
+          <Title level={3} style={{ margin: 0, fontWeight: 800, lineHeight: 1 }}>
+            <span style={{ color: '#fff' }}>Negoc</span>
+            <span style={{ color: neonCyan, textShadow: neonTextGlow }}>IA</span>
+          </Title>
         </div>
-        <div style={{ alignSelf: 'center' }}>
-          <Button icon={<RocketOutlined />} onClick={() => navigate('/registro/1')}
-            style={{ background: view==='registro'?neonCyan:'transparent', color: view==='registro'?darkBg:neonCyan,
-              borderColor: neonCyan, fontWeight: 700, boxShadow: neonGlow, fontSize: '13px' }}>
-            Registrar Negocio
+
+        {/* Nav derecha: patrón SaaS estándar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Acceder: ghost link para usuarios que YA tienen negocio */}
+          <button
+            onClick={() => navigate('/acceder')}
+            style={{
+              background: view === 'acceder' ? 'rgba(0,210,255,0.1)' : 'transparent',
+              border: view === 'acceder' ? '1px solid rgba(0,210,255,0.4)' : '1px solid transparent',
+              borderRadius: 8, cursor: 'pointer', padding: '7px 18px',
+              color: view === 'acceder' ? neonCyan : '#c9d1d9',
+              fontWeight: 600, fontSize: 14, transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = neonCyan; e.currentTarget.style.borderColor = 'rgba(0,210,255,0.4)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = view === 'acceder' ? neonCyan : '#c9d1d9'; e.currentTarget.style.borderColor = view === 'acceder' ? 'rgba(0,210,255,0.4)' : 'transparent'; }}
+          >
+            Acceder
+          </button>
+          {/* Crear negocio: filled CTA para usuarios nuevos */}
+          <Button
+            icon={<RocketOutlined />}
+            onClick={() => navigate('/planes')}
+            style={{
+              background: neonCyan, color: darkBg,
+              border: 'none', fontWeight: 700, boxShadow: neonGlow,
+              fontSize: 13, height: 36, borderRadius: 8,
+            }}>
+            Crear negocio
           </Button>
         </div>
       </header>
+      {/* ══ MAIN ══ */}
+      <main style={{ maxWidth: '1160px', width: '100%', margin: '0 auto', padding: '56px 20px', flex: 1 }}>
 
-      <main style={{ maxWidth: '1200px', width: '100%', margin: '0 auto', padding: '60px 20px', flex: 1 }}>
-
+        {/* ─── PLANES ─── */}
         {view === 'planes' && (
           <div style={{ textAlign: 'center', animation: 'fadeIn 0.8s' }}>
-            <Title style={{ color: '#fff', fontSize: '3.2rem', marginBottom: '15px' }}>Crece sin limites de personal</Title>
-            <Paragraph style={{ color: '#a0c0e0', fontSize: '1.15rem', maxWidth: '680px', margin: '0 auto 60px', lineHeight: '1.7' }}>
-              Pensamos en el emprendedor. Una plataforma que no te castiga por crecer: afilia a tantas cuentas de vendedores como necesites.
+
+            {/* Pill badge */}
+            <div style={{ display: 'inline-block', background: 'rgba(0,210,255,0.08)',
+              border: '1px solid rgba(0,210,255,0.25)', borderRadius: 20,
+              padding: '4px 18px', marginBottom: 22, fontSize: 12,
+              color: neonCyan, letterSpacing: 1, fontWeight: 600 }}>
+              ✦ Sistema de gestión para negocios peruanos
+            </div>
+
+            <Title style={{ color: '#fff', fontSize: '3rem', marginBottom: 14, lineHeight: 1.15 }}>
+              Crece sin límites<br/>
+              <span style={{ color: neonCyan, textShadow: neonTextGlow }}>de personal</span>
+            </Title>
+            <Paragraph style={{ color: '#a0c0e0', fontSize: '1.1rem', maxWidth: '600px',
+              margin: '0 auto 56px', lineHeight: 1.7 }}>
+              Inventario, ventas, cajas y más — sin castigarte por crecer.
+              Afilia tantos vendedores como necesites sin cambiar tu tarifa.
             </Paragraph>
-            <Row gutter={[40, 40]} justify='center'>
+
+            <Row gutter={[40, 40]} justify="center">
+              {/* Plan Emprendedor */}
               <Col xs={24} md={10}>
-                <Card hoverable style={{ background: cardBg, border: '1px solid rgba(0,210,255,0.3)', borderRadius: '12px', transition: 'all 0.3s' }}
+                <Card hoverable
+                  style={{ background: cardBg, border: '1px solid rgba(0,210,255,0.3)',
+                    borderRadius: 14, transition: 'all 0.3s' }}
                   bodyStyle={{ padding: '40px' }}
-                  onMouseEnter={e => e.currentTarget.style.boxShadow=neonGlow}
-                  onMouseLeave={e => e.currentTarget.style.boxShadow='none'}>
-                  <RocketOutlined style={{ fontSize: '44px', color: neonCyan, marginBottom: '18px', filter: 'drop-shadow(0 0 8px ' + neonCyan + ')' }} />
+                  onMouseEnter={e => { e.currentTarget.style.boxShadow = neonGlow; e.currentTarget.style.borderColor = neonCyan; }}
+                  onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = 'rgba(0,210,255,0.3)'; }}>
+                  <RocketOutlined style={{ fontSize: 44, color: neonCyan, marginBottom: 18, filter: 'drop-shadow(0 0 8px ' + neonCyan + ')' }} />
                   <Title level={2} style={{ color: '#fff' }}>Emprendedor</Title>
                   <Title level={1} style={{ color: neonCyan, margin: '12px 0 30px', textShadow: neonTextGlow }}>
-                    {currency === 'PEN' ? 'S/ 39' : '$ 12'}<span style={{ fontSize: '1rem', color: '#8b949e', textShadow: 'none' }}> / mes</span>
+                    {currency === 'PEN' ? 'S/ 39' : '$ 12'}
+                    <span style={{ fontSize: '1rem', color: '#8b949e', textShadow: 'none' }}> / mes</span>
                   </Title>
-                  <div style={{ textAlign: 'left', marginBottom: '36px', fontSize: '15px', color: '#e6edf3' }}>
-                    <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Inventario y Ventas Completo</p>
-                    <p style={{ marginBottom: '12px', fontWeight: 'bold' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} /><span style={{ color: neonCyan }}>Vendedores Ilimitados</span></p>
-                    <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Multiples Cajas y Movimientos</p>
-                    <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Dominio privado (ej. mitienda.negociav2.app)</p>
+                  <div style={{ textAlign: 'left', marginBottom: 36, fontSize: 15, color: '#e6edf3' }}>
+                    <p style={{ marginBottom: 12 }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: 8 }} />Inventario y Ventas Completo</p>
+                    <p style={{ marginBottom: 12, fontWeight: 'bold' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: 8 }} /><span style={{ color: neonCyan }}>Vendedores Ilimitados</span></p>
+                    <p style={{ marginBottom: 12 }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: 8 }} />Múltiples Cajas y Movimientos</p>
+                    <p style={{ marginBottom: 12 }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: 8 }} />Panel privado (ej. /t/mi-negocio)</p>
                   </div>
-                  <Button type='primary' size='large' block
-                    style={{ height: '48px', background: 'transparent', borderColor: neonCyan, color: neonCyan, fontWeight: 'bold', boxShadow: neonGlow }}
-                    onClick={() => navigate('/registro/1')}>Elegir Plan Emprendedor</Button>
+                  <Button type="primary" size="large" block
+                    onClick={() => navigate('/registro/1')}
+                    style={{ height: 50, background: 'transparent', borderColor: neonCyan,
+                      color: neonCyan, fontWeight: 700, boxShadow: neonGlow, borderRadius: 10,
+                      fontSize: 15 }}>
+                    Empezar ahora →
+                  </Button>
                 </Card>
               </Col>
+
+              {/* Plan Empresario */}
               <Col xs={24} md={10}>
-                <Card hoverable style={{ background: cardBg, border: '2px solid ' + neonCyan, borderRadius: '12px', position: 'relative', boxShadow: neonGlow }}
+                <Card hoverable
+                  style={{ background: cardBg, border: '2px solid ' + neonCyan,
+                    borderRadius: 14, position: 'relative', boxShadow: neonGlow }}
                   bodyStyle={{ padding: '40px' }}>
-                  <div style={{ position: 'absolute', top: '-14px', right: '28px', background: darkBg, color: neonCyan,
-                    border: '1px solid ' + neonCyan, boxShadow: neonGlow, padding: '4px 18px', borderRadius: '20px',
-                    fontWeight: 'bold', textShadow: neonTextGlow, fontSize: '12px' }}>CORPORATIVO</div>
-                  <TrophyOutlined style={{ fontSize: '44px', color: neonCyan, marginBottom: '18px', filter: 'drop-shadow(0 0 8px ' + neonCyan + ')' }} />
+                  <div style={{ position: 'absolute', top: -14, right: 28,
+                    background: darkBg, color: neonCyan, border: '1px solid ' + neonCyan,
+                    boxShadow: neonGlow, padding: '4px 18px', borderRadius: 20,
+                    fontWeight: 700, textShadow: neonTextGlow, fontSize: 11,
+                    letterSpacing: 1 }}>CORPORATIVO</div>
+                  <TrophyOutlined style={{ fontSize: 44, color: neonCyan, marginBottom: 18, filter: 'drop-shadow(0 0 8px ' + neonCyan + ')' }} />
                   <Title level={2} style={{ color: '#fff' }}>Empresario</Title>
-                  <Title level={1} style={{ margin: '12px 0 30px', textShadow: neonTextGlow }}>A <span style={{ color: neonCyan }}>Medida</span></Title>
-                  <div style={{ textAlign: 'left', marginBottom: '36px', fontSize: '15px', color: '#e6edf3' }}>
-                    <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Todo lo del plan emprendedor</p>
-                    <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Jerarquias, Roles y Permisos</p>
-                    <p style={{ marginBottom: '12px' }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: '8px' }} />Escalado masivo y APIs dedicadas</p>
+                  <Title level={1} style={{ margin: '12px 0 30px', textShadow: neonTextGlow }}>
+                    A <span style={{ color: neonCyan }}>Medida</span>
+                  </Title>
+                  <div style={{ textAlign: 'left', marginBottom: 36, fontSize: 15, color: '#e6edf3' }}>
+                    <p style={{ marginBottom: 12 }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: 8 }} />Todo lo del plan Emprendedor</p>
+                    <p style={{ marginBottom: 12 }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: 8 }} />Jerarquías, Roles y Permisos</p>
+                    <p style={{ marginBottom: 12 }}><CheckCircleOutlined style={{ color: neonCyan, marginRight: 8 }} />Escalado masivo y APIs dedicadas</p>
+                    <p style={{ marginBottom: 12, color: '#8b949e' }}><CheckCircleOutlined style={{ color: '#8b949e', marginRight: 8 }} /><i>Cobro variable — cotización personalizada</i></p>
                   </div>
-                  <Button type='primary' size='large' block
-                    style={{ height: '48px', background: neonCyan, color: darkBg, fontWeight: 'bold', boxShadow: neonGlow, border: 'none' }}
-                    onClick={() => message.info('Contacte a pizzia.peru@gmail.com para cotizacion')}>Solicitar Cotizacion Exacta</Button>
+                  <Button type="primary" size="large" block
+                    onClick={() => message.info('Escríbenos a pizzia.peru@gmail.com para tu cotización')}
+                    style={{ height: 50, background: neonCyan, color: darkBg,
+                      fontWeight: 700, boxShadow: neonGlow, border: 'none', borderRadius: 10, fontSize: 15 }}>
+                    Solicitar cotización
+                  </Button>
                 </Card>
               </Col>
             </Row>
-            <div style={{ marginTop: '80px', padding: '44px 40px',
+
+            {/* Contacto */}
+            <div style={{ marginTop: 72, padding: '40px',
               background: 'linear-gradient(135deg, rgba(0,162,255,0.07), rgba(0,210,255,0.03))',
-              border: '1px solid rgba(0,210,255,0.22)', borderRadius: '16px',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
-              <Title level={3} style={{ color: '#fff', margin: 0 }}>Tienes dudas? <span style={{ color: neonCyan }}>Escribenos</span></Title>
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                <a href='mailto:pizzia.peru@gmail.com' style={{ textDecoration: 'none' }}>
-                  <Button size='large' icon={<MailOutlined />} style={{ background: neonCyan, color: darkBg, border: 'none', fontWeight: 'bold', boxShadow: neonGlow, height: '48px', paddingInline: '28px' }}>pizzia.peru@gmail.com</Button>
+              border: '1px solid rgba(0,210,255,0.18)', borderRadius: 16,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+              <Title level={3} style={{ color: '#fff', margin: 0 }}>
+                ¿Tienes dudas? <span style={{ color: neonCyan }}>Escríbenos</span>
+              </Title>
+              <Paragraph style={{ color: '#8b949e', margin: 0 }}>
+                Estamos en Perú · Respondemos rápido por correo y teléfono.
+              </Paragraph>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center' }}>
+                <a href="mailto:pizzia.peru@gmail.com" style={{ textDecoration: 'none' }}>
+                  <Button size="large" icon={<MailOutlined />}
+                    style={{ background: neonCyan, color: darkBg, border: 'none', fontWeight: 700,
+                      boxShadow: neonGlow, height: 46, paddingInline: 24 }}>
+                    pizzia.peru@gmail.com
+                  </Button>
                 </a>
-                <a href='tel:+51948413244' style={{ textDecoration: 'none' }}>
-                  <Button size='large' icon={<PhoneOutlined />} style={{ background: 'transparent', color: neonCyan, borderColor: neonCyan, fontWeight: 'bold', boxShadow: neonGlow, height: '48px', paddingInline: '28px' }}>+51 948 413 244</Button>
+                <a href="tel:+51948413244" style={{ textDecoration: 'none' }}>
+                  <Button size="large" icon={<PhoneOutlined />}
+                    style={{ background: 'transparent', color: neonCyan, borderColor: neonCyan,
+                      fontWeight: 700, boxShadow: neonGlow, height: 46, paddingInline: 24 }}>
+                    +51 948 413 244
+                  </Button>
                 </a>
               </div>
             </div>
+
+            {/* Hint para usuarios que YA tienen cuenta */}
+            <div style={{ marginTop: 40, padding: '18px 0', textAlign: 'center',
+              borderTop: '1px solid rgba(0,210,255,0.08)' }}>
+              <Text style={{ color: '#6b7280', fontSize: 14 }}>
+                ¿Ya registraste tu negocio antes?{'  '}
+              </Text>
+              <button onClick={() => navigate('/acceder')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer',
+                  color: neonCyan, fontWeight: 700, fontSize: 14, padding: '0 4px',
+                  textDecoration: 'underline' }}>
+                Acceder a tu negocio →
+              </button>
+            </div>
           </div>
         )}
-
+        {/* ─── ACCEDER ─── */}
         {view === 'acceder' && (
           <div style={{ animation: 'fadeIn 0.5s' }}>
-
             {accederStep === 'form' && (
-              <div style={{ maxWidth: '440px', margin: '0 auto' }}>
-                <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+              <div style={{ maxWidth: 420, margin: '0 auto' }}>
+                <div style={{ textAlign: 'center', marginBottom: 32 }}>
                   <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                     width: 64, height: 64, borderRadius: 16,
                     background: 'linear-gradient(135deg, ' + neonCyan + ', #0088cc)',
-                    marginBottom: 18, boxShadow: '0 4px 24px rgba(0,210,255,0.5)' }}>
-                    <LoginOutlined style={{ fontSize: 30, color: '#000' }} />
+                    marginBottom: 20, boxShadow: '0 4px 24px rgba(0,210,255,0.45)' }}>
+                    <LoginOutlined style={{ fontSize: 28, color: '#000' }} />
                   </div>
-                  <Title level={2} style={{ color: '#fff', margin: 0 }}>Accede a tus negocios</Title>
-                  <Text style={{ color: '#8b949e', fontSize: 14 }}>Inicia sesion para ver todos los negocios que administras</Text>
+                  <Title level={2} style={{ color: '#fff', margin: '0 0 6px' }}>Accede a tus negocios</Title>
+                  <Text style={{ color: '#8b949e', fontSize: 14 }}>
+                    Usa el correo y contraseña con los que creaste tu negocio
+                  </Text>
                 </div>
-                <Card style={{ background: cardBg, border: '1px solid ' + neonCyan, borderRadius: 14, boxShadow: neonGlow }}>
-                  <Form form={accederForm} layout='vertical' onFinish={onPlatformLogin} size='large'>
-                    <Form.Item name='email' label={<span style={{ color: '#fff' }}>Correo electronico</span>}
+                <Card style={{ background: cardBg, border: '1px solid rgba(0,210,255,0.35)',
+                  borderRadius: 14, boxShadow: neonGlow }}>
+                  <Form form={accederForm} layout="vertical" onFinish={onPlatformLogin} size="large">
+                    <Form.Item name="email" label={<span style={{ color: '#c9d1d9' }}>Correo electrónico</span>}
                       rules={[{ required: true, message: 'Ingresa tu correo' }, { type: 'email' }]}>
-                      <Input prefix={<MailOutlined style={{ color: neonCyan }} />} placeholder='tu@correo.com' type='email'
-                        style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.3)', color: '#fff' }} />
+                      <Input prefix={<MailOutlined style={{ color: neonCyan }} />}
+                        placeholder="tu@correo.com" type="email"
+                        style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.25)', color: '#fff', borderRadius: 8 }} />
                     </Form.Item>
-                    <Form.Item name='password' label={<span style={{ color: '#fff' }}>Contrasena</span>}
-                      rules={[{ required: true, message: 'Ingresa tu contrasena' }]}>
-                      <Input.Password prefix={<LockOutlined style={{ color: neonCyan }} />} placeholder='........'
-                        style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.3)', color: '#fff' }} />
+                    <Form.Item name="password" label={<span style={{ color: '#c9d1d9' }}>Contraseña</span>}
+                      rules={[{ required: true, message: 'Ingresa tu contraseña' }]}>
+                      <Input.Password prefix={<LockOutlined style={{ color: neonCyan }} />}
+                        placeholder="Tu contraseña"
+                        style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.25)', color: '#fff', borderRadius: 8 }} />
                     </Form.Item>
                     {platformError && (
-                      <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.4)',
-                        borderRadius: 8, padding: '10px 14px', marginBottom: 12, color: '#ff6b6b', fontSize: 13 }}>
-                        {platformError}
+                      <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.35)',
+                        borderRadius: 8, padding: '10px 14px', marginBottom: 14, color: '#ff6b6b', fontSize: 13 }}>
+                        ⚠️ {platformError}
                       </div>
                     )}
-                    <Button type='primary' htmlType='submit' block style={{
-                      height: 48, background: 'linear-gradient(135deg, ' + neonCyan + ', #0088cc)',
+                    <Button type="primary" htmlType="submit" block style={{
+                      height: 46, background: 'linear-gradient(135deg, ' + neonCyan + ', #0088cc)',
                       color: '#000', border: 'none', fontWeight: 800, fontSize: 15,
-                      boxShadow: neonGlow, borderRadius: 10 }}>Entrar</Button>
+                      boxShadow: neonGlow, borderRadius: 10 }}>
+                      Entrar →
+                    </Button>
                   </Form>
-                  <div style={{ marginTop: 16, textAlign: 'center' }}>
-                    <Text style={{ color: '#8b949e', fontSize: 13 }}>No tienes negocio? </Text>
-                    <Button type='link' onClick={() => navigate('/registro/1')} style={{ color: neonCyan, padding: '0 4px', fontSize: 13 }}>Crear uno</Button>
+                  <div style={{ marginTop: 18, textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
+                    <Text style={{ color: '#6b7280', fontSize: 13 }}>¿No tienes negocio aún? </Text>
+                    <button onClick={() => navigate('/planes')}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer',
+                        color: neonCyan, fontWeight: 700, fontSize: 13, padding: '0 4px' }}>
+                      Crear uno gratis →
+                    </button>
                   </div>
                 </Card>
               </div>
@@ -322,158 +389,190 @@ export default function Landing({ view }) {
             )}
 
             {accederStep === 'negocios' && (
-              <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-                <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-                  <Title level={2} style={{ color: '#fff', margin: 0 }}>Tus <span style={{ color: neonCyan }}>Negocios</span></Title>
-                  <Text style={{ color: '#8b949e', fontSize: 14 }}>Haz clic en el negocio al que quieres acceder</Text>
+              <div style={{ maxWidth: 900, margin: '0 auto' }}>
+                <div style={{ textAlign: 'center', marginBottom: 40 }}>
+                  <Title level={2} style={{ color: '#fff', margin: '0 0 8px' }}>
+                    Tus <span style={{ color: neonCyan }}>Negocios</span>
+                  </Title>
+                  <Text style={{ color: '#8b949e', fontSize: 14 }}>
+                    Haz clic en el negocio al que quieres acceder — sin volver a ingresar tu contraseña
+                  </Text>
                 </div>
-                <Row gutter={[24, 24]} justify='center'>
+                <Row gutter={[24, 24]} justify="center">
                   {misNegocios.map((neg, i) => (
                     <Col xs={24} sm={12} md={8} key={i}>
                       <Card hoverable
-                        style={{ background: cardBg, border: '1px solid rgba(0,210,255,0.3)', borderRadius: 14,
-                          textAlign: 'center', cursor: 'pointer', transition: 'all 0.25s' }}
-                        bodyStyle={{ padding: '32px 24px' }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor=neonCyan; e.currentTarget.style.boxShadow=neonGlow; e.currentTarget.style.transform='translateY(-4px)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(0,210,255,0.3)'; e.currentTarget.style.boxShadow='none'; e.currentTarget.style.transform='translateY(0)'; }}>
+                        style={{ background: cardBg, border: '1px solid rgba(0,210,255,0.25)',
+                          borderRadius: 14, textAlign: 'center', transition: 'all 0.25s' }}
+                        bodyStyle={{ padding: '32px 20px' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = neonCyan; e.currentTarget.style.boxShadow = neonGlow; e.currentTarget.style.transform = 'translateY(-4px)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,210,255,0.25)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}>
                         <div style={{ width: 56, height: 56, borderRadius: 14, margin: '0 auto 16px',
-                          background: 'linear-gradient(135deg, rgba(0,210,255,0.2), rgba(0,136,204,0.15))',
-                          border: '1px solid rgba(0,210,255,0.3)',
+                          background: 'linear-gradient(135deg, rgba(0,210,255,0.15), rgba(0,136,204,0.1))',
+                          border: '1px solid rgba(0,210,255,0.25)',
                           display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <ShopOutlined style={{ fontSize: 26, color: neonCyan }} />
                         </div>
                         <Title level={4} style={{ color: '#fff', margin: '0 0 4px' }}>{neg.nombre}</Title>
                         <Text style={{ color: '#8b949e', fontSize: 12, display: 'block', marginBottom: 20 }}>{neg.rol}</Text>
-                        <Button type='primary' block loading={accederLoadingId === neg.schema}
+                        <Button type="primary" block loading={accederLoadingId === neg.schema}
                           onClick={() => onAccessTenant(neg.schema)}
                           icon={<ArrowRightOutlined />}
                           style={{ background: 'linear-gradient(135deg, ' + neonCyan + ', #0088cc)',
-                            border: 'none', color: '#000', fontWeight: 700, height: 40, borderRadius: 8 }}>Acceder</Button>
+                            border: 'none', color: '#000', fontWeight: 700, height: 40, borderRadius: 8 }}>
+                          Acceder
+                        </Button>
                       </Card>
                     </Col>
                   ))}
                 </Row>
                 <div style={{ textAlign: 'center', marginTop: 32 }}>
-                  <Button type='link' onClick={() => { setAccederStep('form'); accederForm.resetFields(); }}
-                    style={{ color: '#8b949e', fontSize: 13 }}>Usar otro correo</Button>
-                  <span style={{ color: '#374151', margin: '0 12px' }}>Ã‚Â·</span>
-                  <Button type='link' onClick={() => navigate('/registro/1')} style={{ color: neonCyan, fontSize: 13 }}>+ Crear otro negocio</Button>
+                  <button onClick={() => { setAccederStep('form'); accederForm.resetFields(); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: 13 }}>
+                    ← Usar otro correo
+                  </button>
+                  <span style={{ color: '#374151', margin: '0 14px' }}>·</span>
+                  <button onClick={() => navigate('/registro/1')}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: neonCyan, fontSize: 13, fontWeight: 600 }}>
+                    + Crear otro negocio
+                  </button>
                 </div>
               </div>
             )}
           </div>
         )}
 
+        {/* ─── REGISTRO ─── */}
         {view === 'registro' && (
-          <div style={{ maxWidth: '460px', margin: '0 auto', animation: 'fadeIn 0.5s' }}>
-            {/* Resumen del plan elegido */}
+          <div style={{ maxWidth: 460, margin: '0 auto', animation: 'fadeIn 0.5s' }}>
+
+            {/* Banner del plan seleccionado */}
             {(() => {
               const planes = {
-                '1': { nombre: 'Emprendedor', precio: currency === 'PEN' ? 'S/ 39 / mes' : '\$ 12 / mes', icon: '🚀' },
+                '1': { nombre: 'Emprendedor', precio: currency === 'PEN' ? 'S/ 39 / mes' : '$ 12 / mes', icon: '🚀' },
                 '2': { nombre: 'Empresario',  precio: 'A Medida', icon: '🏆' },
               };
               const plan = planes[planId] || planes['1'];
               return (
-                <div style={{ background: 'linear-gradient(135deg, rgba(0,210,255,0.12), rgba(0,136,204,0.08))',
-                  border: '1px solid rgba(0,210,255,0.4)', borderRadius: 12,
-                  padding: '14px 20px', marginBottom: 24,
+                <div style={{ background: 'linear-gradient(135deg, rgba(0,210,255,0.1), rgba(0,136,204,0.06))',
+                  border: '1px solid rgba(0,210,255,0.35)', borderRadius: 12,
+                  padding: '14px 20px', marginBottom: 22,
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 28 }}>{plan.icon}</span>
+                    <span style={{ fontSize: 26 }}>{plan.icon}</span>
                     <div>
-                      <div style={{ color: 'rgba(0,210,255,0.7)', fontSize: 11, fontWeight: 600, letterSpacing: 1 }}>PLAN SELECCIONADO</div>
+                      <div style={{ color: 'rgba(0,210,255,0.65)', fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase' }}>Plan seleccionado</div>
                       <div style={{ color: '#fff', fontWeight: 700, fontSize: 16 }}>{plan.nombre}</div>
                     </div>
                   </div>
-                  <div style={{ color: neonCyan, fontWeight: 800, fontSize: 18, textShadow: neonTextGlow }}>{plan.precio}</div>
+                  <div style={{ color: neonCyan, fontWeight: 800, fontSize: 17, textShadow: neonTextGlow }}>{plan.precio}</div>
                 </div>
               );
             })()}
 
-            <Title level={2} style={{ color: '#fff', textAlign: 'center', marginBottom: '28px' }}>Crear Espacio de Trabajo</Title>
-            <Card style={{ background: cardBg, border: '1px solid ' + neonCyan, borderRadius: '12px', boxShadow: neonGlow }}>
-              <Form layout='vertical' form={registroForm} onFinish={onFinishRegistro} validateTrigger={['onChange','onBlur']}>
+            <Title level={2} style={{ color: '#fff', textAlign: 'center', marginBottom: 24 }}>Crear tu negocio</Title>
 
-                <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>Nombre del Negocio</span>}
-                  name='empresa' rules={[{ required: true, message: 'El nombre es requerido' }]}>
-                  <Input size='large' placeholder='Ej: Bodega El Sol' onChange={onNombreEmpresaChange}
-                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
+            <Card style={{ background: cardBg, border: '1px solid rgba(0,210,255,0.3)', borderRadius: 14, boxShadow: neonGlow }}>
+              <Form layout="vertical" form={registroForm} onFinish={onFinishRegistro} validateTrigger={['onChange', 'onBlur']}>
+
+                <Form.Item label={<span style={{ color: '#c9d1d9', fontWeight: 500 }}>Nombre del Negocio</span>}
+                  name="empresa" rules={[{ required: true, message: 'El nombre es requerido' }]}>
+                  <Input size="large" placeholder="Ej: Bodega El Sol" onChange={onNombreEmpresaChange}
+                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)', borderRadius: 8 }} />
                 </Form.Item>
 
-                <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>Correo Gerencia</span>}
-                  name='email' rules={[{ required: true, message: 'El correo es requerido' }, { type: 'email', message: 'Correo invalido' }]}>
-                  <Input size='large' placeholder='gerente@empresa.com'
-                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
+                <Form.Item label={<span style={{ color: '#c9d1d9', fontWeight: 500 }}>Correo del Administrador</span>}
+                  name="email" rules={[{ required: true, message: 'El correo es requerido' }, { type: 'email', message: 'Correo inválido' }]}>
+                  <Input size="large" placeholder="gerente@empresa.com"
+                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)', borderRadius: 8 }} />
                 </Form.Item>
 
-                <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>Identificador de URL</span>}
-                  name='subdominio'
-                  rules={[{ required: true, message: 'Requerido' }, { pattern: /^[a-z0-9-]+$/, message: 'Solo minusculas, numeros y guiones' }]}
-                  extra={<span style={{ color: 'rgba(0,210,255,0.55)', fontSize: 12 }}>Tu URL: <strong style={{ color: neonCyan }}>negociav2.vercel.app/t/{slugPreview||'mi-empresa'}/login</strong></span>}>
-                  <Input size='large' placeholder='mi-empresa'
+                <Form.Item label={<span style={{ color: '#c9d1d9', fontWeight: 500 }}>Identificador de URL</span>}
+                  name="subdominio"
+                  rules={[{ required: true, message: 'Requerido' }, { pattern: /^[a-z0-9-]+$/, message: 'Solo minúsculas, números y guiones' }]}
+                  extra={<span style={{ color: 'rgba(0,210,255,0.5)', fontSize: 12 }}>
+                    Tu acceso: <strong style={{ color: neonCyan }}>negociav2.vercel.app/t/{slugPreview || 'mi-negocio'}/login</strong>
+                  </span>}>
+                  <Input size="large" placeholder="mi-negocio"
                     prefix={<span style={{ color: 'rgba(0,210,255,0.4)', fontSize: 12 }}>/t/</span>}
-                    suffix={<span style={{ color: 'rgba(0,210,255,0.4)', fontSize: 11 }}>/login</span>}
-                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }}
-                    onChange={e => { const c=e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,''); registroForm.setFieldValue('subdominio',c); setSlugPreview(c); }} />
+                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)', borderRadius: 8 }}
+                    onChange={e => { const c = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''); registroForm.setFieldValue('subdominio', c); setSlugPreview(c); }} />
                 </Form.Item>
 
-                <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>Contrasena Segura</span>}
-                  name='password' rules={[{ required: true, message: 'La contrasena es requerida' }, { min: 8, message: 'Minimo 8 caracteres' }]}>
-                  <Input.Password size='large' placeholder='Minimo 8 caracteres'
-                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
+                <Form.Item label={<span style={{ color: '#c9d1d9', fontWeight: 500 }}>Contraseña</span>}
+                  name="password" rules={[{ required: true, message: 'Requerida' }, { min: 8, message: 'Mínimo 8 caracteres' }]}>
+                  <Input.Password size="large" placeholder="Mínimo 8 caracteres"
+                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)', borderRadius: 8 }} />
                 </Form.Item>
 
-                <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>Confirmar Contrasena</span>}
-                  name='confirmar_password' dependencies={['password']}
-                  rules={[{ required: true, message: 'Confirma tu contrasena' },
+                <Form.Item label={<span style={{ color: '#c9d1d9', fontWeight: 500 }}>Confirmar Contraseña</span>}
+                  name="confirmar_password" dependencies={['password']}
+                  rules={[{ required: true, message: 'Confirma tu contraseña' },
                     ({ getFieldValue }) => ({ validator(_, value) {
                       if (!value || getFieldValue('password') === value) return Promise.resolve();
-                      return Promise.reject(new Error('Las contrasenas no coinciden'));
-                    }}),
-                  ]}>
-                  <Input.Password size='large' placeholder='Repite la contrasena'
-                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
+                      return Promise.reject(new Error('Las contraseñas no coinciden'));
+                    }})]}>
+                  <Input.Password size="large" placeholder="Repite la contraseña"
+                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)', borderRadius: 8 }} />
                 </Form.Item>
 
-                <Form.Item label={<span style={{ color: '#fff', fontWeight: 500 }}>RUC (Opcional)</span>} name='ruc'>
-                  <Input size='large' placeholder='20123456789' style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)' }} />
+                <Form.Item label={<span style={{ color: '#c9d1d9', fontWeight: 500 }}>RUC <span style={{ color: '#6b7280', fontSize: 12 }}>(opcional)</span></span>} name="ruc">
+                  <Input size="large" placeholder="20123456789"
+                    style={{ background: darkBg, color: neonCyan, borderColor: 'rgba(0,210,255,0.3)', borderRadius: 8 }} />
                 </Form.Item>
 
-                <Form.Item name='logo' label={<span style={{ color: '#fff', fontWeight: 500 }}>Logotipo (Opcional)</span>}
-                  valuePropName='fileList' getValueFromEvent={normFile}>
-                  <Upload beforeUpload={() => false} maxCount={1} accept='image/*'>
-                    <Button icon={<UploadOutlined />} style={{ background: 'transparent', color: neonCyan, borderColor: neonCyan }}>Seleccionar imagen</Button>
+                <Form.Item name="logo" label={<span style={{ color: '#c9d1d9', fontWeight: 500 }}>Logo <span style={{ color: '#6b7280', fontSize: 12 }}>(opcional)</span></span>}
+                  valuePropName="fileList" getValueFromEvent={normFile}>
+                  <Upload beforeUpload={() => false} maxCount={1} accept="image/*">
+                    <Button icon={<UploadOutlined />}
+                      style={{ background: 'transparent', color: neonCyan, borderColor: 'rgba(0,210,255,0.35)', borderRadius: 8 }}>
+                      Seleccionar imagen
+                    </Button>
                   </Upload>
                 </Form.Item>
 
-                {registroError && (<div style={{ background: 'rgba(255,59,48,0.12)', border: '1px solid rgba(255,59,48,0.5)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, color: '#ff6b6b', fontSize: 13 }}>{registroError}</div>)}
-                {slugError && (<div style={{ background: 'rgba(255,165,0,0.1)', border: '1px solid rgba(255,165,0,0.4)', borderRadius: 8, padding: '8px 14px', marginBottom: 8, color: '#ffa500', fontSize: 12 }}>Prueba: <strong>{watchedValues?.subdominio}-2</strong></div>)}
+                {registroError && (<div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.4)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, color: '#ff6b6b', fontSize: 13 }}>⚠️ {registroError}</div>)}
+                {slugError && (<div style={{ background: 'rgba(255,165,0,0.08)', border: '1px solid rgba(255,165,0,0.35)', borderRadius: 8, padding: '8px 14px', marginBottom: 8, color: '#ffa500', fontSize: 12 }}>💡 Intenta: <strong>{watchedValues?.subdominio}-2</strong></div>)}
 
-                <Button type='primary' size='large' block htmlType='submit' loading={loading} disabled={!isFormComplete}
-                  style={{ marginTop: '12px', height: '52px', border: 'none', fontWeight: 800, fontSize: '15px', letterSpacing: '1px',
-                    background: isFormComplete?'linear-gradient(135deg,' + neonCyan + ',#0088cc)':'rgba(0,210,255,0.15)',
-                    color: isFormComplete?darkBg:'rgba(0,210,255,0.4)', boxShadow: isFormComplete?neonGlow:'none' }}>
-                  {loading ? 'Procesando...' : isFormComplete ? 'REGISTRAR MI NEGOCIO' : 'Completa todos los campos'}
+                <Button type="primary" size="large" block htmlType="submit" loading={loading}
+                  disabled={!isFormComplete}
+                  style={{ marginTop: 8, height: 50, border: 'none', fontWeight: 800,
+                    fontSize: 15, letterSpacing: 0.5, borderRadius: 10, transition: 'all 0.3s',
+                    background: isFormComplete ? 'linear-gradient(135deg, ' + neonCyan + ', #0088cc)' : 'rgba(0,210,255,0.1)',
+                    color: isFormComplete ? darkBg : 'rgba(0,210,255,0.35)',
+                    boxShadow: isFormComplete ? neonGlow : 'none' }}>
+                  {loading ? 'Creando tu negocio...' : isFormComplete ? 'Crear mi negocio →' : 'Completa todos los campos'}
                 </Button>
-                <Button type='link' block onClick={() => navigate('/planes')} style={{ marginTop: '10px', color: '#a0c0e0' }}>Volver a los planes</Button>
+                <button type="button" onClick={() => navigate('/planes')}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', width: '100%',
+                    marginTop: 12, color: '#6b7280', fontSize: 13, textAlign: 'center' }}>
+                  ← Ver planes
+                </button>
               </Form>
             </Card>
           </div>
         )}
       </main>
 
-      <footer style={{ borderTop: '1px solid rgba(0,210,255,0.14)', background: 'rgba(4,7,13,0.97)',
-        padding: '20px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#6b7280' }}>
-          <span>Producto desarrollado por</span>
-          <a href='https://pizzia.org' target='_blank' rel='noopener noreferrer' style={{ color: neonCyan, fontWeight: 700, textDecoration: 'none' }}>PizzIA</a>
-          <span>Ã‚Â·</span>
-          <a href='https://pizzia.org' target='_blank' rel='noopener noreferrer' style={{ color: '#6b7280', textDecoration: 'underline' }}>pizzia.org</a>
+      {/* ══ FOOTER ══ */}
+      <footer style={{ borderTop: '1px solid rgba(0,210,255,0.1)', background: 'rgba(4,7,13,0.97)',
+        padding: '18px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#6b7280' }}>
+          <span>Producto por</span>
+          <a href="https://pizzia.org" target="_blank" rel="noopener noreferrer"
+            style={{ color: neonCyan, fontWeight: 700, textDecoration: 'none' }}>PizzIA</a>
+          <span>·</span>
+          <a href="https://pizzia.org" target="_blank" rel="noopener noreferrer"
+            style={{ color: '#6b7280', textDecoration: 'underline' }}>pizzia.org</a>
         </div>
-        <div style={{ fontSize: '12px', color: '#374151' }}>Ã‚Â© {new Date().getFullYear()} PizzIA - Todos los Derechos Reservados</div>
+        <div style={{ fontSize: 12, color: '#374151' }}>© {new Date().getFullYear()} PizzIA – Todos los derechos reservados</div>
       </footer>
 
-      <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } } .ant-input::placeholder { color: rgba(0,210,255,0.3) !important; } .ant-input-password input::placeholder { color: rgba(0,210,255,0.3) !important; }`}</style>
+      <style>{`
+        @keyframes fadeIn { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+        .ant-input::placeholder { color: rgba(0,210,255,0.28) !important; }
+        .ant-input-password input::placeholder { color: rgba(0,210,255,0.28) !important; }
+      `}</style>
     </div>
   );
 }
