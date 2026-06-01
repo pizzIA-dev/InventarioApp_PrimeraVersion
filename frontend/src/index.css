@@ -382,15 +382,19 @@ td {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border: none;
-  border-radius: var(--border-radius-sm);
+  gap: 6px;
+  height: 32px;
+  padding: 4px 15px;
+  border: 1px solid transparent;
+  border-radius: 6px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 400;
   font-family: inherit;
   cursor: pointer;
-  transition: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+  line-height: 1.5714285714285714;
+  white-space: nowrap;
+  user-select: none;
 }
 
 .btn:active {
@@ -398,14 +402,16 @@ td {
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: #1677ff;
   color: #fff;
-  box-shadow: 0 2px 4px var(--accent-glow);
+  border-color: #1677ff;
+  box-shadow: 0 2px 0 rgba(5, 145, 255, 0.10);
 }
 
 .btn-primary:hover {
-  background: var(--accent-hover);
-  box-shadow: 0 4px 12px var(--accent-glow);
+  background: #4096ff;
+  border-color: #4096ff;
+  box-shadow: 0 2px 0 rgba(5, 145, 255, 0.10);
 }
 
 .btn-success {
@@ -440,7 +446,7 @@ td {
 
 .btn-info {
   background: var(--color-info);
-  color: #000; /* For better contrast if cyan */
+  color: #fff;
 }
 [data-theme="dark"] .btn-info { color: #fff; }
 
@@ -450,14 +456,25 @@ td {
 }
 
 .btn-secondary {
-  background: var(--bg-secondary-btn);
+  background: transparent;
   color: var(--text-primary);
-  border: 1px solid var(--border-color);
+  border-color: var(--border-color);
 }
 
 .btn-secondary:hover {
-  background: var(--bg-secondary-btn-hover);
-  border-color: var(--border-input);
+  color: #4096ff;
+  border-color: #4096ff;
+  background: transparent;
+}
+
+[data-theme="dark"] .btn-secondary {
+  border-color: #424242;
+  color: rgba(255,255,255,0.85);
+}
+
+[data-theme="dark"] .btn-secondary:hover {
+  color: #4096ff;
+  border-color: #4096ff;
 }
 
 /* Layout */
@@ -1030,10 +1047,7 @@ td {
   background: var(--bg-table-header);
 }
 
-[data-theme="dark"] .btn-primary {
-  color: #000 !important;
-  font-weight: bold;
-}
+/* btn-primary uses white text by default - no dark override needed */
 [data-theme="dark"] .tab-btn.active {
   color: #000 !important;
 }
