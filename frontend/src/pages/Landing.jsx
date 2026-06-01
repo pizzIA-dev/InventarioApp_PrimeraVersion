@@ -356,7 +356,7 @@ export default function Landing({ view }) {
                 <div style={{ textAlign: 'center', marginTop: 32 }}>
                   <Button type='link' onClick={() => { setAccederStep('form'); accederForm.resetFields(); }}
                     style={{ color: '#8b949e', fontSize: 13 }}>Usar otro correo</Button>
-                  <span style={{ color: '#374151', margin: '0 12px' }}>·</span>
+                  <span style={{ color: '#374151', margin: '0 12px' }}>Â·</span>
                   <Button type='link' onClick={() => navigate('/registro/1')} style={{ color: neonCyan, fontSize: 13 }}>+ Crear otro negocio</Button>
                 </div>
               </div>
@@ -443,13 +443,13 @@ export default function Landing({ view }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#6b7280' }}>
           <span>Producto desarrollado por</span>
           <a href='https://pizzia.org' target='_blank' rel='noopener noreferrer' style={{ color: neonCyan, fontWeight: 700, textDecoration: 'none' }}>PizzIA</a>
-          <span>·</span>
+          <span>Â·</span>
           <a href='https://pizzia.org' target='_blank' rel='noopener noreferrer' style={{ color: '#6b7280', textDecoration: 'underline' }}>pizzia.org</a>
         </div>
-        <div style={{ fontSize: '12px', color: '#374151' }}>© {new Date().getFullYear()} PizzIA - Todos los Derechos Reservados</div>
+        <div style={{ fontSize: '12px', color: '#374151' }}>Â© {new Date().getFullYear()} PizzIA - Todos los Derechos Reservados</div>
       </footer>
 
-      <style>{@keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } } .ant-input::placeholder { color: rgba(0,210,255,0.3) !important; } .ant-input-password input::placeholder { color: rgba(0,210,255,0.3) !important; }}</style>
+      <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } } .ant-input::placeholder { color: rgba(0,210,255,0.3) !important; } .ant-input-password input::placeholder { color: rgba(0,210,255,0.3) !important; }`}</style>
     </div>
   );
 }
