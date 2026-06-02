@@ -126,18 +126,15 @@ class Venta(models.Model):
         
 
         for detalle in self.detalleventa_set.all():
-            producto = detalle.producto
-            cantidad = detalle.cantidad
-            
-            producto.stock_actual -= cantidad
-            producto.save()
-            
+            # MovimientoStock.save() actualiza el stock atomicamente - no hacerlo manualmente
             MovimientoStock.objects.create(
-                producto=producto,
+                empresa=self.empresa,
+                producto=detalle.producto,
                 tipo='SALIDA',
-                cantidad=cantidad,
-                motivo='VENTA',
-                origen=f'Venta {self.numero_comprobante or self.id}',
+                origen='VENTA',
+                cantidad=detalle.cantidad,
+                precio_unitario=detalle.precio_venta,
+                referencia=str(self.numero_comprobante_simple or self.numero_comprobante or self.id),
                 usuario=self.usuario,
             )
 
@@ -145,23 +142,19 @@ class Venta(models.Model):
     def revertir_stock(self):
         """
         Revierte la salida de inventario cuando se cancela una venta.
+        MovimientoStock.save() maneja la actualizacion atomica del stock.
         """
         from apps.inventario.models import MovimientoStock
         
-        
         for detalle in self.detalleventa_set.all():
-            producto = detalle.producto
-            cantidad = detalle.cantidad
-            
-            producto.stock_actual += cantidad
-            producto.save()
-            
             MovimientoStock.objects.create(
-                producto=producto,
+                empresa=self.empresa,
+                producto=detalle.producto,
                 tipo='ENTRADA',
-                cantidad=cantidad,
-                motivo='DEVOLUCION',
-                origen=f'Cancelación Venta {self.numero_comprobante or self.id}',
+                origen='DEVOLUCION',
+                cantidad=detalle.cantidad,
+                precio_unitario=detalle.precio_venta,
+                referencia=str(self.numero_comprobante_simple or self.numero_comprobante or self.id),
                 usuario=self.usuario,
             )
 class DetalleVenta(models.Model):
