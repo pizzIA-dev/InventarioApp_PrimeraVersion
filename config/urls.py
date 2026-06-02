@@ -37,16 +37,6 @@ urlpatterns = [
     path('api/auth/logout/', logout_view, name='logout'),
     path('api/auth/forgot-password/', forgot_password, name='forgot_password'),
     path('api/auth/reset-password/<str:uid>/<str:token>/', reset_password_confirm, name='reset_password_confirm'),
-    path('api/productos/', include('apps.inventario.urls')),
-    path('api/ventas/', include('apps.ventas.urls')),
-    path('api/compras/', include('apps.compras.urls')),
-    path('api/proveedores/', include('apps.proveedores.urls')),
-    path('api/clientes/', include('apps.clientes.urls')),
-    path('api/capital/', include('apps.capital.urls')),
-    path('api/servicios/', include('apps.servicios.urls')),
-    path('api/transacciones/', include('apps.transacciones.urls')),
-    path('api/reportes/', include('apps.reportes.urls')),
-    path('api/fiados/', include('apps.fiados.urls')),
     
     # Gestión de usuarios (solo Gerente)
     path('api/auth/usuarios/', listar_usuarios, name='listar_usuarios'),
