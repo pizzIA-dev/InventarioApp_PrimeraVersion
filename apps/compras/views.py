@@ -1,3 +1,4 @@
+from apps.core.renderers import PassthroughRenderer
 from django.http import HttpResponse
 from django.utils import timezone
 from apps.core.export_utils import (
@@ -157,7 +158,7 @@ class CompraViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             'compras_por_proveedor': list(compras_por_proveedor)
         })
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exportar compras a Excel con filtro de período"""
         periodo = request.query_params.get('periodo', 'todo')
@@ -309,7 +310,7 @@ class CompraViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             'results': serializer.data
         })
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial(self, request, pk=None):
         """Exporta el historial de una compra en formato Excel multi-hoja"""
         compra = self.get_object()
@@ -376,7 +377,7 @@ class CompraViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             sheets_data=sheets_data
         )
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial_global(self, request):
         """Exporta el historial global de compras en formato Excel multi-hoja con filtro de periodo"""
         proveedor = request.query_params.get('proveedor')

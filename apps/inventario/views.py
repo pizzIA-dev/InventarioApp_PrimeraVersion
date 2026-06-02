@@ -1,3 +1,4 @@
+from apps.core.renderers import PassthroughRenderer
 from django.http import HttpResponse
 from django.db.models import Sum
 from apps.core.export_utils import (
@@ -167,7 +168,7 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             'results': serializer.data
         })
         
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_movimientos(self, request, pk=None):
         """Exportar el historial de movimientos de un producto a Excel"""
         from apps.core.export_utils import create_excel_response
@@ -297,7 +298,7 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         serializer = self.get_serializer(productos_stock_bajo, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exportar productos a Excel con filtro de período"""
         import traceback as _tb_main
@@ -391,7 +392,7 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
         headers = self.get_success_headers(serializer.data)
         return Response(output_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exportar reporte de diario de movimientos a Excel"""
         from apps.core.export_utils import get_period_range, get_period_label, create_excel_response

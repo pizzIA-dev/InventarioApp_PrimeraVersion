@@ -1,3 +1,4 @@
+from apps.core.renderers import PassthroughRenderer
 from django.http import HttpResponse
 from django.utils import timezone
 from apps.core.export_utils import (
@@ -99,7 +100,7 @@ class ProveedorViewSet(viewsets.ModelViewSet):
             'results': serializer.data
         })
         
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial(self, request, pk=None):
         """Exportar el historial de un proveedor específico a Excel con multi-hoja"""
         proveedor = self.get_object()
@@ -192,7 +193,7 @@ class ProveedorViewSet(viewsets.ModelViewSet):
             'productos_diferentes': proveedor.historico_precios.values('producto').distinct().count()
         })
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exportar proveedores a Excel con filtro de período"""
         periodo = request.query_params.get('periodo', 'todo')
@@ -260,7 +261,7 @@ class MovimientoProveedorViewSet(viewsets.ReadOnlyModelViewSet):
     filter_backends = [filters.OrderingFilter, DjangoFilterBackend]
     ordering_fields = ['fecha']
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exportar reporte de diario de movimientos a Excel con multi-hoja"""
         periodo = request.query_params.get('periodo', 'todo')

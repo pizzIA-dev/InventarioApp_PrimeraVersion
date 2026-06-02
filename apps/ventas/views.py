@@ -1,3 +1,4 @@
+from apps.core.renderers import PassthroughRenderer
 from django.http import HttpResponse
 from apps.core.export_utils import (
     get_period_range, get_period_label, create_excel_response,
@@ -413,7 +414,7 @@ class VentaViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             'results': serializer.data
         })
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exportar ventas a Excel con filtro de período"""
         periodo = request.query_params.get('periodo', 'todo')
@@ -472,7 +473,7 @@ class VentaViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             period_label=period_label
         )
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial(self, request, pk=None):
         """Exporta el historial de una venta en formato Excel multi-hoja"""
         venta = self.get_object()
@@ -566,7 +567,7 @@ class VentaViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             sheets_data=sheets_data
         )
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial_global(self, request):
         """Exporta el historial global de ventas de productos en formato Excel multi-hoja"""
         cliente = request.query_params.get('cliente')

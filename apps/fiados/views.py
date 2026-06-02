@@ -1,3 +1,4 @@
+from apps.core.renderers import PassthroughRenderer
 from django.http import HttpResponse
 from django.utils import timezone
 from decimal import Decimal, InvalidOperation
@@ -80,7 +81,7 @@ class ClienteFiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             
         return Response(data)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exportar lista de clientes fiados con resumen de deuda"""
         from django.db.models import Sum, Min, Q
@@ -214,7 +215,7 @@ class ClienteFiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             "page_size": page_size
         })
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial(self, request, pk=None):
         """Exporta el historial de movimientos de un cliente a Excel usando el formato estándar"""
         cliente = self.get_object()
@@ -426,7 +427,7 @@ class FiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             "page_size": page_size
         })
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial(self, request, pk=None):
         """Exporta el historial de un fiado a Excel usando el formato estándar"""
         fiado = self.get_object()
@@ -460,7 +461,7 @@ class FiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             period_label="Historial Completo"
         )
         
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exportar lista de fiados con filtro de período"""
         periodo = request.query_params.get('periodo', 'todo')
@@ -513,7 +514,7 @@ class FiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             period_label=period_label
         )
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial_global(self, request):
         """Exportar historial global de movimientos de fiados (Kardex Global)"""
         periodo = request.query_params.get('periodo', 'todo')

@@ -1,3 +1,4 @@
+from apps.core.renderers import PassthroughRenderer
 from django.http import HttpResponse
 from apps.core.export_utils import (
     get_period_range, get_period_label, create_excel_response,
@@ -69,7 +70,7 @@ class ServicioViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             'servicios_mas_vendidos': list(servicios_stats)
         })
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exportar catálogo de servicios a Excel"""
         queryset = self.filter_queryset(self.get_queryset())
@@ -151,7 +152,7 @@ class ServicioViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         serializer = MovimientoServicioSerializer(queryset, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_kardex(self, request, pk=None):
         """Exportar historial de movimientos de un servicio a Excel"""
         servicio = self.get_object()
@@ -201,7 +202,7 @@ class ServicioViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             period_label=f'Desde: {desde or "Inicio"} Hasta: {hasta or "Hoy"}'
         )
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial_global(self, request):
         """Exportar el diario de movimientos global de todos los servicios con filtro de período"""
         periodo = request.query_params.get('periodo', 'todo')
@@ -412,7 +413,7 @@ class VentaServicioViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             'en_progreso': en_progreso
         })
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exportar ventas de servicios a Excel con filtro de período"""
         periodo = request.query_params.get('periodo', 'todo')
@@ -466,7 +467,7 @@ class VentaServicioViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             period_label=period_label
         )
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial(self, request, pk=None):
         """Exporta el historial de una venta de servicio en formato Excel multi-hoja"""
         venta = self.get_object()
@@ -548,7 +549,7 @@ class VentaServicioViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             sheets_data=sheets_data
         )
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial_global(self, request):
         """Exporta el historial global de ventas de servicios (Estados y Detalle)"""
         periodo = request.query_params.get('periodo', 'todo')
@@ -724,7 +725,7 @@ class CompraServicioViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         )
         
         return Response({'status': 'Compra cancelada'})
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exportar compras de servicios a Excel con filtro de período"""
         from django.utils import timezone

@@ -1,3 +1,4 @@
+from apps.core.renderers import PassthroughRenderer
 from datetime import datetime
 from django.http import HttpResponse
 
@@ -191,7 +192,7 @@ class ClienteViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         
         return Response(data)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exportar clientes a Excel (Multi-hoja: Productos y Servicios)"""
         periodo = request.query_params.get('periodo', 'todo')
@@ -339,7 +340,7 @@ class ClienteViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             'results': results
         })
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial(self, request, pk=None):
         """Exporta el historial completo de un cliente (Multi-hoja: Estados, Productos, Servicios)"""
         cliente = self.get_object()
@@ -443,7 +444,7 @@ class ClienteViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             sheets_data=sheets_data
         )
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial_global(self, request):
         """Exporta el historial global de todos los clientes (Ventas por producto y servicio)"""
         fecha_desde = request.query_params.get('fecha_desde')
