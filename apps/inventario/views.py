@@ -300,70 +300,64 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def exportar(self, request):
         """Exportar productos a Excel con filtro de período"""
-        # === DEBUG START ===
+        import traceback as _tb_main
         try:
-            from apps.core.export_utils import create_excel_response as _ce
-            _test_qs = Producto.objects.all()[:1]
-            list(_test_qs)  # Force evaluation
-            _buf = _ce('t.xlsx', 'T', ['H'], [['V']], 'T', 'P')
-        except Exception as _debug_e:
-            import traceback as _tb
-            from rest_framework.response import Response as _Resp
-            return _Resp({'err': str(_debug_e), 'tb': _tb.format_exc()}, status=500)
-        # === DEBUG END ===
-        periodo = request.query_params.get('periodo', 'todo')
-        anio = request.query_params.get('anio')
-        anio = int(anio) if anio else None
+                periodo = request.query_params.get('periodo', 'todo')
+                anio = request.query_params.get('anio')
+                anio = int(anio) if anio else None
 
-        queryset = self.filter_queryset(self.get_queryset())
+                queryset = self.filter_queryset(self.get_queryset())
 
-        period_range = get_period_range(periodo, anio)
-        if period_range:
-            date_from, date_to = period_range
-            queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
+                period_range = get_period_range(periodo, anio)
+                if period_range:
+                    date_from, date_to = period_range
+                    queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
-        try:
-            _debug_test = self.filter_queryset(self.get_queryset()).first()
-            _debug_test2 = create_excel_response('test.xlsx', 'Test', ['Col1'], [['val1']], 'Title', 'Period')
-        except Exception as _e:
-            import traceback
-            from rest_framework.response import Response
-            return Response({'debug_error': str(_e), 'traceback': traceback.format_exc()}, status=500)
+                try:
+                    _debug_test = self.filter_queryset(self.get_queryset()).first()
+                    _debug_test2 = create_excel_response('test.xlsx', 'Test', ['Col1'], [['val1']], 'Title', 'Period')
+                except Exception as _e:
+                    import traceback
+                    from rest_framework.response import Response
+                    return Response({'debug_error': str(_e), 'traceback': traceback.format_exc()}, status=500)
         
-        headers = ['ID', 'Código', 'Nombre', 'Categoría', 'Stock Actual', 'Precio Compra (S/.)', 'Precio Venta (S/.)', 'Activo', 'Fecha Creación', 'Última Modificación', 'Responsable']
-        rows = []
-        for obj in queryset:
-            categoria_nombre = obj.categoria.nombre if obj.categoria else 'Sin Categoría'
-            fecha_creacion = obj.creado_en.strftime('%d/%m/%Y %H:%M') if obj.creado_en else ''
-            fecha_modificacion = obj.actualizado_en.strftime('%d/%m/%Y %H:%M') if obj.actualizado_en else ''
+                headers = ['ID', 'Código', 'Nombre', 'Categoría', 'Stock Actual', 'Precio Compra (S/.)', 'Precio Venta (S/.)', 'Activo', 'Fecha Creación', 'Última Modificación', 'Responsable']
+                rows = []
+                for obj in queryset:
+                    categoria_nombre = obj.categoria.nombre if obj.categoria else 'Sin Categoría'
+                    fecha_creacion = obj.creado_en.strftime('%d/%m/%Y %H:%M') if obj.creado_en else ''
+                    fecha_modificacion = obj.actualizado_en.strftime('%d/%m/%Y %H:%M') if obj.actualizado_en else ''
             
-            # Get latest movement to find the responsible user
-            last_mov = obj.movimientos.order_by('-fecha').first()
-            usuario_str = f"{last_mov.usuario.get_full_name() or last_mov.usuario.username} ({last_mov.usuario.perfil.get_rol_display() if hasattr(last_mov.usuario, 'perfil') else '-'})" if last_mov and last_mov.usuario else "Sistema"
+                    # Get latest movement to find the responsible user
+                    last_mov = obj.movimientos.order_by('-fecha').first()
+                    usuario_str = f"{last_mov.usuario.get_full_name() or last_mov.usuario.username} ({last_mov.usuario.perfil.get_rol_display() if hasattr(last_mov.usuario, 'perfil') else '-'})" if last_mov and last_mov.usuario else "Sistema"
 
-            rows.append([
-                obj.id,
-                obj.codigo,
-                obj.nombre,
-                categoria_nombre,
-                obj.stock_actual,
-                float(obj.precio_compra),
-                float(obj.precio_venta),
-                'Sí' if obj.activo else 'No',
-                fecha_creacion,
-                fecha_modificacion,
-                usuario_str
-            ])
+                    rows.append([
+                        obj.id,
+                        obj.codigo,
+                        obj.nombre,
+                        categoria_nombre,
+                        obj.stock_actual,
+                        float(obj.precio_compra),
+                        float(obj.precio_venta),
+                        'Sí' if obj.activo else 'No',
+                        fecha_creacion,
+                        fecha_modificacion,
+                        usuario_str
+                    ])
 
-        period_label = get_period_label(periodo, anio)
-        return create_excel_response(
-            filename='productos.xlsx',
-            sheet_name='Productos',
-            headers=headers,
-            rows=rows,
-            title='Registro de Productos',
-            period_label=period_label
-        )
+                period_label = get_period_label(periodo, anio)
+                return create_excel_response(
+                    filename='productos.xlsx',
+                    sheet_name='Productos',
+                    headers=headers,
+                    rows=rows,
+                    title='Registro de Productos',
+                    period_label=period_label
+                )
+        except Exception as _e_main:
+            from rest_framework.response import Response as _R
+            return _R({'error': str(_e_main), 'traceback': _tb_main.format_exc()}, status=500)
 
 class MovimientoStockViewSet(viewsets.ModelViewSet):
     queryset = MovimientoStock.objects.all().select_related('producto')

@@ -85,19 +85,16 @@ class CompraViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             )
 
         if compra.estado == 'CONFIRMADA':
+            # Revertir stock de la compra - MovimientoStock.save() actualiza atomicamente
             for detalle in compra.detallecompra_set.all():
                 MovimientoStock.objects.create(
+                    empresa=compra.empresa,
                     producto=detalle.producto,
                     tipo='SALIDA',
                     origen='DEVOLUCION',
                     cantidad=detalle.cantidad,
-                    stock_anterior=detalle.producto.stock_actual,
                     precio_unitario=detalle.precio_compra,
-                    precio_compra_anterior=detalle.producto.precio_compra,
-                    precio_compra_nuevo=detalle.producto.precio_compra,
-                    precio_venta_anterior=detalle.producto.precio_venta,
-                    precio_venta_nuevo=detalle.producto.precio_venta,
-                    referencia=f"Cancelación Compra {compra.numero_comprobante or compra.id}"
+                    referencia=f"Cancelacion de Compra #{compra.id}"
                 )
 
         estado_anterior = compra.estado
