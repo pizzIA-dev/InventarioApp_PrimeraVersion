@@ -210,9 +210,19 @@ class VentaViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        venta.revertir_stock()
+        # Guardar estado anterior antes de modificar
+        estado_anterior = venta.estado
 
-        HistorialEstadoVenta.objects.create(
+        # Solo revertir stock si la venta estaba CONFIRMADA
+        if venta.estado == 'CONFIRMADA':
+            venta.revertir_stock()
+
+        # Actualizar estado de la venta
+        venta.estado = 'CANCELADA'
+        venta.save(update_fields=['estado'])
+
+        from .models import MovimientoEstadoVenta
+        MovimientoEstadoVenta.objects.create(
             venta=venta,
             estado_anterior=estado_anterior,
             estado_nuevo='CANCELADA',
