@@ -96,18 +96,15 @@ class Fiado(models.Model):
         """Devuelve el stock de los productos al inventario si se cancela o elimina el fiado"""
         if self.tipo == 'PRODUCTO':
             for detalle in self.detalles_producto.all():
+                # MovimientoStock.save() actualiza el stock atomicamente
                 MovimientoStock.objects.create(
+                    empresa=self.empresa,
                     producto=detalle.producto,
                     tipo='ENTRADA',
                     origen='DEVOLUCION',
                     cantidad=detalle.cantidad,
-                    stock_anterior=detalle.producto.stock_actual,
                     precio_unitario=detalle.precio_unidad,
-                    precio_compra_anterior=detalle.producto.precio_compra,
-                    precio_compra_nuevo=detalle.producto.precio_compra,
-                    precio_venta_anterior=detalle.producto.precio_venta,
-                    precio_venta_nuevo=detalle.producto.precio_venta,
-                    referencia=f"Reversión de stock por eliminación/cancelación de Fiado #{self.id}"
+                    referencia=f"Reversion de stock por cancelacion de Fiado #{self.id}"
                 )
 
     def reactivar(self):

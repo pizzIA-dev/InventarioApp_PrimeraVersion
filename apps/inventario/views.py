@@ -52,24 +52,31 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         return ProductoSerializer
     
     def perform_create(self, serializer):
-        # Save the product
+        # Save the product (stock_actual = stock_inicial from serializer)
         instance = serializer.save()
         
-        # Create the initial movement
-        MovimientoStock.objects.create(
-            producto=instance,
-            tipo='ENTRADA',
-            origen='AJUSTE',
-            cantidad=instance.stock_actual,
-            stock_anterior=0,
-            stock_nuevo=instance.stock_actual,
-            precio_compra_anterior=0,
-            precio_compra_nuevo=instance.precio_compra,
-            precio_venta_anterior=0,
-            precio_venta_nuevo=instance.precio_venta,
-            activo_nuevo=instance.activo,
-            notas="Registro inicial del producto"
-        )
+        # Only register initial stock movement if stock > 0
+        # NOTE: MovimientoStock.save() atomically sets stock via DB update.
+        # To avoid double-counting, we temporarily reset stock to 0 so the 
+        # movement sets it to stock_inicial correctly.
+        if instance.stock_actual and instance.stock_actual > 0:
+            stock_inicial = instance.stock_actual
+            # Reset to 0 so MovimientoStock.save() can set it correctly via ENTRADA
+            from apps.inventario.models import Producto as _Prod
+            _Prod.objects.filter(pk=instance.pk).update(stock_actual=0)
+            MovimientoStock.objects.create(
+                empresa=instance.empresa,
+                producto=instance,
+                tipo='ENTRADA',
+                origen='AJUSTE',
+                cantidad=stock_inicial,
+                precio_compra_anterior=0,
+                precio_compra_nuevo=instance.precio_compra,
+                precio_venta_anterior=0,
+                precio_venta_nuevo=instance.precio_venta,
+                activo_nuevo=instance.activo,
+                notas="Registro inicial del producto"
+            )
 
     def perform_destroy(self, instance):
         instance.activo = False
@@ -293,6 +300,17 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def exportar(self, request):
         """Exportar productos a Excel con filtro de período"""
+        # === DEBUG START ===
+        try:
+            from apps.core.export_utils import create_excel_response as _ce
+            _test_qs = Producto.objects.all()[:1]
+            list(_test_qs)  # Force evaluation
+            _buf = _ce('t.xlsx', 'T', ['H'], [['V']], 'T', 'P')
+        except Exception as _debug_e:
+            import traceback as _tb
+            from rest_framework.response import Response as _Resp
+            return _Resp({'err': str(_debug_e), 'tb': _tb.format_exc()}, status=500)
+        # === DEBUG END ===
         periodo = request.query_params.get('periodo', 'todo')
         anio = request.query_params.get('anio')
         anio = int(anio) if anio else None
