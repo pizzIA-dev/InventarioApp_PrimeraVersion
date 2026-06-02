@@ -258,22 +258,33 @@ export const usuariosAPI = {
   crear: (data) => api.post('/auth/usuarios/crear/', data),
   toggle: (id) => api.patch(`/auth/usuarios/${id}/toggle/`),
   cambiarPassword: (id, data) => api.put(`/auth/usuarios/${id}/password/`, data),
-  asignarAlmacen: (id, almacenId) => api.patch(`/auth/usuarios/${id}/asignar-almacen/`, { almacen_id: almacenId }),
 };
 
 export const rolesAPI = {
-  listar: () => api.get('/auth/roles/'),
-  crear: (data) => api.post('/auth/roles/', data),
-  actualizar: (id, data) => api.put(`/auth/roles/${id}/`, data),
-  eliminar: (id) => api.delete(`/auth/roles/${id}/`),
+  listar: () => api.get('/core/roles/'),
+  crear: (data) => api.post('/core/roles/', data),
+  actualizar: (id, data) => api.put(`/core/roles/${id}/`, data),
+  eliminar: (id) => api.delete(`/core/roles/${id}/`),
 };
 
 
 export const backupsAPI = {
-  generar: () => api.post('/backups/generar/'),
-  listar: () => api.get('/backups/listar/'),
-  descargar: (filename) => api.get(`/backups/descargar/?filename=${filename}`, { responseType: 'blob' }),
-  restaurar: (data) => api.post('/backups/restaurar/', data),
+  // Configuracion de backups automaticos
+  getConfig:  () => api.get('/core/backup-config/'),
+  saveConfig: (data) => api.post('/core/backup-config/', data),
+  // Lista de backups guardados
+  listar: () => api.get('/core/backups/'),
+  // Restaurar desde un backup existente
+  restaurar: (data) => api.post('/core/backups/restore/', data),
+};
+
+
+// Core / Empresa
+export const coreAPI = {
+  ensureDefaults: () => api.post('/core/ensure-defaults/'),
+  actualizarEmpresa: (data) => api.patch('/core/empresa/update/', data, {
+    headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+  }),
 };
 
 export default api;

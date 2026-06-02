@@ -235,3 +235,28 @@ def cambiar_password(request, user_id):
     return Response({'detail': 'Contrase├▒a actualizada correctamente.'})
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def ensure_defaults_view(request):
+    """
+    Crea el Cliente General y Proveedor General para la empresa del tenant
+    si no existen todavia. Operacion idempotente y segura de llamar multiples veces.
+    Accesible para cualquier usuario autenticado (operacion inofensiva).
+    """
+    try:
+        perfil = getattr(request.user, 'perfil', None)
+        if not perfil or not perfil.empresa:
+            return Response(
+                {'status': 'error', 'message': 'No se encontro la empresa del usuario.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        from apps.core.signals import ensure_defaults_for_empresa
+        ensure_defaults_for_empresa(perfil.empresa)
+        return Response({'status': 'ok', 'message': 'Cliente y Proveedor General asegurados.'})
+    except Exception as e:
+        logger.warning(f"ensure_defaults_view error: {e}")
+        return Response(
+            {'status': 'error', 'message': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
