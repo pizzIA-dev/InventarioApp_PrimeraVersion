@@ -304,6 +304,14 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
+        try:
+            _debug_test = self.filter_queryset(self.get_queryset()).first()
+            _debug_test2 = create_excel_response('test.xlsx', 'Test', ['Col1'], [['val1']], 'Title', 'Period')
+        except Exception as _e:
+            import traceback
+            from rest_framework.response import Response
+            return Response({'debug_error': str(_e), 'traceback': traceback.format_exc()}, status=500)
+        
         headers = ['ID', 'Código', 'Nombre', 'Categoría', 'Stock Actual', 'Precio Compra (S/.)', 'Precio Venta (S/.)', 'Activo', 'Fecha Creación', 'Última Modificación', 'Responsable']
         rows = []
         for obj in queryset:
