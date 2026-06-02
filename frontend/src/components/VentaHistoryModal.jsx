@@ -130,7 +130,7 @@ const VentaHistoryModal = ({ visible, onClose, venta, isServicio = false }) => {
                 Exportar Excel
               </button>
             )}
-            <button className="modal-close" onClick={onClose}>×</button>
+            <button className="modal-close" onClick={onClose}><CloseOutlined /></button>
           </div>
         </div>
         

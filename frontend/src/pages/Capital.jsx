@@ -609,7 +609,7 @@ function Capital() {
               <h3 className="modal-title">
                 {modalMode === 'create' ? 'Nuevo Capital' : 'Editar Capital'}
               </h3>
-              <button className="modal-close" onClick={closeModal}>×</button>
+              <button className="modal-close" onClick={closeModal}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
@@ -795,7 +795,7 @@ function Capital() {
               <button className="modal-close" onClick={() => {
                 setTipoModalVisible(false);
                 resetTipoForm();
-              }}>×</button>
+              }}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleTipoSubmit}>
               <div className="modal-body">
@@ -975,7 +975,7 @@ function Capital() {
                 <button className="btn btn-secondary" onClick={handleKardexExport} style={{ padding: '4px 12px', fontSize: '12px' }}>
                   Exportar Excel
                 </button>
-                <button className="modal-close" onClick={closeKardex}>x</button>
+                <button className="modal-close" onClick={closeKardex}><CloseOutlined /></button>
               </div>
             </div>
 

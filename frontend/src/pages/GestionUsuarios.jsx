@@ -206,7 +206,7 @@ function GestionUsuarios() {
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px', width: '90%' }}>
             <div className="modal-header">
               <h3 className="modal-title"><PlusOutlined /> Crear Nuevo Vendedor</h3>
-              <button className="modal-close" onClick={() => setShowCrear(false)}>Ã—</button>
+              <button className="modal-close" onClick={() => setShowCrear(false)}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleCrear}>
               <div className="modal-body">
@@ -274,7 +274,7 @@ function GestionUsuarios() {
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', width: '90%' }}>
             <div className="modal-header">
               <h3 className="modal-title"><KeyOutlined /> Cambiar Contraseña</h3>
-              <button className="modal-close" onClick={() => setShowPassword(false)}>Ã—</button>
+              <button className="modal-close" onClick={() => setShowPassword(false)}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleCambiarPassword}>
               <div className="modal-body">

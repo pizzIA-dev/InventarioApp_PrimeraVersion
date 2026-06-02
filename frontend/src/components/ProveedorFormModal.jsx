@@ -152,7 +152,7 @@ const ProveedorFormModal = ({ visible, mode = 'create', initialData = null, onCl
           <h3 className="modal-title">
             {mode === 'create' ? 'Nuevo Proveedor' : 'Editar Proveedor'}
           </h3>
-          <button className="modal-close" onClick={onClose} disabled={isSubmitting}>×</button>
+          <button className="modal-close" onClick={onClose} disabled={isSubmitting}><CloseOutlined /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-body">

@@ -244,14 +244,16 @@ def ensure_defaults_view(request):
     Accesible para cualquier usuario autenticado (operacion inofensiva).
     """
     try:
-        perfil = getattr(request.user, 'perfil', None)
-        if not perfil or not perfil.empresa:
+        # Obtener la empresa del tenant actual (esquema ya activado por middleware)
+        from apps.core.models import Empresa
+        empresa = Empresa.objects.first()
+        if not empresa:
             return Response(
-                {'status': 'error', 'message': 'No se encontro la empresa del usuario.'},
+                {'status': 'error', 'message': 'No se encontro la empresa del tenant.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         from apps.core.signals import ensure_defaults_for_empresa
-        ensure_defaults_for_empresa(perfil.empresa)
+        ensure_defaults_for_empresa(empresa)
         return Response({'status': 'ok', 'message': 'Cliente y Proveedor General asegurados.'})
     except Exception as e:
         logger.warning(f"ensure_defaults_view error: {e}")

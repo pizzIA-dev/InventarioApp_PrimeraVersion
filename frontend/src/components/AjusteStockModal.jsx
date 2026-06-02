@@ -75,7 +75,7 @@ const AjusteStockModal = ({ visible, onClose, producto, onSubmit }) => {
           <h3 className="modal-title" style={{ color: 'var(--danger-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <WarningOutlined /> Ajuste de Inventario
           </h3>
-          <button className="modal-close" onClick={onClose} disabled={saving}>×</button>
+          <button className="modal-close" onClick={onClose} disabled={saving}><CloseOutlined /></button>
         </div>
         
         <form onSubmit={handleSubmit}>

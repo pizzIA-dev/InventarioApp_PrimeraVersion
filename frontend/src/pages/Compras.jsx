@@ -895,7 +895,7 @@ function Compras() {
               <h3 className="modal-title">
                 {modalMode === 'create' ? 'Nueva Compra' : 'Editar Compra'}
               </h3>
-              <button className="modal-close" onClick={closeModal}>×</button>
+              <button className="modal-close" onClick={closeModal}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
@@ -943,7 +943,7 @@ function Compras() {
                         }}
                         placeholder="Buscar proveedor..."
                         onActionClick={() => openNestedModal('proveedor')}
-                        actionLabel="➕ Crear Nuevo Proveedor"
+                        actionLabel="<PlusOutlined /> Crear Nuevo Proveedor"
                         error={errors.proveedor}
                       />
                       {formData.proveedor && !proveedores.find(p => String(p.id) === String(formData.proveedor))?.activo && (
@@ -1038,7 +1038,7 @@ function Compras() {
                               setNestedModalIndex(index);
                               setProductModalVisible(true);
                             }}
-                            actionLabel="➕ Nuevo Producto"
+                            actionLabel="<PlusOutlined /> Nuevo Producto"
                             error={errors[`detalle_${index}`]}
                           />
                         </div>
@@ -1214,7 +1214,7 @@ function Compras() {
         <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
           <div className="modal-header">
             <h3 className="modal-title">Cancelar Compra</h3>
-            <button className="modal-close" onClick={closeCancelModal}>&times;</button>
+            <button className="modal-close" onClick={closeCancelModal}><CloseOutlined /></button>
           </div>
           <div className="modal-body">
             <div className="cancel-reason-options">

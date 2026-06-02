@@ -463,7 +463,7 @@ function Proveedores() {
                 <button className="btn btn-secondary" onClick={handleExportHistorialIndividual} style={{ padding: '4px 12px', fontSize: '12px' }}>
                   Exportar Excel
                 </button>
-                <button className="modal-close" onClick={closeHistoryModal}>x</button>
+                <button className="modal-close" onClick={closeHistoryModal}><CloseOutlined /></button>
               </div>
             </div>
             

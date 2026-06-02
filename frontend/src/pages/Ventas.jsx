@@ -1042,22 +1042,33 @@ function Ventas() {
       </div>
 
       
-      <div className="card" style={{ marginBottom: '24px', padding: 0, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', borderBottom: '1px solid #eee' }}>
-          <button 
-            style={{ flex: 1, padding: '16px', fontSize: '16px', background: activeTab === 'PRODUCTOS' ? '#ffffff' : '#fafafa', border: 'none', borderBottom: activeTab === 'PRODUCTOS' ? '2px solid #1890ff' : '2px solid transparent', fontWeight: activeTab === 'PRODUCTOS' ? 'bold' : 'normal', color: activeTab === 'PRODUCTOS' ? '#1890ff' : '#666', cursor: 'pointer', transition: 'all 0.3s' }}
-            onClick={() => setActiveTab('PRODUCTOS')}
-          >
-            Venta de Productos
-          </button>
-          <button 
-            style={{ flex: 1, padding: '16px', fontSize: '16px', background: activeTab === 'SERVICIOS' ? '#ffffff' : '#fafafa', border: 'none', borderBottom: activeTab === 'SERVICIOS' ? '2px solid #1890ff' : '2px solid transparent', fontWeight: activeTab === 'SERVICIOS' ? 'bold' : 'normal', color: activeTab === 'SERVICIOS' ? '#1890ff' : '#666', cursor: 'pointer', transition: 'all 0.3s' }}
-            onClick={() => setActiveTab('SERVICIOS')}
-          >
-            Venta de Servicios
-          </button>
-        </div>
-      </div>
+      {/* Tabs con diseño igual a Compras */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={(key) => setActiveTab(key)}
+        size="large"
+        tabBarStyle={{ marginBottom: 24 }}
+        items={[
+          {
+            key: 'PRODUCTOS',
+            label: (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <ShoppingCartOutlined />
+                Venta de Productos
+              </span>
+            ),
+          },
+          {
+            key: 'SERVICIOS',
+            label: (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <ToolOutlined />
+                Venta de Servicios
+              </span>
+            ),
+          },
+        ]}
+      />
 
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -1338,7 +1349,7 @@ function Ventas() {
               <h3 className="modal-title">
                 {modalMode === 'create' ? 'Nueva Venta' : modalMode === 'edit' ? 'Editar Venta' : modalMode === 'venta' ? 'Nueva Venta de Servicio' : 'Editar Venta de Servicio'}
               </h3>
-              <button className="modal-close" onClick={closeModal}>Ã—</button>
+              <button className="modal-close" onClick={closeModal}><CloseOutlined /></button>
             </div>
             <form onSubmit={modalMode === 'venta' || modalMode === 'editVenta' ? handleVentaSubmit : handleSubmit}>
               
@@ -1820,7 +1831,7 @@ function Ventas() {
               <h3 className="modal-title">
                 Crear Nuevo {nestedModal === 'servicio' ? 'Servicio' : ''}
               </h3>
-              <button className="modal-close" onClick={() => setNestedModal(null)}>Ã—</button>
+              <button className="modal-close" onClick={() => setNestedModal(null)}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleNestedSubmit} style={{ padding: '20px' }}>
               {nestedModal === 'servicio' && (
@@ -1921,7 +1932,7 @@ function Ventas() {
             `}</style>
             <div className="modal-header">
               <h3 className="modal-title">Detalle de {selectedVentaForDetail.isService ? 'Servicio' : 'Venta'} #{selectedVentaForDetail.id}</h3>
-              <button className="modal-close" onClick={closeDetailModal}>Ã—</button>
+              <button className="modal-close" onClick={closeDetailModal}><CloseOutlined /></button>
             </div>
             <div className="modal-body" style={{ padding: "24px" }}>
               <div className="grid grid-2" style={{ marginBottom: "24px", background: "var(--bg-body)", padding: "16px", borderRadius: "8px", border: "1px solid var(--border-color)" }}>

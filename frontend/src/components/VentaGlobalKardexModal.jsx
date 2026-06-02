@@ -95,7 +95,7 @@ const VentaGlobalKardexModal = ({ visible, onClose }) => {
               Historial detallado de todas las salidas de productos por venta
             </p>
           </div>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <button className="modal-close" onClick={onClose}><CloseOutlined /></button>
         </div>
         
         <div className="modal-body">

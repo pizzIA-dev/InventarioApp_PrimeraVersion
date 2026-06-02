@@ -6,7 +6,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import CategoryManagerModal from '../components/transacciones/CategoryManagerModal';
 import LoadingScreen from '../components/LoadingScreen';
-import { message } from 'antd';
+import { message, Tabs} from 'antd';
 
 function Transacciones() {
   const [loading, setLoading] = useState(true);
@@ -584,42 +584,39 @@ function Transacciones() {
         </div>
       )}
 
-      {/* â”€â”€ Tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <div className="card" style={{ marginBottom: '24px', padding: 0, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color, #eee)' }}>
-          <button
-            style={{
-              flex: 1, padding: '16px', fontSize: '15px', fontWeight: activeTab === 'INGRESO' ? 'bold' : 'normal',
-              background: activeTab === 'INGRESO' ? 'var(--bg-card, #fff)' : 'var(--bg-secondary, #fafafa)',
-              border: 'none', borderBottom: activeTab === 'INGRESO' ? '2px solid #52c41a' : '2px solid transparent',
-              color: activeTab === 'INGRESO' ? '#52c41a' : 'var(--text-secondary, #666)',
-              cursor: 'pointer', transition: 'all 0.3s',
-            }}
-            onClick={() => handleTabChange('INGRESO')}
-          >
-            <ArrowUpOutlined /> Ingresos No Operativos
-            <span style={{ marginLeft: '8px', fontSize: '12px', background: activeTab === 'INGRESO' ? '#f6ffed' : '#f0f0f0', color: activeTab === 'INGRESO' ? '#52c41a' : '#888', borderRadius: '10px', padding: '1px 8px' }}>
-              {filteredIngresos.length}
-            </span>
-          </button>
-          <button
-            style={{
-              flex: 1, padding: '16px', fontSize: '15px', fontWeight: activeTab === 'EGRESO' ? 'bold' : 'normal',
-              background: activeTab === 'EGRESO' ? 'var(--bg-card, #fff)' : 'var(--bg-secondary, #fafafa)',
-              border: 'none', borderBottom: activeTab === 'EGRESO' ? '2px solid #ff4d4f' : '2px solid transparent',
-              color: activeTab === 'EGRESO' ? '#ff4d4f' : 'var(--text-secondary, #666)',
-              cursor: 'pointer', transition: 'all 0.3s',
-            }}
-            onClick={() => handleTabChange('EGRESO')}
-          >
-            <ArrowDownOutlined /> Gastos
-            <span style={{ marginLeft: '8px', fontSize: '12px', background: activeTab === 'EGRESO' ? '#fff1f0' : '#f0f0f0', color: activeTab === 'EGRESO' ? '#ff4d4f' : '#888', borderRadius: '10px', padding: '1px 8px' }}>
-              {filteredEgresos.length}
-            </span>
-          </button>
-        </div>
-      </div>
-
+      {/* Tabs — Ant Design (igual a Compras) */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={(key) => handleTabChange(key)}
+        size="large"
+        tabBarStyle={{ marginBottom: 24 }}
+        items={[
+          {
+            key: 'INGRESO',
+            label: (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ArrowUpOutlined style={{ color: '#52c41a' }} />
+                Ingresos No Operativos
+                <span style={{ fontSize: 11, fontWeight: 700, background: activeTab === 'INGRESO' ? '#f6ffed' : 'var(--bg-table-header)', color: activeTab === 'INGRESO' ? '#52c41a' : 'var(--text-muted)', borderRadius: 99, padding: '1px 7px' }}>
+                  {filteredIngresos.length}
+                </span>
+              </span>
+            ),
+          },
+          {
+            key: 'EGRESO',
+            label: (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ArrowDownOutlined style={{ color: '#ff4d4f' }} />
+                Gastos
+                <span style={{ fontSize: 11, fontWeight: 700, background: activeTab === 'EGRESO' ? '#fff1f0' : 'var(--bg-table-header)', color: activeTab === 'EGRESO' ? '#ff4d4f' : 'var(--text-muted)', borderRadius: 99, padding: '1px 7px' }}>
+                  {filteredEgresos.length}
+                </span>
+              </span>
+            ),
+          },
+        ]}
+      />
       {/* â”€â”€ Filter Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -776,7 +773,7 @@ function Transacciones() {
                   ? (activeTab === 'INGRESO' ? 'Registrar Nuevo Ingreso' : 'Registrar Nuevo Gasto')
                   : (formData.tipo === 'INGRESO' ? 'Editar Ingreso' : 'Editar Gasto')}
               </h3>
-              <button className="modal-close" onClick={closeModal}>Ã—</button>
+              <button className="modal-close" onClick={closeModal}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
@@ -928,7 +925,7 @@ function Transacciones() {
               <h3 className="modal-title">
                 Gestionar Categorías "” {activeTab === 'INGRESO' ? 'Ingresos No Operativos' : 'Gastos'}
               </h3>
-              <button className="modal-close" onClick={() => { setCatModalVisible(false); resetCatForm(); }}>Ã—</button>
+              <button className="modal-close" onClick={() => { setCatModalVisible(false); resetCatForm(); }}><CloseOutlined /></button>
             </div>
             <div className="modal-body">
               {/* Form */}
@@ -1120,7 +1117,7 @@ function Transacciones() {
                 <button className="btn btn-secondary" onClick={handleKardexExport} style={{ padding: '4px 12px', fontSize: '12px' }}>
                   Exportar Excel
                 </button>
-                <button className="modal-close" onClick={closeKardex}>x</button>
+                <button className="modal-close" onClick={closeKardex}><CloseOutlined /></button>
               </div>
             </div>
 
@@ -1257,7 +1254,7 @@ function Transacciones() {
                 <button className="btn btn-secondary" onClick={handleAuditExport} style={{ padding: '4px 12px', fontSize: '12px' }}>
                   Exportar Excel
                 </button>
-                <button className="modal-close" onClick={closeAudit}>x</button>
+                <button className="modal-close" onClick={closeAudit}><CloseOutlined /></button>
               </div>
             </div>
 

@@ -117,7 +117,7 @@ const ClienteFormModal = ({ visible, mode, initialData, onClose, onSave }) => {
           <h3 className="modal-title">
             {mode === 'create' ? 'Nuevo Cliente' : 'Editar Cliente'}
           </h3>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <button className="modal-close" onClick={onClose}><CloseOutlined /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-body">

@@ -225,30 +225,38 @@ function Layout() {
 
       <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`} style={{ display: 'flex', flexDirection: 'column' }}>
 
-        {/* Sidebar Header — NegocIA + business name */}
+        {/* Sidebar Header — Business name GRANDE, NegocIA como badge pequeño */}
         <div className="sidebar-header">
           {collapsed && !mobileMenuOpen ? (
             <div style={{ textAlign: 'center' }}>
-              <div style={{
-                fontSize: 18, fontWeight: 900, letterSpacing: '-0.02em',
-                background: 'linear-gradient(135deg, #1677ff, #00f0ff)',
-                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                lineHeight: 1,
-              }}>N</div>
+              <span style={{
+                fontSize: 18, fontWeight: 900,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
+              }}>
+                {(empresaNombre || 'N')[0].toUpperCase()}
+              </span>
             </div>
           ) : (
             <div>
+              {/* Nombre del negocio — principal y prominente */}
               <div style={{
-                fontSize: 20, fontWeight: 900, letterSpacing: '-0.03em',
-                background: 'linear-gradient(135deg, #1677ff, #00b4d8)',
-                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-                lineHeight: 1.1, marginBottom: 4,
-              }}>NegocIA</div>
-              <div style={{
-                fontSize: 12, fontWeight: 500,
-                color: 'var(--text-muted)', overflow: 'hidden',
-                textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                fontSize: 19, fontWeight: 800,
+                color: 'var(--text-primary)',
+                lineHeight: 1.1, marginBottom: 6,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>{empresaNombre}</div>
+              {/* NegocIA — badge pequeño debajo */}
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+                color: '#1677ff',
+                background: 'rgba(22, 119, 255, 0.1)',
+                border: '1px solid rgba(22, 119, 255, 0.25)',
+                borderRadius: 99, padding: '2px 8px',
+              }}>
+                ✦ NegocIA
+              </div>
             </div>
           )}
         </div>
