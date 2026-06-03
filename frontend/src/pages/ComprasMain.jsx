@@ -12,46 +12,46 @@ const Loader = () => (
   </div>
 );
 
-const TAB_ITEMS = [
-  {
-    key: 'productos',
-    label: (
-      <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-        <ContainerOutlined />
-        Compra de Productos
-      </span>
-    ),
-    children: (
-      <Suspense fallback={<Loader />}>
-        <ComprasProductos />
-      </Suspense>
-    ),
-  },
-  {
-    key: 'servicios',
-    label: (
-      <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-        <ToolOutlined />
-        Compra de Servicios
-      </span>
-    ),
-    children: (
-      <Suspense fallback={<Loader />}>
-        <ComprasServicios />
-      </Suspense>
-    ),
-  },
-];
-
 function ComprasMain() {
   const [activeTab, setActiveTab] = useState('productos');
+
+  const tabItems = [
+    {
+      key: 'productos',
+      label: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <ContainerOutlined />
+          Compra de Productos
+        </span>
+      ),
+      children: (
+        <Suspense fallback={<Loader />}>
+          <ComprasProductos />
+        </Suspense>
+      ),
+    },
+    {
+      key: 'servicios',
+      label: (
+        <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <ToolOutlined />
+          Compra de Servicios
+        </span>
+      ),
+      children: (
+        <Suspense fallback={<Loader />}>
+          <ComprasServicios />
+        </Suspense>
+      ),
+    },
+  ];
 
   return (
     <div>
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
-        items={TAB_ITEMS}
+        items={tabItems}
         size="large"
         tabBarStyle={{ marginBottom: 20 }}
         destroyInactiveTabPane={false}
