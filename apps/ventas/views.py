@@ -689,12 +689,6 @@ class VentaViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         )
 
 
-    @action(detail=False, methods=['get'])
-    def debug_test(self, request):
-        """Simple debug action to test @action routing"""
-        from rest_framework.response import Response
-        return Response({'status': 'ok', 'user': request.user.username, 'auth': 'jwt'})
-
 class DetalleVentaViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = DetalleVenta.objects.all().select_related('producto', 'venta')
     serializer_class = DetalleVentaSerializer
