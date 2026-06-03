@@ -1405,7 +1405,7 @@ function Ventas() {
                               }
                             }}
                           >
-                            ‘¤ Cliente General
+                            Cliente General
                           </button>
                         </div>
                         <SearchableSelect
@@ -1582,7 +1582,7 @@ function Ventas() {
                           }
                         }}
                       >
-                        ‘¤ Cliente General
+                        Cliente General
                       </button>
                     </div>
                     <SearchableSelect
