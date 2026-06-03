@@ -270,12 +270,18 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([])
 def seed_compras_servicios_view(request):
     """
     Endpoint temporal para crear datos de ejemplo de Compra de Servicios.
     Solo crea si no existen registros todavia.
+    Solo disponible con la clave secreta correcta.
     """
+    # Simple secret check:
+    secret = request.data.get('secret') or request.query_params.get('secret', '')
+    if secret != 'negocia-seed-2024':
+        from rest_framework import status
+        return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
     import random
     import datetime
     from decimal import Decimal
