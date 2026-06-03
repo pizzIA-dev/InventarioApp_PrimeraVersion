@@ -778,7 +778,6 @@ function Compras() {
                 <th>Proveedor</th>
                 <th style={{ textAlign: 'center' }}>Productos</th>
                 <th style={{ width: '100px', textAlign: 'center' }}>Archivo</th>
-                <th>Almacén</th>
                   <th>Estado</th>
                 <th>Total</th>
                 <th style={{ width: '100px' }}>Acciones</th>
