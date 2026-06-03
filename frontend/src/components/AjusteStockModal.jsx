@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { WarningOutlined, SelectOutlined } from '@ant-design/icons';
+import { WarningOutlined, SelectOutlined, CloseOutlined} from '@ant-design/icons';
 
 const AjusteStockModal = ({ visible, onClose, producto, onSubmit }) => {
   const { isGerente, user } = useContext(AuthContext);

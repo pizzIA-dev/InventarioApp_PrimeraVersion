@@ -1,3 +1,4 @@
+import { CloseOutlined } from '@ant-design/icons';
 import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { productosAPI, categoriasAPI } from '../services/api';
 import { AuthContext } from '../context/AuthContext';

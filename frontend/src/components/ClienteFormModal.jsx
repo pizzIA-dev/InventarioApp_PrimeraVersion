@@ -1,3 +1,4 @@
+import { CloseOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 
 const ClienteFormModal = ({ visible, mode, initialData, onClose, onSave }) => {

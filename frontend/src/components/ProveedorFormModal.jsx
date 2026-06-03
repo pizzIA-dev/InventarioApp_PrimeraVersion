@@ -1,3 +1,4 @@
+import { CloseOutlined } from '@ant-design/icons';
 import React, { useState, useEffect } from 'react';
 import { proveedoresAPI } from '../services/api';
 
