@@ -6,7 +6,7 @@ import {
   DeleteOutlined, 
   HistoryOutlined, 
   FileExcelOutlined,
-  SettingOutlined, CloseOutlined} from '@ant-design/icons';
+  SettingOutlined, CloseOutlined } from '@ant-design/icons';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';

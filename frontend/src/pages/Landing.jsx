@@ -3,8 +3,7 @@ import { Button, Card, Col, Row, Typography, Input, Form, message, Upload, Spin 
 import {
   RocketOutlined, TrophyOutlined, CheckCircleOutlined,
   MailOutlined, PhoneOutlined, UploadOutlined, ArrowRightOutlined,
-  LockOutlined, ShopOutlined, LoginOutlined, LoadingOutlined,
-} from '@ant-design/icons';
+  LockOutlined, ShopOutlined, LoginOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import NegocIALogo from '../components/NegocIALogo';
 import { AuthContext } from '../context/AuthContext';

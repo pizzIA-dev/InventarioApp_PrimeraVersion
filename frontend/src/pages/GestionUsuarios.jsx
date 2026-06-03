@@ -8,7 +8,7 @@ import {
   CheckCircleOutlined,
   StopOutlined,
   KeyOutlined,
-  TeamOutlined,, CloseOutlined} from '@ant-design/icons';
+  TeamOutlined, CloseOutlined } from '@ant-design/icons';
 
 function GestionUsuarios() {
   const { isGerente } = useContext(AuthContext);

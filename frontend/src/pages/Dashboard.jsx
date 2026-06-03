@@ -1,8 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import { reportesAPI, productosAPI, serviciosAPI, coreAPI } from '../services/api';
 import { 
-  WarningOutlined,
-} from '@ant-design/icons';
+  WarningOutlined } from '@ant-design/icons';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import LoadingScreen from '../components/LoadingScreen';
 import { AuthContext } from '../context/AuthContext';

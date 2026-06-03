@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { productosAPI, categoriasAPI } from '../services/api';
-import { PlusOutlined, EditOutlined, DeleteOutlined, HistoryOutlined, CloseOutlined} from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, HistoryOutlined, CloseOutlined } from '@ant-design/icons';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
