@@ -205,21 +205,21 @@ function Dashboard() {
         </div>
 
         <div className="stat-card orange">
-          <div className="stat-label">Compras del Periodo</div>
+          <div className="stat-label">Egresos del Periodo</div>
           <div className="stat-value">
-            S/. {Number(dashboardData?.compras?.total_mes || 0).toFixed(2)}
+            S/. {Number(dashboardData?.balance?.egresos_mes || 0).toFixed(2)}
           </div>
           <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.85)', marginTop: '8px' }}>
-            {dashboardData?.compras?.cantidad_compras || 0} compras a proveedores
+            {dashboardData?.compras?.cantidad_compras || 0} compras · incl. gastos
           </div>
         </div>
 
-        <div className="stat-card green">
+        <div className={`stat-card ${(dashboardData?.balance?.balance_mes || 0) >= 0 ? 'green' : 'stat-card-red'}`}>
           <div className="stat-label">Balance del Periodo</div>
           <div className="stat-value">
             S/. {Number(dashboardData?.balance?.balance_mes || 0).toFixed(2)}
           </div>
-          <div className="stat-label">
+          <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.85)', marginTop: '8px' }}>
             {dashboardData?.balance?.estado || 'EQUILIBRIO'}
           </div>
         </div>
@@ -229,8 +229,8 @@ function Dashboard() {
           <div className="stat-value">
             {dashboardData?.clientes?.total || 0}
           </div>
-          <div className="stat-label">
-            {dashboardData?.proveedores?.total || 0} proveedores
+          <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.85)', marginTop: '8px' }}>
+            {dashboardData?.proveedores?.total || 0} Proveedores registrados
           </div>
         </div>
 
