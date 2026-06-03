@@ -264,7 +264,7 @@ class TransaccionViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         ingresos = queryset.filter(tipo='INGRESO')
         rows_ingresos = []
         for obj in ingresos:
-            usuario_str = f"{obj.usuario.get_full_name() or obj.usuario.username} ({obj.usuario.perfil.get_rol_display() if hasattr(obj.usuario, 'perfil') else '-'})" if obj.usuario else "Sistema"
+            usuario_str = "-"  # Transaccion model has no usuario field
             rows_ingresos.append([
                 obj.id,
                 obj.creado_en.strftime("%d/%m/%Y %H:%M:%S") if obj.creado_en else '',
@@ -280,7 +280,7 @@ class TransaccionViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         egresos = queryset.filter(tipo='EGRESO')
         rows_egresos = []
         for obj in egresos:
-            usuario_str = f"{obj.usuario.get_full_name() or obj.usuario.username} ({obj.usuario.perfil.get_rol_display() if hasattr(obj.usuario, 'perfil') else '-'})" if obj.usuario else "Sistema"
+            usuario_str = "-"  # Transaccion model has no usuario field
             rows_egresos.append([
                 obj.id,
                 obj.creado_en.strftime("%d/%m/%Y %H:%M:%S") if obj.creado_en else '',
