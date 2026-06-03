@@ -942,7 +942,7 @@ function Compras() {
                         }}
                         placeholder="Buscar proveedor..."
                         onActionClick={() => openNestedModal('proveedor')}
-                        actionLabel={<><PlusOutlined /> Crear Nuevo Proveedor</>}
+                        actionLabel="Crear Nuevo Proveedor"
                         error={errors.proveedor}
                       />
                       {formData.proveedor && !proveedores.find(p => String(p.id) === String(formData.proveedor))?.activo && (
@@ -1037,7 +1037,7 @@ function Compras() {
                               setNestedModalIndex(index);
                               setProductModalVisible(true);
                             }}
-                            actionLabel={<><PlusOutlined /> Nuevo Producto</>}
+                            actionLabel="Nuevo Producto"
                             error={errors[`detalle_${index}`]}
                           />
                         </div>

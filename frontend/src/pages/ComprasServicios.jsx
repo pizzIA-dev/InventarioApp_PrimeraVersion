@@ -338,7 +338,7 @@ export default function ComprasServicios() {
                       onChange={val => setForm(f => ({ ...f, servicio: val }))}
                       placeholder="Buscar servicio..."
                       onActionClick={() => setServicioModalVisible(true)}
-                      actionLabel={<><span style={{marginRight:4}}>+</span> Nuevo Servicio</>}
+                      actionLabel="Nuevo Servicio"
                       error={errors.servicio}
                     />
                     {errors.servicio && <div style={{ color: 'var(--color-danger)', fontSize: '12px', marginTop: '4px' }}>{errors.servicio}</div>}
