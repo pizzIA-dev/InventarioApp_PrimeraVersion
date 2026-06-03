@@ -7,7 +7,7 @@ from django.views.decorators.http import require_GET
 def health_check(request):
     return JsonResponse({'status': 'ok', 'service': 'NegocIA API'})
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework.routers import DefaultRouter
@@ -29,7 +29,7 @@ urlpatterns = [
     path('api/core/', include(router.urls)),
     path('api/auth/me/', my_profile, name='my_profile'),
     # Tenant-aware routes: /t/{schema}/api/
-    path('t/<str:t_slug>/api/', include('config.tenant_urls')),
+    re_path(r'^t/[^/]+/api/', include('config.tenant_urls')),
     path('api/public/', include('apps.clientes_saas.urls')),
     path('api/public/', include('apps.suscripciones.urls')),
     path('api/auth/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
