@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { transaccionesAPI } from '../services/api';
-import { PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, EditOutlined, DeleteOutlined, SettingOutlined, HistoryOutlined, CloseOutlined } from '@ant-design/icons';
+import { PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, EditOutlined, DeleteOutlined, SettingOutlined, HistoryOutlined } from '@ant-design/icons';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import CategoryManagerModal from '../components/transacciones/CategoryManagerModal';
 import LoadingScreen from '../components/LoadingScreen';
-import { message, Tabs} from 'antd';
+import { message } from 'antd';
 
 function Transacciones() {
   const [loading, setLoading] = useState(true);
@@ -121,22 +121,22 @@ function Transacciones() {
   const handleCatSubmit = async (e) => {
     e.preventDefault();
     if (!catFormData.nombre) {
-      message.error('El nombre de la categoría es obligatorio');
+      message.error('El nombre de la categorÃ­a es obligatorio');
       return;
     }
     try {
       if (catModalMode === 'create') {
         await transaccionesAPI.createCategoria({ ...catFormData, tipo: activeTab });
-        message.success('Categoría creada con éxito');
+        message.success('CategorÃ­a creada con Ã©xito');
       } else {
         await transaccionesAPI.updateCategoria(editingCatId, catFormData);
-        message.success('Categoría actualizada con éxito');
+        message.success('CategorÃ­a actualizada con Ã©xito');
       }
       fetchCategorias();
       resetCatForm();
     } catch (error) {
       console.error('Error saving categoria:', error);
-      message.error('Error al guardar la categoría');
+      message.error('Error al guardar la categorÃ­a');
     }
   };
 
@@ -155,10 +155,10 @@ function Transacciones() {
     try {
       const nuevoEstado = !cat.activo;
       await transaccionesAPI.updateCategoria(cat.id, { activo: nuevoEstado });
-      message.success(`Categoría ${nuevoEstado ? 'activada' : 'desactivada'} con éxito`);
+      message.success(`CategorÃ­a ${nuevoEstado ? 'activada' : 'desactivada'} con Ã©xito`);
       fetchCategorias();
     } catch (error) {
-      message.error('Error al cambiar el estado de la categoría');
+      message.error('Error al cambiar el estado de la categorÃ­a');
     }
   };
 
@@ -170,16 +170,16 @@ function Transacciones() {
     if (!confirmCatDialog.id) return;
     try {
       await transaccionesAPI.deleteCategoria(confirmCatDialog.id);
-      message.success('Categoría eliminada con éxito');
+      message.success('CategorÃ­a eliminada con Ã©xito');
       fetchCategorias();
       setConfirmCatDialog({ visible: false, id: null, nombre: '' });
     } catch (error) {
       console.error('Error deleting category:', error);
       const isConstraintError = error.response?.status === 400 || error.response?.data?.detail?.includes('asociados');
       if (isConstraintError) {
-        message.warning('No se puede eliminar: esta categoría tiene movimientos asociados. Te recomendamos desactivarla en su lugar.');
+        message.warning('No se puede eliminar: esta categorÃ­a tiene movimientos asociados. Te recomendamos desactivarla en su lugar.');
       } else {
-        message.error('Error al eliminar categoría.');
+        message.error('Error al eliminar categorÃ­a.');
       }
       setConfirmCatDialog({ visible: false, id: null, nombre: '' });
     }
@@ -221,7 +221,7 @@ function Transacciones() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      message.success('Historial exportado con éxito');
+      message.success('Historial exportado con Ã©xito');
     } catch (error) {
       console.error('Error exporting kardex:', error);
       message.error('Error al exportar el historial.');
@@ -278,7 +278,7 @@ function Transacciones() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      message.success('Historial exportado con éxito');
+      message.success('Historial exportado con Ã©xito');
     } catch (error) {
       console.error('Error exporting audit:', error);
       message.error('Error al exportar el historial.');
@@ -341,7 +341,7 @@ function Transacciones() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.categoria) {
-      message.error('Debes seleccionar un nombre/categoría para el movimiento.');
+      message.error('Debes seleccionar un nombre/categorÃ­a para el movimiento.');
       return;
     }
     if (Number(formData.monto || 0) <= 0) {
@@ -362,7 +362,7 @@ function Transacciones() {
       closeModal();
       fetchTransacciones();
       fetchResumen();
-      message.success(`Movimiento ${modalMode === 'create' ? 'registrado' : 'actualizado'} con éxito`);
+      message.success(`Movimiento ${modalMode === 'create' ? 'registrado' : 'actualizado'} con Ã©xito`);
     } catch (error) {
       console.error('Error saving movimiento:', error);
       const errData = error.response?.data;
@@ -501,7 +501,7 @@ function Transacciones() {
         onCancel={() => setConfirmDialog({ visible: false, id: null, nombre: '' })}
         onConfirm={handleDeleteConfirm}
         title={`Eliminar ${activeTab === 'INGRESO' ? 'Ingreso' : 'Gasto'}`}
-        message={`¿Estás seguro de que deseas eliminar "${confirmDialog.nombre}"? Esta acción no se puede deshacer y afectará el balance.`}
+        message={`Â¿EstÃ¡s seguro de que deseas eliminar "${confirmDialog.nombre}"? Esta acciÃ³n no se puede deshacer y afectarÃ¡ el balance.`}
         danger={true}
       />
 
@@ -509,9 +509,9 @@ function Transacciones() {
         visible={confirmCatDialog.visible}
         onCancel={() => setConfirmCatDialog({ visible: false, id: null, nombre: '' })}
         onConfirm={handleDeleteCatConfirm}
-        title="Eliminar Categoría"
-        message={`¿Estás seguro de que deseas eliminar la categoría "${confirmCatDialog.nombre}"? Los movimientos que usen esta categoría perderán su referencia, pero no serán eliminados.`}
-        confirmText="Sí, eliminar categoría"
+        title="Eliminar CategorÃ­a"
+        message={`Â¿EstÃ¡s seguro de que deseas eliminar la categorÃ­a "${confirmCatDialog.nombre}"? Los movimientos que usen esta categorÃ­a perderÃ¡n su referencia, pero no serÃ¡n eliminados.`}
+        confirmText="SÃ­, eliminar categorÃ­a"
         danger={true}
       />
 
@@ -528,7 +528,7 @@ function Transacciones() {
             className="btn btn-secondary"
             onClick={() => { setCatPage(1); resetCatForm(); setCatModalVisible(true); }}
           >
-            <SettingOutlined /> Gestionar Categorías
+            <SettingOutlined /> Gestionar CategorÃ­as
           </button>
           <button className="btn btn-primary" onClick={() => openModal('create')}>
             <PlusOutlined /> {activeTab === 'INGRESO' ? 'Nuevo Ingreso' : 'Nuevo Gasto'}
@@ -584,39 +584,42 @@ function Transacciones() {
         </div>
       )}
 
-      {/* Tabs — Ant Design (igual a Compras) */}
-      <Tabs
-        activeKey={activeTab}
-        onChange={(key) => handleTabChange(key)}
-        size="large"
-        tabBarStyle={{ marginBottom: 24 }}
-        items={[
-          {
-            key: 'INGRESO',
-            label: (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <ArrowUpOutlined style={{ color: '#52c41a' }} />
-                Ingresos No Operativos
-                <span style={{ fontSize: 11, fontWeight: 700, background: activeTab === 'INGRESO' ? '#f6ffed' : 'var(--bg-table-header)', color: activeTab === 'INGRESO' ? '#52c41a' : 'var(--text-muted)', borderRadius: 99, padding: '1px 7px' }}>
-                  {filteredIngresos.length}
-                </span>
-              </span>
-            ),
-          },
-          {
-            key: 'EGRESO',
-            label: (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <ArrowDownOutlined style={{ color: '#ff4d4f' }} />
-                Gastos
-                <span style={{ fontSize: 11, fontWeight: 700, background: activeTab === 'EGRESO' ? '#fff1f0' : 'var(--bg-table-header)', color: activeTab === 'EGRESO' ? '#ff4d4f' : 'var(--text-muted)', borderRadius: 99, padding: '1px 7px' }}>
-                  {filteredEgresos.length}
-                </span>
-              </span>
-            ),
-          },
-        ]}
-      />
+      {/* â”€â”€ Tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <div className="card" style={{ marginBottom: '24px', padding: 0, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color, #eee)' }}>
+          <button
+            style={{
+              flex: 1, padding: '16px', fontSize: '15px', fontWeight: activeTab === 'INGRESO' ? 'bold' : 'normal',
+              background: activeTab === 'INGRESO' ? 'var(--bg-card, #fff)' : 'var(--bg-secondary, #fafafa)',
+              border: 'none', borderBottom: activeTab === 'INGRESO' ? '2px solid #52c41a' : '2px solid transparent',
+              color: activeTab === 'INGRESO' ? '#52c41a' : 'var(--text-secondary, #666)',
+              cursor: 'pointer', transition: 'all 0.3s',
+            }}
+            onClick={() => handleTabChange('INGRESO')}
+          >
+            <ArrowUpOutlined /> Ingresos No Operativos
+            <span style={{ marginLeft: '8px', fontSize: '12px', background: activeTab === 'INGRESO' ? '#f6ffed' : '#f0f0f0', color: activeTab === 'INGRESO' ? '#52c41a' : '#888', borderRadius: '10px', padding: '1px 8px' }}>
+              {filteredIngresos.length}
+            </span>
+          </button>
+          <button
+            style={{
+              flex: 1, padding: '16px', fontSize: '15px', fontWeight: activeTab === 'EGRESO' ? 'bold' : 'normal',
+              background: activeTab === 'EGRESO' ? 'var(--bg-card, #fff)' : 'var(--bg-secondary, #fafafa)',
+              border: 'none', borderBottom: activeTab === 'EGRESO' ? '2px solid #ff4d4f' : '2px solid transparent',
+              color: activeTab === 'EGRESO' ? '#ff4d4f' : 'var(--text-secondary, #666)',
+              cursor: 'pointer', transition: 'all 0.3s',
+            }}
+            onClick={() => handleTabChange('EGRESO')}
+          >
+            <ArrowDownOutlined /> Gastos
+            <span style={{ marginLeft: '8px', fontSize: '12px', background: activeTab === 'EGRESO' ? '#fff1f0' : '#f0f0f0', color: activeTab === 'EGRESO' ? '#ff4d4f' : '#888', borderRadius: '10px', padding: '1px 8px' }}>
+              {filteredEgresos.length}
+            </span>
+          </button>
+        </div>
+      </div>
+
       {/* â”€â”€ Filter Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -651,13 +654,13 @@ function Transacciones() {
             />
           </div>
           <div style={{ width: '200px' }}>
-            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Categoría</label>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>CategorÃ­a</label>
             <select
               className="form-input"
               value={filterCategoria}
               onChange={(e) => { setFilterCategoria(e.target.value); setTransaccionesPage(1); }}
             >
-              <option value="ALL">Todas las categorías</option>
+              <option value="ALL">Todas las categorÃ­as</option>
               {categoriasActivas.map(c => (
                 <option key={c.id} value={c.id}>{c.nombre}</option>
               ))}
@@ -681,10 +684,10 @@ function Transacciones() {
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Fecha de Creación</th>
+                <th>Fecha de CreaciÃ³n</th>
                 <th>{activeTab === 'INGRESO' ? 'Nombre del Ingreso' : 'Nombre del Gasto'}</th>
-                <th>Descripción</th>
-                <th>Método de Pago</th>
+                <th>DescripciÃ³n</th>
+                <th>MÃ©todo de Pago</th>
                 <th style={{ textAlign: 'right' }}>Monto</th>
                 <th>Acciones</th>
               </tr>
@@ -698,11 +701,11 @@ function Transacciones() {
                   </td>
                   <td>
                     <span style={{ fontWeight: 600, color: t.tipo === 'INGRESO' ? '#52c41a' : '#ff4d4f' }}>
-                      {t.categoria_nombre || '"”'}
+                      {t.categoria_nombre || 'â€”'}
                     </span>
                   </td>
                   <td style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
-                    {t.descripcion || '"”'}
+                    {t.descripcion || 'â€”'}
                   </td>
                   <td>
                     <span style={{ fontSize: '12px' }}>{t.metodo_pago}</span>
@@ -744,7 +747,7 @@ function Transacciones() {
                     No hay {activeTab === 'INGRESO' ? 'ingresos no operativos' : 'gastos'} registrados que coincidan con los filtros.
                     {categorias.filter(c => c.tipo === activeTab).length === 0 && (
                       <div style={{ marginTop: '12px', fontSize: '13px' }}>
-                        ðŸ’¡ Primero crea una categoría haciendo clic en <strong>"Gestionar Categorías"</strong>.
+                        ðŸ’¡ Primero crea una categorÃ­a haciendo clic en <strong>"Gestionar CategorÃ­as"</strong>.
                       </div>
                     )}
                   </td>
@@ -773,7 +776,7 @@ function Transacciones() {
                   ? (activeTab === 'INGRESO' ? 'Registrar Nuevo Ingreso' : 'Registrar Nuevo Gasto')
                   : (formData.tipo === 'INGRESO' ? 'Editar Ingreso' : 'Editar Gasto')}
               </h3>
-              <button className="modal-close" onClick={closeModal}><CloseOutlined /></button>
+              <button className="modal-close" onClick={closeModal}>Ã—</button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
@@ -804,7 +807,7 @@ function Transacciones() {
                       className="btn btn-secondary"
                       onClick={() => { resetCatForm(); setCatFormData(prev => ({ ...prev, tipo: formData.tipo })); setCatPage(1); setCatModalVisible(true); }}
                       style={{ height: '42px', padding: '0 12px', whiteSpace: 'nowrap' }}
-                      title="Gestionar Categorías"
+                      title="Gestionar CategorÃ­as"
                     >
                       <SettingOutlined />
                     </button>
@@ -817,7 +820,7 @@ function Transacciones() {
                 {/* Description (optional) */}
                 <div className="form-group">
                   <label className="form-label">
-                    Descripción{' '}
+                    DescripciÃ³n{' '}
                     <span style={{ fontWeight: 400, fontSize: '12px', color: 'var(--text-secondary)' }}>(Opcional)</span>
                   </label>
                   <input
@@ -827,7 +830,7 @@ function Transacciones() {
                     value={formData.descripcion}
                     onChange={handleChange}
                     onFocus={(e) => e.target.select()}
-                    placeholder={formData.tipo === 'INGRESO' ? 'Ej: Propina de cliente satisfecho...' : 'Ej: Factura N° 001-0045...'}
+                    placeholder={formData.tipo === 'INGRESO' ? 'Ej: Propina de cliente satisfecho...' : 'Ej: Factura NÂ° 001-0045...'}
                   />
                 </div>
 
@@ -847,7 +850,7 @@ function Transacciones() {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Método de Pago</label>
+                    <label className="form-label">MÃ©todo de Pago</label>
                     <select
                       name="metodo_pago"
                       className="form-input"
@@ -885,7 +888,7 @@ function Transacciones() {
                       value={formData.referencia}
                       onChange={handleChange}
                       onFocus={(e) => e.target.select()}
-                      placeholder="Nro de operación (opcional)"
+                      placeholder="Nro de operaciÃ³n (opcional)"
                     />
                   </div>
                 </div>
@@ -923,9 +926,9 @@ function Transacciones() {
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
             <div className="modal-header">
               <h3 className="modal-title">
-                Gestionar Categorías "” {activeTab === 'INGRESO' ? 'Ingresos No Operativos' : 'Gastos'}
+                Gestionar CategorÃ­as â€” {activeTab === 'INGRESO' ? 'Ingresos No Operativos' : 'Gastos'}
               </h3>
-              <button className="modal-close" onClick={() => { setCatModalVisible(false); resetCatForm(); }}><CloseOutlined /></button>
+              <button className="modal-close" onClick={() => { setCatModalVisible(false); resetCatForm(); }}>Ã—</button>
             </div>
             <div className="modal-body">
               {/* Form */}
@@ -935,8 +938,8 @@ function Transacciones() {
               >
                 <h4 style={{ marginBottom: '12px' }}>
                   {catModalMode === 'create'
-                    ? (activeTab === 'INGRESO' ? 'Nueva Categoría de Ingreso' : 'Nueva Categoría de Gasto')
-                    : 'Editar Categoría'}
+                    ? (activeTab === 'INGRESO' ? 'Nueva CategorÃ­a de Ingreso' : 'Nueva CategorÃ­a de Gasto')
+                    : 'Editar CategorÃ­a'}
                 </h4>
                 <div className="form-group">
                   <label className="form-label">Nombre *</label>
@@ -960,30 +963,30 @@ function Transacciones() {
                       checked={catFormData.activo} 
                       onChange={(e) => setCatFormData(prev => ({ ...prev, activo: e.target.checked }))} 
                     />
-                    Esta categoría está activa (disponible para nuevos registros)
+                    Esta categorÃ­a estÃ¡ activa (disponible para nuevos registros)
                   </label>
                 </div>
                 <div className="form-group">
                   <label className="form-label">
-                    Descripción{' '}
+                    DescripciÃ³n{' '}
                     <span style={{ fontWeight: 400, fontSize: '12px', color: 'var(--text-secondary)' }}>(Opcional)</span>
                   </label>
                   <textarea
                     className="form-input"
                     value={catFormData.descripcion}
                     onChange={(e) => setCatFormData(prev => ({ ...prev, descripcion: e.target.value }))}
-                    placeholder="Descripción adicional de esta categoría..."
+                    placeholder="DescripciÃ³n adicional de esta categorÃ­a..."
                     rows={2}
                   />
                 </div>
                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                   {catModalMode === 'edit' && (
                     <button type="button" className="btn btn-secondary" onClick={resetCatForm}>
-                      Cancelar Edición
+                      Cancelar EdiciÃ³n
                     </button>
                   )}
                   <button type="submit" className="btn btn-primary">
-                    {catModalMode === 'create' ? 'Crear Categoría' : 'Guardar Cambios'}
+                    {catModalMode === 'create' ? 'Crear CategorÃ­a' : 'Guardar Cambios'}
                   </button>
                 </div>
               </form>
@@ -1060,7 +1063,7 @@ function Transacciones() {
                     {catsTotales.length === 0 && (
                       <tr>
                         <td colSpan="3" style={{ textAlign: 'center', padding: '24px', color: '#999' }}>
-                          No hay categorías de {activeTab === 'INGRESO' ? 'ingresos' : 'gastos'} creadas aún.
+                          No hay categorÃ­as de {activeTab === 'INGRESO' ? 'ingresos' : 'gastos'} creadas aÃºn.
                           <br />
                           <span style={{ fontSize: '12px' }}>Usa el formulario de arriba para crear la primera.</span>
                         </td>
@@ -1083,7 +1086,7 @@ function Transacciones() {
                     Anterior
                   </button>
                   <span style={{ color: 'var(--text-secondary)' }}>
-                    Pág {safeCatPage} de {catTotalPages}
+                    PÃ¡g {safeCatPage} de {catTotalPages}
                   </span>
                   <button
                     type="button"
@@ -1117,7 +1120,7 @@ function Transacciones() {
                 <button className="btn btn-secondary" onClick={handleKardexExport} style={{ padding: '4px 12px', fontSize: '12px' }}>
                   Exportar Excel
                 </button>
-                <button className="modal-close" onClick={closeKardex}><CloseOutlined /></button>
+                <button className="modal-close" onClick={closeKardex}>x</button>
               </div>
             </div>
 
@@ -1154,25 +1157,25 @@ function Transacciones() {
               </span>
             </div>
 
-            {/* Table "” 9 columnas estándar */}
+            {/* Table â€” 9 columnas estÃ¡ndar */}
             <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '50vh' }}>
               {kardexLoading ? (
                 <div style={{ textAlign: 'center', padding: '40px' }}>Cargando historial...</div>
               ) : kardexData.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-                  No hay movimientos para esta categoría/período.
+                  No hay movimientos para esta categorÃ­a/perÃ­odo.
                 </div>
               ) : (
                 <table style={{ minWidth: '1000px', width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>Fecha y Hora</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Categoría</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>CategorÃ­a</th>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>Tipo de Evento</th>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Campo</th>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>V. Anterior (S/.)</th>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>V. Nuevo (S/.)</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Descripción</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>DescripciÃ³n</th>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Notas</th>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Responsable</th>
                     </tr>
@@ -1228,7 +1231,7 @@ function Transacciones() {
                 >
                   Anterior
                 </button>
-                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Página {kardexPage} de {kardexTotalPages}</span>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>PÃ¡gina {kardexPage} de {kardexTotalPages}</span>
                 <button
                   className="btn btn-secondary"
                   onClick={() => fetchKardex(selectedCatKardex.id, kardexPage + 1, kardexFechaDesde, kardexFechaHasta)}
@@ -1248,20 +1251,20 @@ function Transacciones() {
           <div className="modal" style={{ maxWidth: '1080px', width: '95vw' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">
-                Historial: {selectedTransAudit.categoria_nombre || 'Transacción'} #{selectedTransAudit.id}
+                Historial: {selectedTransAudit.categoria_nombre || 'TransacciÃ³n'} #{selectedTransAudit.id}
               </h3>
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button className="btn btn-secondary" onClick={handleAuditExport} style={{ padding: '4px 12px', fontSize: '12px' }}>
                   Exportar Excel
                 </button>
-                <button className="modal-close" onClick={closeAudit}><CloseOutlined /></button>
+                <button className="modal-close" onClick={closeAudit}>x</button>
               </div>
             </div>
 
             {/* Summary bar */}
             <div style={{ padding: '8px 16px', borderBottom: '1px solid var(--border-color, #e2e8f0)', display: 'flex', gap: '24px', flexWrap: 'wrap', background: 'var(--bg-secondary)' }}>
-              <div><span style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Concepto</span><div style={{ fontSize: '13px', fontWeight: 600 }}>{selectedTransAudit.descripcion || '"”'}</div></div>
-              <div><span style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Categoría</span><div style={{ fontSize: '13px' }}>{selectedTransAudit.categoria_nombre || '"”'}</div></div>
+              <div><span style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Concepto</span><div style={{ fontSize: '13px', fontWeight: 600 }}>{selectedTransAudit.descripcion || 'â€”'}</div></div>
+              <div><span style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>CategorÃ­a</span><div style={{ fontSize: '13px' }}>{selectedTransAudit.categoria_nombre || 'â€”'}</div></div>
               <div><span style={{ fontSize: '10px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Monto Actual</span><div style={{ fontSize: '15px', fontWeight: 'bold', color: selectedTransAudit.tipo === 'INGRESO' ? '#52c41a' : '#ff4d4f' }}>S/. {parseFloat(selectedTransAudit.monto || 0).toFixed(2)}</div></div>
             </div>
 
@@ -1298,25 +1301,25 @@ function Transacciones() {
               </span>
             </div>
 
-            {/* Table "” 9 columnas estándar */}
+            {/* Table â€” 9 columnas estÃ¡ndar */}
             <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '45vh' }}>
               {auditLoading ? (
                 <div style={{ textAlign: 'center', padding: '40px' }}>Cargando historial...</div>
               ) : auditData.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-                  No hay registros de cambios para esta transacción.
+                  No hay registros de cambios para esta transacciÃ³n.
                 </div>
               ) : (
                 <table style={{ minWidth: '1000px', width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>Fecha y Hora</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Categoría</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>CategorÃ­a</th>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>Tipo de Evento</th>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Campo</th>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>V. Anterior (S/.)</th>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px', whiteSpace: 'nowrap' }}>V. Nuevo (S/.)</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Descripción</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>DescripciÃ³n</th>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Notas</th>
                       <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Responsable</th>
                     </tr>
@@ -1334,7 +1337,7 @@ function Transacciones() {
                       return (
                         <tr key={mov.id} style={{ borderBottom: '1px solid var(--border-color, #f0f0f0)' }}>
                           <td style={{ padding: '7px 10px', fontSize: '11px', whiteSpace: 'nowrap' }}>{dt}</td>
-                          <td style={{ padding: '7px 10px', fontSize: '11px', fontWeight: 500 }}>{selectedTransAudit.categoria_nombre || '"”'}</td>
+                          <td style={{ padding: '7px 10px', fontSize: '11px', fontWeight: 500 }}>{selectedTransAudit.categoria_nombre || 'â€”'}</td>
                           <td style={{ padding: '7px 10px' }}>
                             <span style={{ color: colorTipo, fontWeight: 'bold', fontSize: '11px' }}>
                               {tipoEvento === 'TRANSACCION' ? 'MOVIMIENTO' : tipoEvento}
@@ -1371,7 +1374,7 @@ function Transacciones() {
                 >
                   Anterior
                 </button>
-                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Página {auditPage} de {auditTotalPages}</span>
+                <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>PÃ¡gina {auditPage} de {auditTotalPages}</span>
                 <button
                   className="btn btn-secondary"
                   onClick={() => fetchAudit(selectedTransAudit.id, auditPage + 1, auditFechaDesde, auditFechaHasta)}

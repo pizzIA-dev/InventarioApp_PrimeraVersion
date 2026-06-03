@@ -1,7 +1,8 @@
 import { useState, useEffect, useContext } from 'react';
-import { reportesAPI, productosAPI, serviciosAPI, coreAPI } from '../services/api';
+import { reportesAPI, productosAPI, serviciosAPI } from '../services/api';
 import { 
-  WarningOutlined } from '@ant-design/icons';
+  WarningOutlined,
+} from '@ant-design/icons';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import LoadingScreen from '../components/LoadingScreen';
 import { AuthContext } from '../context/AuthContext';
@@ -9,15 +10,6 @@ import { AuthContext } from '../context/AuthContext';
 const COLORS = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2'];
 
 function Dashboard() {
-
-  // Crear Cliente/Proveedor General si no existen (idempotente)
-  useEffect(() => {
-    coreAPI.ensureDefaults().catch(() => {
-      // Silencioso - no bloquear al usuario si falla
-    });
-  }, []);
-
-
   const { isVendedor, user } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);

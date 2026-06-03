@@ -6,7 +6,8 @@ import {
   DeleteOutlined, 
   HistoryOutlined, 
   FileExcelOutlined,
-  SettingOutlined, CloseOutlined } from '@ant-design/icons';
+  SettingOutlined
+} from '@ant-design/icons';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
@@ -608,7 +609,7 @@ function Capital() {
               <h3 className="modal-title">
                 {modalMode === 'create' ? 'Nuevo Capital' : 'Editar Capital'}
               </h3>
-              <button className="modal-close" onClick={closeModal}><CloseOutlined /></button>
+              <button className="modal-close" onClick={closeModal}>×</button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
@@ -794,7 +795,7 @@ function Capital() {
               <button className="modal-close" onClick={() => {
                 setTipoModalVisible(false);
                 resetTipoForm();
-              }}><CloseOutlined /></button>
+              }}>×</button>
             </div>
             <form onSubmit={handleTipoSubmit}>
               <div className="modal-body">
@@ -974,7 +975,7 @@ function Capital() {
                 <button className="btn btn-secondary" onClick={handleKardexExport} style={{ padding: '4px 12px', fontSize: '12px' }}>
                   Exportar Excel
                 </button>
-                <button className="modal-close" onClick={closeKardex}><CloseOutlined /></button>
+                <button className="modal-close" onClick={closeKardex}>x</button>
               </div>
             </div>
 
