@@ -295,19 +295,27 @@ class DashboardView(APIView):
         
         # CLIENTES Y PROVEEDORES
         if producto_id:
-            clientes_ids = Venta.objects.filter(
-                estado='CONFIRMADA', 
-                detalleventa_set__producto_id=producto_id,
-                **filtro_fechas
-            ).values_list('cliente_id', flat=True).distinct()
-            total_clientes = clientes_ids.count()
+            # Get venta IDs that have this product via DetalleVenta
+            venta_ids = DetalleVenta.objects.filter(
+                producto_id=producto_id,
+                venta__estado='CONFIRMADA',
+                venta__creado_en__date__gte=filtro_fechas.get('creado_en__date__gte')
+            )
+            if 'creado_en__date__lt' in filtro_fechas:
+                venta_ids = venta_ids.filter(venta__creado_en__date__lt=filtro_fechas['creado_en__date__lt'])
+            venta_ids = venta_ids.values_list('venta_id', flat=True).distinct()
+            total_clientes = Venta.objects.filter(id__in=venta_ids).values('cliente_id').distinct().count()
             
-            proveedores_ids = Compra.objects.filter(
-                estado='CONFIRMADA',
-                detallecompra__producto_id=producto_id,
-                **filtro_fechas
-            ).values_list('proveedor_id', flat=True).distinct()
-            total_proveedores = proveedores_ids.count()
+            # Get compra IDs that have this product via DetalleCompra
+            compra_ids = DetalleCompra.objects.filter(
+                producto_id=producto_id,
+                compra__estado='CONFIRMADA',
+                compra__creado_en__date__gte=filtro_fechas.get('creado_en__date__gte')
+            )
+            if 'creado_en__date__lt' in filtro_fechas:
+                compra_ids = compra_ids.filter(compra__creado_en__date__lt=filtro_fechas['creado_en__date__lt'])
+            compra_ids = compra_ids.values_list('compra_id', flat=True).distinct()
+            total_proveedores = Compra.objects.filter(id__in=compra_ids).values('proveedor_id').distinct().count()
             
         elif servicio_id:
             clientes_ids = VentaServicio.objects.filter(
