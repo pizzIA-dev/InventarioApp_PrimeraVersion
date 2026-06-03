@@ -15,7 +15,6 @@ from apps.core.user_views import (
     listar_usuarios, crear_usuario, toggle_usuario,
     cambiar_password, RolPersonalizadoViewSet,
     my_profile, actualizar_empresa, ensure_defaults_view,
-    seed_compras_servicios_view,
 )
 from apps.core.backup_views import manage_backup_config, list_backups, restore_backup
 
@@ -39,7 +38,6 @@ urlpatterns = [
     path('core/',                                        include(router.urls)),
     path('core/empresa/update/',                         actualizar_empresa, name='t_empresa'),
     path('core/ensure-defaults/',                          ensure_defaults_view, name='t_ensure_defaults'),
-    path('core/seed-compras-servicios/',                   seed_compras_servicios_view, name='t_seed_cs'),
 
     # Backups
     path('core/backup-config/',   manage_backup_config, name='t_backup_config'),
