@@ -288,13 +288,16 @@ def fix_compra_servicio_empresa(request):
         compras = list(CompraServicio.objects.values('id', 'empresa_id', 'servicio_nombre')[:5])
         info = {'schema': schema, 'empresas': empresas, 'perfiles_sample': perfiles, 'compras_sample': compras}
         
-        # Fix: update all CompraServicio to use the first empresa:
+        # Fix: update all CompraServicio to use the empresa that matches the perfiles:
         if request.method == 'POST' and request.data.get('fix'):
-            primera_empresa = Empresa.objects.first()
-            if primera_empresa:
-                updated = CompraServicio.objects.update(empresa=primera_empresa)
+            # Get empresa from the first perfil (the real active empresa):
+            primer_perfil = PerfilUsuario.objects.select_related('empresa').first()
+            target_empresa = primer_perfil.empresa if primer_perfil and primer_perfil.empresa else Empresa.objects.order_by('-id').first()
+            if target_empresa:
+                updated = CompraServicio.objects.update(empresa=target_empresa)
                 info['fixed'] = updated
-                info['empresa_id_usado'] = primera_empresa.id
+                info['empresa_id_usado'] = target_empresa.id
+                info['empresa_nombre'] = target_empresa.nombre
         
         return _Rsp3(info)
     except Exception as e:
