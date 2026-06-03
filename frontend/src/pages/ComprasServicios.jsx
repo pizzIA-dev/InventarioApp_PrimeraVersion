@@ -7,8 +7,8 @@ import { comprasServiciosAPI, serviciosAPI, proveedoresAPI } from '../services/a
 import ExportDropdown from '../components/ExportDropdown';
 import SearchableSelect from '../components/SearchableSelect';
 
-const ESTADO_BADGE = { PENDIENTE: 'badge-warning', EN_PROCESO: 'badge-info', COMPLETADO: 'badge-success', CANCELADO: 'badge-danger' };
-const ESTADO_LABEL = { PENDIENTE: 'PENDIENTE', EN_PROCESO: 'EN PROCESO', COMPLETADO: 'COMPLETADO', CANCELADO: 'CANCELADO' };
+const ESTADO_BADGE = { PENDIENTE: 'badge-warning', EN_PROGRESO: 'badge-info', TERMINADO: 'badge-success', CANCELADO: 'badge-danger' };
+const ESTADO_LABEL = { PENDIENTE: 'PENDIENTE', EN_PROGRESO: 'EN PROCESO', TERMINADO: 'TERMINADO', CANCELADO: 'CANCELADO' };
 const EMPTY_FORM    = { servicio: '', proveedor: '', precio: '', fecha_programada: '', notas: '' };
 const PAGE_SIZE     = 15;
 
@@ -168,8 +168,8 @@ export default function ComprasServicios() {
             <select className="form-input" value={filterEstado} onChange={e => { setFilterEstado(e.target.value); setPage(1); }}>
               <option value="ALL">TODOS</option>
               <option value="PENDIENTE">PENDIENTE</option>
-              <option value="EN_PROCESO">EN PROCESO</option>
-              <option value="COMPLETADO">COMPLETADO</option>
+              <option value="EN_PROGRESO">EN PROCESO</option>
+              <option value="TERMINADO">TERMINADO</option>
               <option value="CANCELADO">CANCELADO</option>
             </select>
           </div>
@@ -211,7 +211,7 @@ export default function ComprasServicios() {
                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center', justifyContent: 'center' }}>
                       <button className="btn btn-secondary btn-icon" onClick={() => openEdit(r)} title="Editar"><EditOutlined /></button>
                       {r.estado === 'PENDIENTE'  && <button className="btn btn-primary btn-icon"  onClick={() => handleIniciar(r.id)}   title="Iniciar servicio"><PlayCircleOutlined /></button>}
-                      {r.estado === 'EN_PROCESO' && <button className="btn btn-success btn-icon"  onClick={() => handleCompletar(r.id)} title="Completado"><CheckCircleOutlined /></button>}
+                      {r.estado === 'EN_PROGRESO' && <button className="btn btn-success btn-icon"  onClick={() => handleCompletar(r.id)} title="Completado"><CheckCircleOutlined /></button>}
                       <button className="btn btn-danger btn-icon" onClick={() => setConfirmDelete(r.id)} title="Eliminar"><DeleteOutlined /></button>
                     </div>
                   </td>
