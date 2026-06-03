@@ -1215,15 +1215,14 @@ function Ventas() {
                     <button className="btn btn-secondary" onClick={() => openHistoryModal(venta, 'producto')} title="Ver Historial/Kardex">
                       <HistoryOutlined />
                     </button>
+                    <button className="btn btn-secondary" onClick={() => openModal("edit", venta)} title="Editar">
+                      <EditOutlined />
+                    </button>
                     {venta.estado === "BORRADOR" && (
                       <button className="btn btn-success" onClick={() => handleConfirmar(venta.id)} title="Confirmar venta">
                         <CheckOutlined />
                       </button>
                     )}
-                    {/* Formalizar moved to detail modal */}
-                    <button className="btn btn-secondary" onClick={() => openModal("edit", venta)} title="Editar">
-                      <EditOutlined />
-                    </button>
                     {!isVendedor && (
                       <button className="btn btn-danger" onClick={() => handleDeleteClick(venta)} title="Eliminar">
                         <DeleteOutlined />
