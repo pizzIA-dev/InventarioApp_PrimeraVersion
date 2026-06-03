@@ -2125,32 +2125,23 @@ function Ventas() {
                     onClick={async () => {
                       try {
                         const isService = !!selectedVentaForDetail.isService;
-                        const endpoint = isService 
-                          ? `${import.meta.env.VITE_API_URL}/servicios/ventas-servicio/${selectedVentaForDetail.id}/`
-                          : `${import.meta.env.VITE_API_URL}/inventario/ventas/${selectedVentaForDetail.id}/`;
-                        
-                        const response = await fetch(endpoint, {
-                          method: 'PATCH',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            tipo_comprobante: formalizacionData.tipo,
-                            numero_comprobante: formalizacionData.numero
-                          })
-                        });
-                        
-                        if (response.ok) {
-                          alert('Comprobante formalizado con éxito');
-                          setIsFormalizing(false);
-                          closeDetailModal();
-                          if (activeTab === 'PRODUCTOS') fetchVentas();
-                          else fetchVentasServicios();
+                        const updateData = {
+                          tipo_comprobante: formalizacionData.tipo,
+                          numero_comprobante: formalizacionData.numero
+                        };
+                        if (isService) {
+                          await serviciosAPI.updateVenta(selectedVentaForDetail.id, updateData);
                         } else {
-                          const err = await response.json();
-                          alert('Error al formalizar: ' + JSON.stringify(err));
+                          await ventasAPI.update(selectedVentaForDetail.id, updateData);
                         }
+                        alert('Comprobante formalizado con éxito');
+                        setIsFormalizing(false);
+                        closeDetailModal();
+                        if (activeTab === 'PRODUCTOS') fetchVentas();
+                        else fetchVentasServicios();
                       } catch (error) {
                         console.error('Error formalizando:', error);
-                        alert('Error de conexión al formalizar');
+                        alert(error.response?.data?.message || 'Error al formalizar el comprobante');
                       }
                     }}
                   >
