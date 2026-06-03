@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
+import SearchableSelect from '../components/SearchableSelect';
 import { reportesAPI, productosAPI, serviciosAPI, coreAPI } from '../services/api';
 import { 
   WarningOutlined } from '@ant-design/icons';
@@ -146,35 +147,27 @@ function Dashboard() {
           </div>
           <div style={{ flex: 1, minWidth: '200px' }}>
             <label className="form-label" style={{ fontSize: '13px', marginBottom: '4px' }}>Filtrar por Producto</label>
-            <select 
-              className="form-input" 
+            <SearchableSelect
+              options={[{id: '', nombre: 'Todos los productos'}, ...productos]}
               value={selectedProducto}
-              onChange={(e) => {
-                setSelectedProducto(e.target.value);
-                if (e.target.value) setSelectedServicio(''); // Clear servicio if producto selected
+              onChange={(val) => {
+                setSelectedProducto(val);
+                if (val) setSelectedServicio('');
               }}
-            >
-              <option value="">Todos los productos</option>
-              {productos.map(p => (
-                <option key={p.id} value={p.id}>{p.nombre}</option>
-              ))}
-            </select>
+              placeholder="Todos los productos"
+            />
           </div>
           <div style={{ flex: 1, minWidth: '200px' }}>
             <label className="form-label" style={{ fontSize: '13px', marginBottom: '4px' }}>Filtrar por Servicio</label>
-            <select 
-              className="form-input" 
+            <SearchableSelect
+              options={[{id: '', nombre: 'Todos los servicios'}, ...servicios]}
               value={selectedServicio}
-              onChange={(e) => {
-                setSelectedServicio(e.target.value);
-                if (e.target.value) setSelectedProducto(''); // Clear producto if servicio selected
+              onChange={(val) => {
+                setSelectedServicio(val);
+                if (val) setSelectedProducto('');
               }}
-            >
-              <option value="">Todos los servicios</option>
-              {servicios.map(s => (
-                <option key={s.id} value={s.id}>{s.nombre}</option>
-              ))}
-            </select>
+              placeholder="Todos los servicios"
+            />
           </div>
           <button
             className="btn btn-secondary"

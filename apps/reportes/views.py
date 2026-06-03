@@ -297,14 +297,14 @@ class DashboardView(APIView):
         if producto_id:
             clientes_ids = Venta.objects.filter(
                 estado='CONFIRMADA', 
-                detalleventa__producto_id=producto_id,
+                detalleventa_set__producto_id=producto_id,
                 **filtro_fechas
             ).values_list('cliente_id', flat=True).distinct()
             total_clientes = clientes_ids.count()
             
             proveedores_ids = Compra.objects.filter(
                 estado='CONFIRMADA',
-                detallecompra__producto_id=producto_id,
+                detallecompra_set__producto_id=producto_id,
                 **filtro_fechas
             ).values_list('proveedor_id', flat=True).distinct()
             total_proveedores = proveedores_ids.count()
