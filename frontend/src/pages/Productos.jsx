@@ -288,16 +288,12 @@ function Productos() {
           </div>
           <div style={{ width: '180px' }}>
             <label className="form-label" style={{ fontSize: '13px' }}>Categoría</label>
-            <select 
-              className="form-input" 
+            <SearchableSelect
+              options={[{id: 'ALL', nombre: 'Todas las categorías'}, ...categorias]}
               value={filterCategoria}
-              onChange={(e) => handleFilterCategoriaChange(e.target.value)}
-            >
-              <option value="ALL">Todas las categorías</option>
-              {categorias.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.nombre}</option>
-              ))}
-            </select>
+              onChange={(val) => handleFilterCategoriaChange(val)}
+              placeholder="Todas las categorías"
+            />
           </div>
           <div style={{ width: '150px' }}>
             <label className="form-label" style={{ fontSize: '13px' }}>Stock</label>

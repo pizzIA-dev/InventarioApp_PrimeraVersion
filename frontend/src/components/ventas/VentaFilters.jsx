@@ -73,16 +73,12 @@ const VentaFilters = ({
         {activeTab === 'SERVICIOS' && (
           <div style={{ width: '200px' }}>
             <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Servicio</label>
-            <select 
-              className="form-input" 
+            <SearchableSelect
+              options={[{id: 'ALL', nombre: 'Todos los servicios'}, ...servicios]}
               value={filterServicio}
-              onChange={(e) => onFilterServicioChange(e.target.value)}
-            >
-              <option value="ALL">Todos los servicios</option>
-              {servicios.map(s => (
-                <option key={s.id} value={s.id}>{s.nombre}</option>
-              ))}
-            </select>
+              onChange={(val) => onFilterServicioChange(val)}
+              placeholder="Todos los servicios"
+            />
           </div>
         )}
         <button 

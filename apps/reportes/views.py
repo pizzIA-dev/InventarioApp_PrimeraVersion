@@ -213,13 +213,6 @@ class DashboardView(APIView):
     """Vista principal del dashboard con métricas clave"""
     
     def get(self, request):
-        import traceback
-        try:
-            return self._get_impl(request)
-        except Exception as e:
-            return Response({'error': str(e), 'traceback': traceback.format_exc()}, status=500)
-    
-    def _get_impl(self, request):
         hoy = timezone.now().date()
         anio = request.query_params.get('anio')
         mes = request.query_params.get('mes')
@@ -311,7 +304,7 @@ class DashboardView(APIView):
             
             proveedores_ids = Compra.objects.filter(
                 estado='CONFIRMADA',
-                detallecompra_set__producto_id=producto_id,
+                detallecompra__producto_id=producto_id,
                 **filtro_fechas
             ).values_list('proveedor_id', flat=True).distinct()
             total_proveedores = proveedores_ids.count()

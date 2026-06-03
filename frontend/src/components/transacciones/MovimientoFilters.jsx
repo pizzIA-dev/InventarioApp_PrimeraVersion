@@ -48,16 +48,12 @@ const MovimientoFilters = ({
         </div>
         <div style={{ width: '200px' }}>
           <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Categoría</label>
-          <select
-            className="form-input"
-            value={filterCategoria}
-            onChange={(e) => setFilterCategoria(e.target.value)}
-          >
-            <option value="ALL">Todas las categorías</option>
-            {categorias.map(c => (
-              <option key={c.id} value={c.id}>{c.nombre}</option>
-            ))}
-          </select>
+          <SearchableSelect
+              options={[{id: 'ALL', nombre: 'Todas las categorías'}, ...categorias]}
+              value={filterCategoria}
+              onChange={(val) => setFilterCategoria(val)}
+              placeholder="Todas las categorías"
+            />
         </div>
         <button
           className="btn btn-secondary"

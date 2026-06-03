@@ -652,16 +652,12 @@ function Transacciones() {
           </div>
           <div style={{ width: '200px' }}>
             <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Categoría</label>
-            <select
-              className="form-input"
+            <SearchableSelect
+              options={[{id: 'ALL', nombre: 'Todas las categorías'}, ...categoriasActivas]}
               value={filterCategoria}
-              onChange={(e) => { setFilterCategoria(e.target.value); setTransaccionesPage(1); }}
-            >
-              <option value="ALL">Todas las categorías</option>
-              {categoriasActivas.map(c => (
-                <option key={c.id} value={c.id}>{c.nombre}</option>
-              ))}
-            </select>
+              onChange={(val) => { setFilterCategoria(val); setTransaccionesPage(1); }}
+              placeholder="Todas las categorías"
+            />
           </div>
           <button
             className="btn btn-secondary"
@@ -784,21 +780,12 @@ function Transacciones() {
                     {formData.tipo === 'INGRESO' ? 'Nombre del Ingreso *' : 'Nombre del Gasto *'}
                   </label>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <select
-                      name="categoria"
-                      className="form-input"
+                    <SearchableSelect
+                      options={[{id: '', nombre: 'Seleccionar categoría'}, ...categorias]}
                       value={formData.categoria}
-                      onChange={handleChange}
-                      required
-                      style={{ flex: 1 }}
-                    >
-                      <option value="">Seleccionar nombre...</option>
-                      {categorias
-                        .filter(c => c.tipo === formData.tipo && c.activo !== false)
-                        .map(c => (
-                          <option key={c.id} value={c.id}>{c.nombre}</option>
-                        ))}
-                    </select>
+                      onChange={(val) => setFormData(prev => ({...prev, categoria: val}))}
+                      placeholder="Seleccionar categoría"
+                    />
                     <button
                       type="button"
                       className="btn btn-secondary"
