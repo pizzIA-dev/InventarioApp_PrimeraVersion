@@ -18,6 +18,13 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Tenant-aware: prepend /t/{schema} to baseURL dynamically
+  const schema = localStorage.getItem('tenant_schema');
+  if (schema) {
+    config.baseURL = `${_apiBase}/t/${schema}/api`;
+  } else {
+    config.baseURL = `${_apiBase}/api`;
+  }
   return config;
 }, (error) => {
   return Promise.reject(error);
