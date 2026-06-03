@@ -119,42 +119,42 @@ function Reportes() {
   };
 
   // Pre-mapeo de datos para gráficos horizontales (evita errores en formatters de Recharts)
-  const topProdCant = balance?.top_productos?.map(item => ({
+  const topProdCant = balance?.analiticas?.top_productos?.map(item => ({
     ...item,
     formatted_label: `${item.cantidad} ${item.producto__unidad_medida || ''}`
   })) || [];
 
-  const topProdIng = balance?.top_productos_ingresos?.map(item => ({
+  const topProdIng = balance?.analiticas?.top_productos_ingresos?.map(item => ({
     ...item,
     formatted_label: `S/. ${Number(item.ingresos).toFixed(2)}`
   })) || [];
 
-  const topServCant = balance?.top_servicios?.map(item => ({
+  const topServCant = balance?.analiticas?.top_servicios?.map(item => ({
     ...item,
     formatted_label: `${item.cantidad}`
   })) || [];
 
-  const topServIng = balance?.top_servicios_ingresos?.map(item => ({
+  const topServIng = balance?.analiticas?.top_servicios_ingresos?.map(item => ({
     ...item,
     formatted_label: `S/. ${Number(item.ingresos).toFixed(2)}`
   })) || [];
 
-  const topProdCompradosCant = balance?.top_productos_comprados?.map(item => ({
+  const topProdCompradosCant = balance?.analiticas?.top_productos_comprados?.map(item => ({
     ...item,
     formatted_label: `${item.cantidad} ${item.producto__unidad_medida || ''}`
   })) || [];
 
-  const topProdCompradosGasto = balance?.top_productos_gastos?.map(item => ({
+  const topProdCompradosGasto = balance?.analiticas?.top_productos_gastos?.map(item => ({
     ...item,
     formatted_label: `S/. ${Number(item.egresos).toFixed(2)}`
   })) || [];
 
-  const topIngExtra = balance?.top_ingresos_extra?.map(item => ({
+  const topIngExtra = balance?.analiticas?.top_ingresos_extra?.map(item => ({
     ...item,
     formatted_label: `S/. ${Number(item.total).toFixed(2)}`
   })) || [];
 
-  const topGastos = balance?.top_gastos?.map(item => ({
+  const topGastos = balance?.analiticas?.top_gastos?.map(item => ({
     ...item,
     formatted_label: `S/. ${Number(item.total).toFixed(2)}`
   })) || [];
@@ -538,11 +538,11 @@ function Reportes() {
                 <h3 className="card-title">Productos sin rotación</h3>
               </div>
               <div style={{ overflowY: 'auto', flex: 1, padding: '0 16px' }}>
-                {balance?.productos_sin_rotacion?.length === 0 ? (
+                {balance?.analiticas?.productos_sin_rotacion?.length === 0 ? (
                   <p style={{ textAlign: 'center', marginTop: '20px', color: 'var(--text-secondary)' }}>Todos los productos han tenido salida.</p>
                 ) : (
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                    {balance?.productos_sin_rotacion?.map((item, idx) => (
+                    {balance?.analiticas?.productos_sin_rotacion?.map((item, idx) => (
                       <li key={idx} style={{ padding: '12px 0', borderBottom: '1px solid var(--bg-table-header)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontWeight: 500 }}>{item.nombre}</span>
                         <div style={{ textAlign: 'right' }}>
@@ -561,11 +561,11 @@ function Reportes() {
                 <h3 className="card-title">Servicios sin rotación</h3>
               </div>
               <div style={{ overflowY: 'auto', flex: 1, padding: '0 16px' }}>
-                {balance?.servicios_sin_rotacion?.length === 0 ? (
+                {balance?.analiticas?.servicios_sin_rotacion?.length === 0 ? (
                   <p style={{ textAlign: 'center', marginTop: '20px', color: 'var(--text-secondary)' }}>Todos los servicios activos han sido contratados.</p>
                 ) : (
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                    {balance?.servicios_sin_rotacion?.map((item, idx) => (
+                    {balance?.analiticas?.servicios_sin_rotacion?.map((item, idx) => (
                       <li key={idx} style={{ padding: '12px 0', borderBottom: '1px solid var(--bg-table-header)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontWeight: 500 }}>{item.nombre}</span>
                         <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Vendido: 0</span>
