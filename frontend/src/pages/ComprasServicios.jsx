@@ -7,6 +7,7 @@ import {
 import { comprasServiciosAPI, serviciosAPI, proveedoresAPI } from '../services/api';
 import ExportDropdown from '../components/ExportDropdown';
 import SearchableSelect from '../components/SearchableSelect';
+import ServicioFormModal from '../components/ServicioFormModal';
 
 const ESTADO_BADGE = { PENDIENTE: 'badge-warning', EN_PROGRESO: 'badge-info', TERMINADO: 'badge-success', CANCELADO: 'badge-danger' };
 const ESTADO_LABEL = { PENDIENTE: 'PENDIENTE', EN_PROGRESO: 'EN PROCESO', TERMINADO: 'TERMINADO', CANCELADO: 'CANCELADO' };
@@ -35,6 +36,9 @@ export default function ComprasServicios() {
 
   // Delete confirm
   const [confirmDelete, setConfirmDelete] = useState(null);
+
+  // Servicio creation modal
+  const [servicioModalVisible, setServicioModalVisible] = useState(false);
 
   // Pagination
   const [page, setPage]   = useState(1);
@@ -333,6 +337,8 @@ export default function ComprasServicios() {
                       value={form.servicio}
                       onChange={val => setForm(f => ({ ...f, servicio: val }))}
                       placeholder="Buscar servicio..."
+                      onActionClick={() => setServicioModalVisible(true)}
+                      actionLabel={<><span style={{marginRight:4}}>+</span> Nuevo Servicio</>}
                       error={errors.servicio}
                     />
                     {errors.servicio && <div style={{ color: 'var(--color-danger)', fontSize: '12px', marginTop: '4px' }}>{errors.servicio}</div>}
@@ -439,7 +445,7 @@ export default function ComprasServicios() {
                   />
                 </div>
               </div>
-                            <div className="modal-footer">
+              <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>Cancelar</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
                   {saving ? 'Guardando...' : modalMode === 'create' ? 'Registrar Compra' : 'Guardar Cambios'}
@@ -449,6 +455,17 @@ export default function ComprasServicios() {
           </div>
         </div>
       )}
+
+      {/* Modal: Crear Nuevo Servicio */}
+      <ServicioFormModal
+        visible={servicioModalVisible}
+        onClose={() => setServicioModalVisible(false)}
+        onSave={(newSvc) => {
+          setServicios(prev => prev.find(s => s.id === newSvc.id) ? prev : [...prev, newSvc]);
+          setForm(f => ({ ...f, servicio: String(newSvc.id) }));
+          setServicioModalVisible(false);
+        }}
+      />
     </>
   );
 }
