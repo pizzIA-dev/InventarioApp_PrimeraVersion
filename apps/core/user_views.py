@@ -287,10 +287,14 @@ def seed_compras_servicios_view(request):
     from decimal import Decimal
 
     try:
+        from django.db import connection
         from apps.core.models import Empresa
         from apps.servicios.models import Servicio, CompraServicio
         from apps.proveedores.models import Proveedor
 
+        schema_info = connection.schema_name
+        tenant_info = getattr(request, 'tenant', None)
+        
         empresa = Empresa.objects.first()
         if not empresa:
             return Response({'error': 'No hay empresa'}, status=400)
@@ -332,7 +336,7 @@ def seed_compras_servicios_view(request):
             created += 1
             results.append(f"{serv.nombre} - {estado} - S/.{precio}")
 
-        return Response({'message': f'Creados {created} compras de servicio', 'created': created, 'items': results})
+        return Response({'message': f'Creados {created} compras de servicio', 'created': created, 'items': results, 'schema': schema_info, 'tenant': str(tenant_info)})
 
     except Exception as e:
         import traceback
