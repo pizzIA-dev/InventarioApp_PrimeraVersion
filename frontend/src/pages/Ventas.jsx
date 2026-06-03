@@ -1406,7 +1406,7 @@ function Ventas() {
                               }
                             }}
                           >
-                            ðŸ‘¤ Cliente General
+                            ‘¤ Cliente General
                           </button>
                         </div>
                         <SearchableSelect
@@ -1583,7 +1583,7 @@ function Ventas() {
                           }
                         }}
                       >
-                        ðŸ‘¤ Cliente General
+                        ‘¤ Cliente General
                       </button>
                     </div>
                     <SearchableSelect
@@ -1948,7 +1948,7 @@ function Ventas() {
                     {printMode !== 'LEGAL' && (
                        <div style={{ fontWeight: "bold" }}>
                          COMPROBANTE DE PAGO: {selectedVentaForDetail.numero_comprobante_simple || "S/N"}
-                         {printMode === 'SIMPLE' && <div style={{ fontSize: '12px', fontWeight: 'normal' }}>COMPROBANTE NO VÃLIDO PARA SUNAT</div>}
+                         {printMode === 'SIMPLE' && <div style={{ fontSize: '12px', fontWeight: 'normal' }}>COMPROBANTE NO VÁLIDO PARA SUNAT</div>}
                        </div>
                     )}
                     

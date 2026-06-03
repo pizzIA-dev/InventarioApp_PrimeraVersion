@@ -221,7 +221,7 @@ const Login = () => {
 
         <Divider style={{ margin: '22px 0 12px', opacity: 0.2 }} />
         <Text style={{ fontSize: 12, display: 'block', textAlign: 'center', color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)' }}>
-          Accede desde el subdominio de tu empresa Â· NegocIA SaaS
+          Accede desde el subdominio de tu empresa · NegocIA SaaS
         </Text>
       </Card>
 

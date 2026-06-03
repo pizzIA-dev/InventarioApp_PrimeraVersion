@@ -740,7 +740,7 @@ function Transacciones() {
                     No hay {activeTab === 'INGRESO' ? 'ingresos no operativos' : 'gastos'} registrados que coincidan con los filtros.
                     {categorias.filter(c => c.tipo === activeTab).length === 0 && (
                       <div style={{ marginTop: '12px', fontSize: '13px' }}>
-                        ðŸ’¡ Primero crea una categoría haciendo clic en <strong>"Gestionar Categorías"</strong>.
+                        ’¡ Primero crea una categoría haciendo clic en <strong>"Gestionar Categorías"</strong>.
                       </div>
                     )}
                   </td>

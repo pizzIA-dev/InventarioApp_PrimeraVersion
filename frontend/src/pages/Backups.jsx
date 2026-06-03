@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { backupsAPI } from '../services/api';
 import { CloudServerOutlined, ReloadOutlined, SettingOutlined, WarningOutlined } from '@ant-design/icons';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -88,15 +88,15 @@ function Backups() {
 
   return (
     <div>
-      {restoring && <LoadingScreen message="âš ï¸ RESTAURANDO BASE DE DATOS... NO CIERRE ESTA PÃGINA âš ï¸" />}
+      {restoring && <LoadingScreen message="âš️ RESTAURANDO BASE DE DATOS... NO CIERRE ESTA PÁGINA âš️" />}
       
       <ConfirmDialog
         visible={confirmVisible}
-        title="âš ï¸ ADVERTENCIA CRÃTICA: restauración de Backup"
-        message="Estás a punto de restaurar la base de datos a un estado anterior. ¡ESTO BORRARÃ TODOS LOS DATOS ACTUALES DE TU EMPRESA DE FORMA IRREVERSIBLE! Todas las ventas, clientes y cambios realizados después de este backup se perderán para siempre. ¿Estás absolutamente seguro?"
+        title="âš️ ADVERTENCIA CRÍTICA: restauración de Backup"
+        message="Estás a punto de restaurar la base de datos a un estado anterior. ¡ESTO BORRARÁ TODOS LOS DATOS ACTUALES DE TU EMPRESA DE FORMA IRREVERSIBLE! Todas las ventas, clientes y cambios realizados después de este backup se perderán para siempre. ¿Estás absolutamente seguro?"
         onConfirm={processRestore}
         onCancel={() => setConfirmVisible(false)}
-        confirmText="SÃ, DESTRUIR DATOS ACTUALES Y RESTAURAR"
+        confirmText="SÍ, DESTRUIR DATOS ACTUALES Y RESTAURAR"
         danger={true}
       />
 
@@ -187,7 +187,7 @@ function Backups() {
                       <div style={{ display: 'flex', gap: '8px' }}>
                         {b.url && (
                           <a href={b.url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" title="Descargar ZIP">
-                            â¬‡ï¸ Descargar
+                            ⬇️ Descargar
                           </a>
                         )}
                         {b.estado === 'EXITO' && (

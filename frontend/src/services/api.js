@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Multi-tenant: construir la URL del API desde el hostname actual del navegador
-// Ej: emprendedor.localhost:5173 Ã¢â€ â€™ emprendedor.localhost:8000/api
+// Ej: emprendedor.localhost:5173 Ã¢â€ ' emprendedor.localhost:8000/api
 const _host    = window.location.hostname;
 const _port    = import.meta.env.VITE_API_PORT || '8000';
 const _apiBase = import.meta.env.VITE_API_URL  || `http://${_host}:${_port}`;
