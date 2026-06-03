@@ -36,14 +36,18 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Opcionalmente redirigir al login
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user_data');
-      const schema = localStorage.getItem('tenant_schema');
+      // Redirigir al login cuando el token expira
+      const alreadyOnLogin = window.location.pathname.includes('/login') || window.location.pathname === '/planes';
+      if (!alreadyOnLogin) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('user_data');
+        // Dispatch evento para que AuthContext lo detecte sin forzar recarga:
+        window.dispatchEvent(new Event('auth:logout'));
+        const schema = localStorage.getItem('tenant_schema');
         const loginPath = schema ? `/t/${schema}/login` : '/planes';
-        if (!window.location.pathname.includes('/login')) {
-          window.location.href = loginPath;
-        }
+        // Usar timeout pequeño para que React pueda hacer cleanup antes del redirect:
+        setTimeout(() => { window.location.href = loginPath; }, 100);
+      }
     }
     return Promise.reject(error);
   }

@@ -72,7 +72,7 @@ const AppContent = () => {
       theme={{ algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm }}
     >
       <Router>
-        <Suspense fallback={<PageLoader />}>
+        <ErrorBoundary><Suspense fallback={<PageLoader />}>
           <Routes>
             {/* â”€â”€ Rutas Publicas / Landing â”€â”€ */}
             <Route path="/"                  element={<Landing view="planes" />} />
