@@ -306,7 +306,7 @@ def seed_compras_servicios_view(request):
         empresa = Empresa.objects.get(id=empresa_id)
 
         existing = CompraServicio.objects.count()
-        if existing >= 5:
+        if existing >= 8:
             return Response({'message': f'Ya existen {existing} compras de servicio', 'created': 0, 'schema': current_schema})
 
         servicios = list(Servicio.objects.filter(activo=True))
