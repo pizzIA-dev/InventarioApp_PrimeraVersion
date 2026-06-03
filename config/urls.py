@@ -29,7 +29,7 @@ urlpatterns = [
     path('api/core/', include(router.urls)),
     path('api/auth/me/', my_profile, name='my_profile'),
     # Tenant-aware routes: /t/{schema}/api/
-    path('t/<str:schema>/api/', include('config.tenant_urls')),
+    path('t/<str:t_slug>/api/', include('config.tenant_urls')),
     path('api/public/', include('apps.clientes_saas.urls')),
     path('api/public/', include('apps.suscripciones.urls')),
     path('api/auth/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
