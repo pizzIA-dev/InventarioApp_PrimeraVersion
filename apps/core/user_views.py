@@ -262,3 +262,72 @@ def ensure_defaults_view(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+
+
+# ─── Temporal: seed compras de servicios (llamar 1 sola vez) ─────────────────
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def seed_compras_servicios_view(request):
+    """
+    Endpoint temporal para crear datos de ejemplo de Compra de Servicios.
+    Solo crea si no existen registros todavia.
+    """
+    import random
+    import datetime
+    from decimal import Decimal
+
+    try:
+        from apps.core.models import Empresa
+        from apps.servicios.models import Servicio, CompraServicio
+        from apps.proveedores.models import Proveedor
+
+        empresa = Empresa.objects.first()
+        if not empresa:
+            return Response({'error': 'No hay empresa'}, status=400)
+
+        existing = CompraServicio.objects.count()
+        if existing >= 5:
+            return Response({'message': f'Ya existen {existing} compras de servicio', 'created': 0})
+
+        servicios = list(Servicio.objects.filter(activo=True))
+        proveedores = list(Proveedor.objects.exclude(identificador='00000000'))
+
+        if not servicios:
+            return Response({'error': 'No hay servicios activos'}, status=400)
+
+        today = datetime.date.today()
+        ejemplos = [
+            ('TERMINADO',   120, 45, 'Mantenimiento mensual del sistema'),
+            ('EN_PROGRESO', 250, 10, 'Servicio de contabilidad externa'),
+            ('PENDIENTE',   380, 2,  'Auditoria de inventario trimestral'),
+            ('CANCELADO',   180, 30, 'Servicio de limpieza industrial'),
+            ('TERMINADO',   95,  60, 'Disenio de carta digital'),
+            ('PENDIENTE',   450, 5,  'Consultoria de marketing digital'),
+            ('EN_PROGRESO', 320, 15, 'Capacitacion del personal de ventas'),
+            ('TERMINADO',   200, 90, 'Instalacion de software POS'),
+        ]
+
+        created = 0
+        results = []
+        for estado, precio, dias, notas in ejemplos:
+            serv = random.choice(servicios)
+            prov = random.choice(proveedores) if proveedores else None
+            fecha = today - datetime.timedelta(days=dias)
+            obj = CompraServicio.objects.create(
+                empresa=empresa, servicio=serv, servicio_nombre=serv.nombre,
+                proveedor=prov, proveedor_nombre=prov.nombre if prov else None,
+                precio=Decimal(str(precio)), estado=estado,
+                fecha_programada=fecha, notas=notas,
+            )
+            created += 1
+            results.append(f"{serv.nombre} - {estado} - S/.{precio}")
+
+        return Response({'message': f'Creados {created} compras de servicio', 'created': created, 'items': results})
+
+    except Exception as e:
+        import traceback
+        return Response({'error': str(e), 'detail': traceback.format_exc()}, status=500)
