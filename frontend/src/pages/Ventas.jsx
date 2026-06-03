@@ -1,11 +1,12 @@
-﻿import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { ventasAPI, productosAPI, clientesAPI, serviciosAPI } from '../services/api';
 import { 
   PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, 
   PlayCircleOutlined, OrderedListOutlined, EyeOutlined, DownloadOutlined,
-  FileTextOutlined, HistoryOutlined, CalendarOutlined, SearchOutlined, EllipsisOutlined, CheckCircleOutlined, CloseCircleOutlined, PrinterOutlined
+  FileTextOutlined, HistoryOutlined, CalendarOutlined, SearchOutlined, EllipsisOutlined, CheckCircleOutlined, CloseCircleOutlined, PrinterOutlined,
+  ShoppingCartOutlined, ToolOutlined
 } from '@ant-design/icons';
-import { message } from 'antd';
+import { message, Tabs } from 'antd';
 
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';

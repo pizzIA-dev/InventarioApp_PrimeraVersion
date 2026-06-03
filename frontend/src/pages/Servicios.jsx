@@ -5,8 +5,7 @@ import {
   EditOutlined, 
   DeleteOutlined, 
   HistoryOutlined,
-  SettingOutlined
-} from '@ant-design/icons';
+  SettingOutlined, CloseOutlined} from '@ant-design/icons';
 import Pagination from '../components/Pagination';
 import SearchableSelect from '../components/SearchableSelect';
 import ConfirmDialog from '../components/ConfirmDialog';

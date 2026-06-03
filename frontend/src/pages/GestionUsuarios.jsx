@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { usuariosAPI } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 import {
@@ -8,8 +8,7 @@ import {
   CheckCircleOutlined,
   StopOutlined,
   KeyOutlined,
-  TeamOutlined,
-} from '@ant-design/icons';
+  TeamOutlined,, CloseOutlined} from '@ant-design/icons';
 
 function GestionUsuarios() {
   const { isGerente } = useContext(AuthContext);
