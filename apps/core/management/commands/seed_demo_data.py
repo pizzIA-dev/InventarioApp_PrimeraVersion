@@ -36,6 +36,7 @@ class Command(BaseCommand):
         from apps.inventario.models import Producto, Categoria
         from apps.clientes.models import Cliente
         from apps.proveedores.models import Proveedor
+        from apps.servicios.models import Servicio
         from apps.ventas.models import Venta, DetalleVenta
         from apps.compras.models import Compra, DetalleCompra
         from apps.core.signals import ensure_defaults_for_empresa
@@ -180,6 +181,32 @@ class Command(BaseCommand):
                     precio_unitario=precio, subtotal=precio * qty,
                 )
 
+
+        # ── Compras de Servicios ───────────────────────────────────────────────────
+        self.stdout.write("  Creando compras de servicios...")
+        from apps.servicios.models import CompraServicio
+        servicios_activos = list(Servicio.objects.filter(activo=True))
+        if servicios_activos and not CompraServicio.objects.exists():
+            import random as _random
+            estados_s = ['TERMINADO', 'EN_PROGRESO', 'PENDIENTE', 'CANCELADO', 'TERMINADO', 'PENDIENTE', 'EN_PROGRESO', 'TERMINADO']
+            precios_s = [120, 250, 380, 180, 95, 450, 320, 200]
+            notas_s   = [
+                'Mantenimiento mensual', 'Contabilidad externa', 'Auditoria de inventario',
+                'Limpieza industrial', 'Disenio de carta', 'Consultoria marketing',
+                'Capacitacion personal', 'Instalacion software POS',
+            ]
+            for i, (est, prec, nota) in enumerate(zip(estados_s, precios_s, notas_s)):
+                serv = _random.choice(servicios_activos)
+                prov = _random.choice(proveedores) if proveedores else None
+                dias = _random.randint(5, 90)
+                CompraServicio.objects.create(
+                    empresa=empresa, servicio=serv, servicio_nombre=serv.nombre,
+                    proveedor=prov, proveedor_nombre=prov.nombre if prov else None,
+                    precio=Decimal(str(prec)), estado=est,
+                    fecha_programada=today - datetime.timedelta(days=dias),
+                    notas=nota,
+                )
+
         self.stdout.write(self.style.SUCCESS(
-            f"  LISTO: {Venta.objects.count()} ventas, {Compra.objects.count()} compras, {Producto.objects.count()} productos"
+            f"  LISTO: {Venta.objects.count()} ventas, {Compra.objects.count()} compras, {CompraServicio.objects.count()} compras_servicios, {Producto.objects.count()} productos"
         ))
