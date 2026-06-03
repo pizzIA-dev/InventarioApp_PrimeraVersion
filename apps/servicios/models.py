@@ -20,6 +20,28 @@ class CategoriaServicio(models.Model):
         return self.nombre
 
 
+
+
+class ServicioContratado(models.Model):
+    """Catalogo de servicios que el negocio COMPRA a proveedores externos.
+    Diferente de Servicio (los que el negocio ofrece a sus clientes)."""
+    empresa       = models.ForeignKey('core.Empresa', on_delete=models.CASCADE,
+                                       related_name='servicios_contratados_catalogo', null=True)
+    nombre        = models.CharField(max_length=200)
+    descripcion   = models.TextField(blank=True, null=True)
+    precio_referencia = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True,
+                                            help_text="Precio habitual de referencia (editable en cada compra)")
+    activo        = models.BooleanField(default=True)
+    creado        = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['nombre']
+        verbose_name = "Servicio Contratado"
+        verbose_name_plural = "Servicios Contratados"
+
+    def __str__(self):
+        return self.nombre
+
 class Servicio(models.Model):
     """Servicio ofrecido por el negocio"""
     empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='servicios', null=True)

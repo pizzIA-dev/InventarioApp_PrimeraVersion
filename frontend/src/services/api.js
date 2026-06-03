@@ -206,6 +206,14 @@ export const serviciosAPI = {
   exportarHistorialGlobal: (params) => api.get('/servicios/exportar_historial_global/', { params, responseType: 'blob' }),
 };
 
+export const serviciosContratadosAPI = {
+  getAll: (params) => api.get('/servicios/servicios-contratados/', { params }),
+  create: (data) => api.post('/servicios/servicios-contratados/', data),
+  update: (id, data) => api.patch(`/servicios/servicios-contratados/${id}/`, data),
+  delete: (id) => api.delete(`/servicios/servicios-contratados/${id}/`),
+};
+
+
 // Transacciones
 export const transaccionesAPI = {
   getAll: (params) => api.get('/transacciones/', { params }),

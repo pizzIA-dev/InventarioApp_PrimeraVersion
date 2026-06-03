@@ -11,8 +11,8 @@ from rest_framework.decorators import action
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Sum, Count
 from django.utils import timezone
-from .models import CategoriaServicio, Servicio, VentaServicio, MovimientoServicio
-from .serializers import (
+from .models import CategoriaServicio, Servicio, VentaServicio, MovimientoServicio, ServicioContratado
+from .serializers import (, ServicioContratadoSerializer
     CategoriaServicioSerializer,
     ServicioSerializer, ServicioCreateSerializer,
     VentaServicioSerializer, VentaServicioCreateSerializer,
@@ -772,3 +772,24 @@ class CompraServicioViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             period_label='Todo el historial',
         )
 
+
+
+class ServicioContratadoViewSet(viewsets.ModelViewSet):
+    serializer_class = ServicioContratadoSerializer
+    
+    def get_queryset(self):
+        empresa = getattr(self.request, 'empresa', None)
+        qs = ServicioContratado.objects.all()
+        if empresa:
+            qs = qs.filter(empresa=empresa)
+        # Filter activo by default unless explicitly requested:
+        activo = self.request.query_params.get('activo')
+        if activo is None:
+            qs = qs.filter(activo=True)
+        elif activo == 'false':
+            qs = qs.filter(activo=False)
+        return qs.order_by('nombre')
+    
+    def perform_create(self, serializer):
+        empresa = getattr(self.request, 'empresa', None)
+        serializer.save(empresa=empresa)

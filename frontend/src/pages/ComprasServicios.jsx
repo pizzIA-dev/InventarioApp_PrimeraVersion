@@ -4,15 +4,15 @@ import {
   DeleteOutlined, EditOutlined, PlusOutlined, CloseOutlined,
   UploadOutlined
 } from '@ant-design/icons';
-import { comprasServiciosAPI, serviciosAPI, proveedoresAPI } from '../services/api';
+import { comprasServiciosAPI, proveedoresAPI, serviciosContratadosAPI } from '../services/api';
 import ExportDropdown from '../components/ExportDropdown';
 import SearchableSelect from '../components/SearchableSelect';
-import ServicioFormModal from '../components/ServicioFormModal';
+import ServicioContratadoFormModal from '../components/ServicioContratadoFormModal';
 
 const ESTADO_BADGE = { PENDIENTE: 'badge-warning', EN_PROGRESO: 'badge-info', TERMINADO: 'badge-success', CANCELADO: 'badge-danger' };
 const ESTADO_LABEL = { PENDIENTE: 'PENDIENTE', EN_PROGRESO: 'EN PROCESO', TERMINADO: 'TERMINADO', CANCELADO: 'CANCELADO' };
 const EMPTY_FORM    = {
-  servicio: '', proveedor: '', precio: '', descuento: '0', impuesto: '0',
+  servicio: '', servicio_nombre: '', proveedor: '', precio: '', descuento: '0', impuesto: '0',
   fecha_programada: '', estado: 'PENDIENTE', notas: '',
   numero_comprobante: '', numero_comprobante_simple: '', tipo_comprobante: '',
 };
@@ -37,8 +37,6 @@ export default function ComprasServicios() {
   // Delete confirm
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  // Servicio creation modal
-  const [servicioModalVisible, setServicioModalVisible] = useState(false);
 
   // Pagination
   const [page, setPage]   = useState(1);
@@ -64,10 +62,10 @@ export default function ComprasServicios() {
   const fetchCatalogs = async () => {
     try {
       const [sRes, pRes] = await Promise.all([
-        serviciosAPI.getAll({ page_size: 999, activo: true }),
+        serviciosContratadosAPI.getAll({ page_size: 999, activo: true }),
         proveedoresAPI.getAll({ page_size: 999 }),
       ]);
-      setServicios(sRes.data.results || sRes.data);
+      setServiciosContratados(sRes.data.results || sRes.data);
       setProveedores(pRes.data.results || pRes.data);
     } catch {}
   };
@@ -98,6 +96,7 @@ export default function ComprasServicios() {
     setModalMode('edit'); setSelected(r);
     setForm({
       servicio: String(r.servicio || ''),
+        servicio_nombre: r.servicio_nombre || '',
       proveedor: String(r.proveedor || ''),
       precio: String(r.precio || ''),
       descuento: String(r.descuento || '0'),
@@ -115,7 +114,7 @@ export default function ComprasServicios() {
 
   const validate = () => {
     const e = {};
-    if (!form.servicio) e.servicio = 'Selecciona un servicio';
+    if (!form.servicio_nombre?.trim()) e.servicio = 'Ingresa el concepto del servicio';
     if (!form.precio || Number(form.precio) <= 0) e.precio = 'Ingresa un precio valido';
     setErrors(e); return Object.keys(e).length === 0;
   };
@@ -126,7 +125,8 @@ export default function ComprasServicios() {
     setSaving(true);
     try {
       const payload = {
-        servicio: Number(form.servicio),
+        servicio: null,
+        servicio_nombre: form.servicio_nombre || '',
         proveedor: form.proveedor ? Number(form.proveedor) : null,
         precio: Number(form.precio) || 0,
         descuento: Number(form.descuento) || 0,
@@ -331,11 +331,23 @@ export default function ComprasServicios() {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Servicio *</label>
+                    <label className="form-label">Concepto / Servicio *</label>
                     <SearchableSelect
-                      options={servicios.map(s => ({ id: String(s.id), nombre: s.nombre }))}
+                      options={serviciosContratados.map(s => ({
+                      id: String(s.id),
+                      nombre: s.nombre,
+                      subtitle: s.precio_referencia ? `Ref: S/. ${Number(s.precio_referencia).toFixed(2)}` : ''
+                    }))}
                       value={form.servicio}
-                      onChange={val => setForm(f => ({ ...f, servicio: val }))}
+                      onChange={val => {
+                      const sc = serviciosContratados.find(s => String(s.id) === String(val));
+                      setForm(f => ({
+                        ...f,
+                        servicio: val,
+                        servicio_nombre: sc ? sc.nombre : '',
+                        ...(sc && sc.precio_referencia && !f.precio ? { precio: sc.precio_referencia } : {})
+                      }));
+                    }}
                       placeholder="Buscar servicio..."
                       onActionClick={() => setServicioModalVisible(true)}
                       actionLabel="Nuevo Servicio"
@@ -457,11 +469,11 @@ export default function ComprasServicios() {
       )}
 
       {/* Modal: Crear Nuevo Servicio */}
-      <ServicioFormModal
-        visible={servicioModalVisible}
+      <ServicioContratadoFormModal
+        visible={servicioContratadoModalVisible}
         onClose={() => setServicioModalVisible(false)}
         onSave={(newSvc) => {
-          setServicios(prev => prev.find(s => s.id === newSvc.id) ? prev : [...prev, newSvc]);
+          setServiciosContratados(prev => prev.find(s => s.id === newSvc.id) ? prev : [...prev, newSvc]);
           setForm(f => ({ ...f, servicio: String(newSvc.id) }));
           setServicioModalVisible(false);
         }}
