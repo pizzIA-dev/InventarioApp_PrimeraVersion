@@ -296,21 +296,8 @@ export default function ComprasServicios() {
                   </div>
                 )}
 
+                {/* Fila 1: Proveedor | Servicio */}
                 <div className="grid grid-2">
-                  {/* Servicio */}
-                  <div className="form-group">
-                    <label className="form-label">Servicio *</label>
-                    <SearchableSelect
-                      options={servicios.map(s => ({ id: String(s.id), nombre: s.nombre }))}
-                      value={form.servicio}
-                      onChange={val => setForm(f => ({ ...f, servicio: val }))}
-                      placeholder="Buscar servicio..."
-                      error={errors.servicio}
-                    />
-                    {errors.servicio && <div style={{ color: 'var(--color-danger)', fontSize: '12px', marginTop: '4px' }}>{errors.servicio}</div>}
-                  </div>
-
-                  {/* Proveedor */}
                   <div className="form-group">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                       <label className="form-label" style={{ marginBottom: 0 }}>Proveedor</label>
@@ -339,8 +326,20 @@ export default function ComprasServicios() {
                       error={errors.proveedor}
                     />
                   </div>
+                  <div className="form-group">
+                    <label className="form-label">Servicio *</label>
+                    <SearchableSelect
+                      options={servicios.map(s => ({ id: String(s.id), nombre: s.nombre }))}
+                      value={form.servicio}
+                      onChange={val => setForm(f => ({ ...f, servicio: val }))}
+                      placeholder="Buscar servicio..."
+                      error={errors.servicio}
+                    />
+                    {errors.servicio && <div style={{ color: 'var(--color-danger)', fontSize: '12px', marginTop: '4px' }}>{errors.servicio}</div>}
+                  </div>
                 </div>
 
+                {/* Fila 2: Nro Comprobante | Tipo Comprobante */}
                 <div className="grid grid-2">
                   <div className="form-group">
                     <label className="form-label">Nro Comprobante</label>
@@ -363,6 +362,7 @@ export default function ComprasServicios() {
                   </div>
                 </div>
 
+                {/* Fila 3: Estado | Fecha Programada */}
                 <div className="grid grid-2">
                   <div className="form-group">
                     <label className="form-label">Estado</label>
@@ -375,12 +375,13 @@ export default function ComprasServicios() {
                     </select>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Fecha programada</label>
+                    <label className="form-label">Fecha Programada</label>
                     <input type="date" className="form-input" value={form.fecha_programada}
                       onChange={e => setForm(f => ({ ...f, fecha_programada: e.target.value }))} />
                   </div>
                 </div>
 
+                {/* Fila 4: Precio | Descuento  (análogo a sección Productos) */}
                 <div className="grid grid-2">
                   <div className="form-group">
                     <label className="form-label">Precio (S/.) *</label>
@@ -401,6 +402,7 @@ export default function ComprasServicios() {
                   </div>
                 </div>
 
+                {/* Fila 5: Impuesto | Total Estimado */}
                 <div className="grid grid-2">
                   <div className="form-group">
                     <label className="form-label">Impuesto (S/.)</label>
@@ -419,25 +421,25 @@ export default function ComprasServicios() {
                   </div>
                 </div>
 
-                <div className="grid grid-2">
-                  <div className="form-group">
-                    <label className="form-label">Notas</label>
-                    <textarea className="form-input" rows={2} style={{ resize: 'vertical' }}
-                      placeholder="Descripción o notas adicionales..."
-                      value={form.notas}
-                      onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Comprobante de Pago (Archivo)</label>
-                    <input type="file" className="form-input" accept="image/*,.pdf"
-                      onChange={e => { if (e.target.files.length > 0) setForm(f => ({ ...f, comprobante_archivo: e.target.files[0] })); }}
-                    />
-                  </div>
+                {/* Fila 6: Notas */}
+                <div className="form-group">
+                  <label className="form-label">Notas</label>
+                  <textarea className="form-input" rows={2} style={{ resize: 'vertical' }}
+                    placeholder="Descripción o notas adicionales..."
+                    value={form.notas}
+                    onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
+                  />
+                </div>
+
+                {/* Fila 7: Archivo */}
+                <div className="form-group">
+                  <label className="form-label">Comprobante de Pago (Archivo)</label>
+                  <input type="file" className="form-input" accept="image/*,.pdf"
+                    onChange={e => { if (e.target.files.length > 0) setForm(f => ({ ...f, comprobante_archivo: e.target.files[0] })); }}
+                  />
                 </div>
               </div>
-
-              <div className="modal-footer">
+                            <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>Cancelar</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
                   {saving ? 'Guardando...' : modalMode === 'create' ? 'Registrar Compra' : 'Guardar Cambios'}
