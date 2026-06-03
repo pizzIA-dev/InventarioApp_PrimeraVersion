@@ -1,4 +1,34 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, Component } from 'react';
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error('ErrorBoundary caught:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>
+          <h2>Algo salió mal</h2>
+          <pre style={{ fontSize: '12px', textAlign: 'left', background: '#fee2e2', padding: '16px', borderRadius: '8px', overflowX: 'auto' }}>
+            {this.state.error?.message}
+          </pre>
+          <button onClick={() => this.setState({ hasError: false, error: null })}
+            style={{ marginTop: '16px', padding: '8px 16px', cursor: 'pointer' }}>
+            Intentar de nuevo
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ConfigProvider, theme } from 'antd';
 import esES from 'antd/locale/es_ES';
@@ -76,7 +106,7 @@ const AppContent = () => {
             {/* Fallback */}
             <Route path="*" element={<Landing view="planes" />} />
           </Routes>
-        </Suspense>
+        </Suspense></ErrorBoundary>
       </Router>
     </ConfigProvider>
   );
