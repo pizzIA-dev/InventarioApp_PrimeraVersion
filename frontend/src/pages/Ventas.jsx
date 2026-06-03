@@ -1171,9 +1171,9 @@ function Ventas() {
                 <th>Cliente</th>
                 <th style={{ textAlign: 'center' }}>Producto</th>
                 <th>Almacén</th>
-                  <th>Estado</th>
+                <th style={{ width: '110px' }}>Estado</th>
                 <th style={{ textAlign: 'right' }}>Total</th>
-                <th style={{ width: '120px' }}>Acciones</th>
+                <th style={{ width: '160px', textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -1211,7 +1211,7 @@ function Ventas() {
                     </span>
                   </td>
                   <td style={{ textAlign: "right", fontWeight: "bold" }}>S/. {Number(venta.total || 0).toFixed(2)}</td>
-                  <td style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                  <td style={{ whiteSpace: "nowrap" }}><div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
                     <button className="btn btn-secondary" onClick={() => openHistoryModal(venta, 'producto')} title="Ver Historial/Kardex">
                       <HistoryOutlined />
                     </button>
@@ -1229,7 +1229,7 @@ function Ventas() {
                         <DeleteOutlined />
                       </button>
                     )}
-                  </td>
+                  </div></td>
                 </tr>
               ))}
               {filteredVentas.length === 0 && (
@@ -1259,7 +1259,7 @@ function Ventas() {
                   <th>Cliente</th>
                   <th>F. Programada</th>
                   <th>Almacén</th>
-                  <th>Estado</th>
+                <th style={{ width: '110px' }}>Estado</th>
                   <th style={{ textAlign: 'right' }}>Total</th>
                   <th style={{ width: '120px' }}>Acciones</th>
                 </tr>
