@@ -94,7 +94,7 @@ const AjusteStockModal = ({ visible, onClose, producto, onSubmit }) => {
                   disabled={loadingAlmacenes || saving}
                 >
                   <option value="">-- Selecciona un Almacén --</option>
-                    <option key={a.id} value={a.id}>{a.es_general ? '🏬 ' : '📦 '}{a.nombre}</option>
+                    <option key={a.id} value={a.id}>{a.es_general ? '' : ''}{a.nombre}</option>
                   ))}
                 </select>
               </div>
@@ -102,7 +102,7 @@ const AjusteStockModal = ({ visible, onClose, producto, onSubmit }) => {
               <div style={{ marginBottom: '16px', padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Caja afectada:</span>
                 <div style={{ fontWeight: 'bold' }}>
-                  📦 {user?.almacen?.nombre || 'Almacén General (Por defecto)'}
+                  {user?.almacen?.nombre || 'Almacén General (Por defecto)'}
                 </div>
               </div>
             )}

@@ -253,7 +253,7 @@ function VentaFormModal({
                       }
                     }}
                   >
-                    👤 Cliente General
+                    Cliente General
                   </button>
                 </div>
                 <SearchableSelect

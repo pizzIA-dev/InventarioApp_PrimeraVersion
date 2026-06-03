@@ -209,7 +209,7 @@ function ServicioVentaFormModal({
                       }
                     }}
                   >
-                    👤 Cliente General
+                    Cliente General
                   </button>
                 </div>
                 <SearchableSelect

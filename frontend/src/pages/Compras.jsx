@@ -921,7 +921,7 @@ function Compras() {
                           }
                         }}
                       >
-                        🏪 Proveedor General
+                        Proveedor General
                       </button>
                     </div>
                     <div style={{ position: 'relative' }}>
