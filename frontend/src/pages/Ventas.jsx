@@ -1170,9 +1170,8 @@ function Ventas() {
                 <th style={{ width: '120px' }}>Comprobante</th>
                 <th>Cliente</th>
                 <th style={{ textAlign: 'center' }}>Producto</th>
-                <th>Almacén</th>
                 <th style={{ width: '110px' }}>Estado</th>
-                <th style={{ textAlign: 'right' }}>Total</th>
+                <th style={{ textAlign: 'right', width: '90px' }}>Total</th>
                 <th style={{ width: '160px', textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
@@ -1257,10 +1256,9 @@ function Ventas() {
                   <th>Servicio</th>
                   <th>Cliente</th>
                   <th>F. Programada</th>
-                  <th>Almacén</th>
-                <th style={{ width: '110px' }}>Estado</th>
-                  <th style={{ textAlign: 'right' }}>Total</th>
-                  <th style={{ width: '120px' }}>Acciones</th>
+                  <th style={{ width: '110px' }}>Estado</th>
+                  <th style={{ textAlign: 'right', width: '90px' }}>Total</th>
+                  <th style={{ width: '130px' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
