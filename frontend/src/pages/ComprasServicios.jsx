@@ -234,7 +234,7 @@ export default function ComprasServicios() {
       {/* Delete confirm */}
       {confirmDelete && (
         <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
-          <div className="modal-container" style={{ maxWidth: '420px' }} onClick={e => e.stopPropagation()}>
+          <div className="modal" style={{ maxWidth: '420px' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header"><h3 className="modal-title">Eliminar compra</h3><button className="modal-close" onClick={() => setConfirmDelete(null)}>x</button></div>
             <div className="modal-body"><p>Estas seguro que deseas eliminar esta compra de servicio? Esta accion no se puede deshacer.</p></div>
             <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
@@ -248,7 +248,7 @@ export default function ComprasServicios() {
       {/* Create / Edit modal */}
       {modalOpen && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-container" style={{ maxWidth: '540px' }} onClick={e => e.stopPropagation()}>
+          <div className="modal" style={{ maxWidth: '540px' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">{modalMode === 'create' ? 'Nueva Compra de Servicio' : 'Editar Compra de Servicio'}</h3>
               <button className="modal-close" onClick={closeModal}>x</button>
