@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
   CheckCircleOutlined, PlayCircleOutlined,
-  DeleteOutlined, EditOutlined, PlusOutlined
+  DeleteOutlined, EditOutlined, PlusOutlined, CloseOutlined,
+  UploadOutlined
 } from '@ant-design/icons';
 import { comprasServiciosAPI, serviciosAPI, proveedoresAPI } from '../services/api';
 import ExportDropdown from '../components/ExportDropdown';
@@ -9,7 +10,11 @@ import SearchableSelect from '../components/SearchableSelect';
 
 const ESTADO_BADGE = { PENDIENTE: 'badge-warning', EN_PROGRESO: 'badge-info', TERMINADO: 'badge-success', CANCELADO: 'badge-danger' };
 const ESTADO_LABEL = { PENDIENTE: 'PENDIENTE', EN_PROGRESO: 'EN PROCESO', TERMINADO: 'TERMINADO', CANCELADO: 'CANCELADO' };
-const EMPTY_FORM    = { servicio: '', proveedor: '', precio: '', fecha_programada: '', notas: '' };
+const EMPTY_FORM    = {
+  servicio: '', proveedor: '', precio: '', descuento: '0', impuesto: '0',
+  fecha_programada: '', estado: 'PENDIENTE', notas: '',
+  numero_comprobante: '', numero_comprobante_simple: '', tipo_comprobante: '',
+};
 const PAGE_SIZE     = 15;
 
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' };
@@ -85,7 +90,23 @@ export default function ComprasServicios() {
 
   // Handlers
   const openCreate = () => { setModalMode('create'); setSelected(null); setForm(EMPTY_FORM); setErrors({}); setModalOpen(true); };
-  const openEdit   = (r)  => { setModalMode('edit'); setSelected(r); setForm({ servicio: String(r.servicio || ''), proveedor: String(r.proveedor || ''), precio: String(r.precio || ''), fecha_programada: r.fecha_programada || '', notas: r.notas || '' }); setErrors({}); setModalOpen(true); };
+  const openEdit   = (r)  => {
+    setModalMode('edit'); setSelected(r);
+    setForm({
+      servicio: String(r.servicio || ''),
+      proveedor: String(r.proveedor || ''),
+      precio: String(r.precio || ''),
+      descuento: String(r.descuento || '0'),
+      impuesto: String(r.impuesto || '0'),
+      fecha_programada: r.fecha_programada ? r.fecha_programada.substring(0,10) : '',
+      estado: r.estado || 'PENDIENTE',
+      notas: r.notas || '',
+      numero_comprobante: r.numero_comprobante || '',
+      numero_comprobante_simple: r.numero_comprobante_simple || '',
+      tipo_comprobante: r.tipo_comprobante || '',
+    });
+    setErrors({}); setModalOpen(true);
+  };
   const closeModal = () => { setModalOpen(false); setErrors({}); };
 
   const validate = () => {
@@ -100,7 +121,19 @@ export default function ComprasServicios() {
     if (!validate()) return;
     setSaving(true);
     try {
-      const payload = { servicio: Number(form.servicio), proveedor: form.proveedor ? Number(form.proveedor) : null, precio: Number(form.precio), fecha_programada: form.fecha_programada || null, notas: form.notas || '' };
+      const payload = {
+        servicio: Number(form.servicio),
+        proveedor: form.proveedor ? Number(form.proveedor) : null,
+        precio: Number(form.precio) || 0,
+        descuento: Number(form.descuento) || 0,
+        impuesto: Number(form.impuesto) || 0,
+        fecha_programada: form.fecha_programada || null,
+        estado: form.estado || 'PENDIENTE',
+        notas: form.notas || '',
+        numero_comprobante: form.numero_comprobante || '',
+        numero_comprobante_simple: form.numero_comprobante_simple || '',
+        tipo_comprobante: form.tipo_comprobante || '',
+      };
       if (modalMode === 'create') { await comprasServiciosAPI.create(payload); }
       else { await comprasServiciosAPI.update(selected.id, payload); }
       closeModal(); fetchData(page);
@@ -235,7 +268,7 @@ export default function ComprasServicios() {
       {confirmDelete && (
         <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
           <div className="modal" style={{ maxWidth: '420px' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><h3 className="modal-title">Eliminar compra</h3><button className="modal-close" onClick={() => setConfirmDelete(null)}>x</button></div>
+            <div className="modal-header"><h3 className="modal-title">Eliminar compra</h3><button className="modal-close" onClick={() => setConfirmDelete(null)}><CloseOutlined /></button></div>
             <div className="modal-body"><p>Estas seguro que deseas eliminar esta compra de servicio? Esta accion no se puede deshacer.</p></div>
             <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
               <button className="btn btn-secondary" onClick={() => setConfirmDelete(null)}>Cancelar</button>
@@ -248,42 +281,177 @@ export default function ComprasServicios() {
       {/* Create / Edit modal */}
       {modalOpen && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal" style={{ maxWidth: '540px' }} onClick={e => e.stopPropagation()}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">{modalMode === 'create' ? 'Nueva Compra de Servicio' : 'Editar Compra de Servicio'}</h3>
-              <button className="modal-close" onClick={closeModal}>x</button>
+              <h3 className="modal-title">
+                {modalMode === 'create' ? 'Nueva Compra de Servicio' : 'Editar Compra de Servicio'}
+              </h3>
+              <button className="modal-close" onClick={closeModal}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleSubmit}>
-              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {errors.general && <div style={{ color: 'red', fontSize: '13px', background: '#fff1f0', padding: '8px 12px', borderRadius: '6px', border: '1px solid #ffccc7' }}>{errors.general}</div>}
-                <div>
+              <div className="modal-body">
+                {errors.general && (
+                  <div style={{ color: 'var(--color-danger)', fontSize: '13px', background: '#fff1f0', padding: '8px 12px', borderRadius: '6px', border: '1px solid #ffccc7', marginBottom: '16px' }}>
+                    {errors.general}
+                  </div>
+                )}
+
+                {/* Servicio */}
+                <div className="form-group">
                   <label className="form-label">Servicio *</label>
-                  <SearchableSelect options={servicios.map(s => ({ value: String(s.id), label: s.nombre }))} value={form.servicio} onChange={val => setForm(f => ({ ...f, servicio: val }))} placeholder="Seleccionar servicio..." />
-                  {errors.servicio && <div style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>{errors.servicio}</div>}
+                  <SearchableSelect
+                    options={servicios.map(s => ({ id: String(s.id), nombre: s.nombre, subtitle: s.categoria_nombre || '' }))}
+                    value={form.servicio}
+                    onChange={val => setForm(f => ({ ...f, servicio: val }))}
+                    placeholder="Buscar servicio..."
+                    error={errors.servicio}
+                  />
+                  {errors.servicio && <div style={{ color: 'var(--color-danger)', fontSize: '12px', marginTop: '4px' }}>{errors.servicio}</div>}
                 </div>
-                <div>
-                  <label className="form-label">Proveedor <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>(opcional)</span></label>
-                  <SearchableSelect options={proveedores.map(p => ({ value: String(p.id), label: p.nombre }))} value={form.proveedor} onChange={val => setForm(f => ({ ...f, proveedor: val }))} placeholder="Seleccionar proveedor..." />
+
+                {/* Proveedor */}
+                <div className="form-group">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label className="form-label" style={{ marginBottom: 0 }}>Proveedor</label>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ padding: '2px 8px', fontSize: '11px', height: 'auto' }}
+                      onClick={() => {
+                        const pg = proveedores.find(p => p.identificador === '00000000');
+                        if (pg) setForm(f => ({ ...f, proveedor: String(pg.id) }));
+                      }}
+                    >
+                      Proveedor General
+                    </button>
+                  </div>
+                  <SearchableSelect
+                    options={proveedores.map(p => ({
+                      id: String(p.id),
+                      nombre: p.nombre,
+                      subtitle: p.identificador || '',
+                      disabled: !p.activo
+                    }))}
+                    value={form.proveedor}
+                    onChange={val => setForm(f => ({ ...f, proveedor: val }))}
+                    placeholder="Buscar proveedor..."
+                    error={errors.proveedor}
+                  />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div>
+
+                {/* Comprobante */}
+                <div className="grid grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Nro Comprobante</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Ej: F001-0001"
+                      value={form.numero_comprobante}
+                      onChange={e => setForm(f => ({ ...f, numero_comprobante: e.target.value }))}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Tipo Comprobante</label>
+                    <select
+                      className="form-input"
+                      value={form.tipo_comprobante}
+                      onChange={e => setForm(f => ({ ...f, tipo_comprobante: e.target.value }))}
+                    >
+                      <option value="">Ninguno</option>
+                      <option value="FACTURA">Factura</option>
+                      <option value="BOLETA">Boleta</option>
+                      <option value="TICKET">Ticket</option>
+                      <option value="RECIBO">Recibo de Honorarios</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Precios */}
+                <div className="grid grid-2">
+                  <div className="form-group">
                     <label className="form-label">Precio (S/.) *</label>
-                    <input type="number" step="0.01" min="0" className="form-input" placeholder="0.00" value={form.precio} onChange={e => setForm(f => ({ ...f, precio: e.target.value }))} />
-                    {errors.precio && <div style={{ color: 'red', fontSize: '12px', marginTop: '4px' }}>{errors.precio}</div>}
+                    <input
+                      type="number" step="0.01" min="0" className="form-input" placeholder="0.00"
+                      value={form.precio}
+                      onChange={e => setForm(f => ({ ...f, precio: e.target.value }))}
+                      onFocus={e => e.target.select()}
+                    />
+                    {errors.precio && <div style={{ color: 'var(--color-danger)', fontSize: '12px', marginTop: '4px' }}>{errors.precio}</div>}
                   </div>
-                  <div>
-                    <label className="form-label">Fecha programada</label>
-                    <input type="date" className="form-input" value={form.fecha_programada} onChange={e => setForm(f => ({ ...f, fecha_programada: e.target.value }))} />
+                  <div className="form-group">
+                    <label className="form-label">Descuento (S/.)</label>
+                    <input
+                      type="number" step="0.01" min="0" className="form-input" placeholder="0.00"
+                      value={form.descuento}
+                      onChange={e => setForm(f => ({ ...f, descuento: e.target.value }))}
+                      onFocus={e => e.target.select()}
+                    />
                   </div>
                 </div>
-                <div>
+
+                <div className="grid grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Impuesto (S/.)</label>
+                    <input
+                      type="number" step="0.01" min="0" className="form-input" placeholder="0.00"
+                      value={form.impuesto}
+                      onChange={e => setForm(f => ({ ...f, impuesto: e.target.value }))}
+                      onFocus={e => e.target.select()}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Total estimado</label>
+                    <input
+                      type="text" className="form-input" readOnly
+                      value={`S/. ${(Math.max(0, Number(form.precio)||0) - (Number(form.descuento)||0) + (Number(form.impuesto)||0)).toFixed(2)}`}
+                      style={{ fontWeight: 'bold', background: 'var(--bg-input)', color: 'var(--accent, #1677ff)', border: '2px solid var(--accent, #1677ff)' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Estado y Fecha */}
+                <div className="grid grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Estado</label>
+                    <select
+                      className="form-input"
+                      value={form.estado}
+                      onChange={e => setForm(f => ({ ...f, estado: e.target.value }))}
+                    >
+                      <option value="PENDIENTE">Pendiente</option>
+                      <option value="EN_PROGRESO">En Progreso</option>
+                      <option value="TERMINADO">Terminado</option>
+                      <option value="CANCELADO">Cancelado</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Fecha programada</label>
+                    <input
+                      type="date" className="form-input"
+                      value={form.fecha_programada}
+                      onChange={e => setForm(f => ({ ...f, fecha_programada: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                {/* Notas */}
+                <div className="form-group">
                   <label className="form-label">Notas</label>
-                  <textarea className="form-input" rows={3} style={{ resize: 'vertical', minHeight: '80px' }} placeholder="Descripcion o notas adicionales..." value={form.notas} onChange={e => setForm(f => ({ ...f, notas: e.target.value }))} />
+                  <textarea
+                    className="form-input" rows={2} style={{ resize: 'vertical' }}
+                    placeholder="Descripción o notas adicionales..."
+                    value={form.notas}
+                    onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
+                  />
                 </div>
               </div>
-              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+
+              <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={closeModal}>Cancelar</button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Guardando...' : modalMode === 'create' ? 'Registrar Compra' : 'Guardar Cambios'}</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? 'Guardando...' : modalMode === 'create' ? 'Registrar Compra' : 'Guardar Cambios'}
+                </button>
               </div>
             </form>
           </div>
