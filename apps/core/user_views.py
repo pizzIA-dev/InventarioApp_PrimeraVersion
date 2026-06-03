@@ -272,42 +272,48 @@ from rest_framework.response import Response
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def seed_compras_servicios_view(request):
-    """
-    Endpoint temporal para crear datos de ejemplo de Compra de Servicios.
-    Solo crea si no existen registros todavia.
-    Solo disponible con la clave secreta correcta.
-    """
-    # Simple secret check:
     secret = request.data.get('secret') or request.query_params.get('secret', '')
     if secret != 'negocia-seed-2024':
-        from rest_framework import status
-        return Response({'error': 'Unauthorized'}, status=status.HTTP_403_FORBIDDEN)
+        from rest_framework import status as drf_status
+        return Response({'error': 'Unauthorized'}, status=drf_status.HTTP_403_FORBIDDEN)
+
     import random
     import datetime
     from decimal import Decimal
+    from django.db import connection
+
+    # Debug: what schema are we in?
+    current_schema = connection.schema_name if hasattr(connection, 'schema_name') else 'unknown'
+    tenant = getattr(request, 'tenant', None)
+
+    # Force the tenant schema if middleware set it:
+    if tenant and hasattr(connection, 'set_tenant'):
+        connection.set_tenant(tenant)
 
     try:
-        from django.db import connection
-        from apps.core.models import Empresa
-        from apps.servicios.models import Servicio, CompraServicio
+        from apps.servicios.models import CompraServicio, Servicio
         from apps.proveedores.models import Proveedor
 
-        schema_info = connection.schema_name
-        tenant_info = getattr(request, 'tenant', None)
-        
-        empresa = Empresa.objects.first()
-        if not empresa:
-            return Response({'error': 'No hay empresa'}, status=400)
+        # Get empresa via raw SQL to avoid ORM schema issues:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT id FROM core_empresa LIMIT 1")
+            emp_row = cursor.fetchone()
+        if not emp_row:
+            return Response({'error': 'No empresa found', 'schema': current_schema, 'tenant': str(tenant)}, status=400)
+        empresa_id = emp_row[0]
+
+        from apps.core.models import Empresa
+        empresa = Empresa.objects.get(id=empresa_id)
 
         existing = CompraServicio.objects.count()
         if existing >= 5:
-            return Response({'message': f'Ya existen {existing} compras de servicio', 'created': 0})
+            return Response({'message': f'Ya existen {existing} compras de servicio', 'created': 0, 'schema': current_schema})
 
         servicios = list(Servicio.objects.filter(activo=True))
         proveedores = list(Proveedor.objects.exclude(identificador='00000000'))
 
         if not servicios:
-            return Response({'error': 'No hay servicios activos'}, status=400)
+            return Response({'error': 'No hay servicios activos', 'schema': current_schema}, status=400)
 
         today = datetime.date.today()
         ejemplos = [
@@ -336,8 +342,8 @@ def seed_compras_servicios_view(request):
             created += 1
             results.append(f"{serv.nombre} - {estado} - S/.{precio}")
 
-        return Response({'message': f'Creados {created} compras de servicio', 'created': created, 'items': results, 'schema': schema_info, 'tenant': str(tenant_info)})
+        return Response({'message': f'Creados {created} compras de servicio', 'created': created, 'items': results, 'schema': current_schema, 'tenant': str(tenant)})
 
     except Exception as e:
         import traceback
-        return Response({'error': str(e), 'detail': traceback.format_exc()}, status=500)
+        return Response({'error': str(e), 'detail': traceback.format_exc(), 'schema': current_schema, 'tenant': str(tenant)}, status=500)
