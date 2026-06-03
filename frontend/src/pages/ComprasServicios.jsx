@@ -281,7 +281,7 @@ export default function ComprasServicios() {
       {/* Create / Edit modal */}
       {modalOpen && (
         <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px' }}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '820px' }}>
             <div className="modal-header">
               <h3 className="modal-title">
                 {modalMode === 'create' ? 'Nueva Compra de Servicio' : 'Editar Compra de Servicio'}
@@ -296,68 +296,64 @@ export default function ComprasServicios() {
                   </div>
                 )}
 
-                {/* Servicio */}
-                <div className="form-group">
-                  <label className="form-label">Servicio *</label>
-                  <SearchableSelect
-                    options={servicios.map(s => ({ id: String(s.id), nombre: s.nombre, subtitle: s.categoria_nombre || '' }))}
-                    value={form.servicio}
-                    onChange={val => setForm(f => ({ ...f, servicio: val }))}
-                    placeholder="Buscar servicio..."
-                    error={errors.servicio}
-                  />
-                  {errors.servicio && <div style={{ color: 'var(--color-danger)', fontSize: '12px', marginTop: '4px' }}>{errors.servicio}</div>}
-                </div>
-
-                {/* Proveedor */}
-                <div className="form-group">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <label className="form-label" style={{ marginBottom: 0 }}>Proveedor</label>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      style={{ padding: '2px 8px', fontSize: '11px', height: 'auto' }}
-                      onClick={() => {
-                        const pg = proveedores.find(p => p.identificador === '00000000');
-                        if (pg) setForm(f => ({ ...f, proveedor: String(pg.id) }));
-                      }}
-                    >
-                      Proveedor General
-                    </button>
+                <div className="grid grid-2">
+                  {/* Servicio */}
+                  <div className="form-group">
+                    <label className="form-label">Servicio *</label>
+                    <SearchableSelect
+                      options={servicios.map(s => ({ id: String(s.id), nombre: s.nombre }))}
+                      value={form.servicio}
+                      onChange={val => setForm(f => ({ ...f, servicio: val }))}
+                      placeholder="Buscar servicio..."
+                      error={errors.servicio}
+                    />
+                    {errors.servicio && <div style={{ color: 'var(--color-danger)', fontSize: '12px', marginTop: '4px' }}>{errors.servicio}</div>}
                   </div>
-                  <SearchableSelect
-                    options={proveedores.map(p => ({
-                      id: String(p.id),
-                      nombre: p.nombre,
-                      subtitle: p.identificador || '',
-                      disabled: !p.activo
-                    }))}
-                    value={form.proveedor}
-                    onChange={val => setForm(f => ({ ...f, proveedor: val }))}
-                    placeholder="Buscar proveedor..."
-                    error={errors.proveedor}
-                  />
+
+                  {/* Proveedor */}
+                  <div className="form-group">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <label className="form-label" style={{ marginBottom: 0 }}>Proveedor</label>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        style={{ padding: '2px 8px', fontSize: '11px', height: 'auto' }}
+                        onClick={() => {
+                          const pg = proveedores.find(p => p.identificador === '00000000');
+                          if (pg) setForm(f => ({ ...f, proveedor: String(pg.id) }));
+                        }}
+                      >
+                        Proveedor General
+                      </button>
+                    </div>
+                    <SearchableSelect
+                      options={proveedores.map(p => ({
+                        id: String(p.id),
+                        nombre: p.nombre,
+                        subtitle: `${p.identificador || ''} ${!p.activo ? '(INACTIVO)' : ''}`,
+                        disabled: !p.activo
+                      }))}
+                      value={form.proveedor}
+                      onChange={val => setForm(f => ({ ...f, proveedor: val }))}
+                      placeholder="Buscar proveedor..."
+                      error={errors.proveedor}
+                    />
+                  </div>
                 </div>
 
-                {/* Comprobante */}
                 <div className="grid grid-2">
                   <div className="form-group">
                     <label className="form-label">Nro Comprobante</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Ej: F001-0001"
+                    <input type="text" className="form-input" placeholder="Ej: F001-0001"
                       value={form.numero_comprobante}
                       onChange={e => setForm(f => ({ ...f, numero_comprobante: e.target.value }))}
+                      onFocus={e => e.target.select()}
                     />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Tipo Comprobante</label>
-                    <select
-                      className="form-input"
-                      value={form.tipo_comprobante}
-                      onChange={e => setForm(f => ({ ...f, tipo_comprobante: e.target.value }))}
-                    >
+                    <select className="form-input" value={form.tipo_comprobante}
+                      onChange={e => setForm(f => ({ ...f, tipo_comprobante: e.target.value }))}>
                       <option value="">Ninguno</option>
                       <option value="FACTURA">Factura</option>
                       <option value="BOLETA">Boleta</option>
@@ -367,12 +363,28 @@ export default function ComprasServicios() {
                   </div>
                 </div>
 
-                {/* Precios */}
+                <div className="grid grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Estado</label>
+                    <select className="form-input" value={form.estado}
+                      onChange={e => setForm(f => ({ ...f, estado: e.target.value }))}>
+                      <option value="PENDIENTE">Pendiente</option>
+                      <option value="EN_PROGRESO">En Progreso</option>
+                      <option value="TERMINADO">Terminado</option>
+                      <option value="CANCELADO">Cancelado</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Fecha programada</label>
+                    <input type="date" className="form-input" value={form.fecha_programada}
+                      onChange={e => setForm(f => ({ ...f, fecha_programada: e.target.value }))} />
+                  </div>
+                </div>
+
                 <div className="grid grid-2">
                   <div className="form-group">
                     <label className="form-label">Precio (S/.) *</label>
-                    <input
-                      type="number" step="0.01" min="0" className="form-input" placeholder="0.00"
+                    <input type="number" step="0.01" min="0" className="form-input" placeholder="0.00"
                       value={form.precio}
                       onChange={e => setForm(f => ({ ...f, precio: e.target.value }))}
                       onFocus={e => e.target.select()}
@@ -381,8 +393,7 @@ export default function ComprasServicios() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Descuento (S/.)</label>
-                    <input
-                      type="number" step="0.01" min="0" className="form-input" placeholder="0.00"
+                    <input type="number" step="0.01" min="0" className="form-input" placeholder="0.00"
                       value={form.descuento}
                       onChange={e => setForm(f => ({ ...f, descuento: e.target.value }))}
                       onFocus={e => e.target.select()}
@@ -393,57 +404,36 @@ export default function ComprasServicios() {
                 <div className="grid grid-2">
                   <div className="form-group">
                     <label className="form-label">Impuesto (S/.)</label>
-                    <input
-                      type="number" step="0.01" min="0" className="form-input" placeholder="0.00"
+                    <input type="number" step="0.01" min="0" className="form-input" placeholder="0.00"
                       value={form.impuesto}
                       onChange={e => setForm(f => ({ ...f, impuesto: e.target.value }))}
                       onFocus={e => e.target.select()}
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Total estimado</label>
-                    <input
-                      type="text" className="form-input" readOnly
+                    <label className="form-label">Total Estimado</label>
+                    <input type="text" className="form-input" readOnly
                       value={`S/. ${(Math.max(0, Number(form.precio)||0) - (Number(form.descuento)||0) + (Number(form.impuesto)||0)).toFixed(2)}`}
                       style={{ fontWeight: 'bold', background: 'var(--bg-input)', color: 'var(--accent, #1677ff)', border: '2px solid var(--accent, #1677ff)' }}
                     />
                   </div>
                 </div>
 
-                {/* Estado y Fecha */}
                 <div className="grid grid-2">
                   <div className="form-group">
-                    <label className="form-label">Estado</label>
-                    <select
-                      className="form-input"
-                      value={form.estado}
-                      onChange={e => setForm(f => ({ ...f, estado: e.target.value }))}
-                    >
-                      <option value="PENDIENTE">Pendiente</option>
-                      <option value="EN_PROGRESO">En Progreso</option>
-                      <option value="TERMINADO">Terminado</option>
-                      <option value="CANCELADO">Cancelado</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Fecha programada</label>
-                    <input
-                      type="date" className="form-input"
-                      value={form.fecha_programada}
-                      onChange={e => setForm(f => ({ ...f, fecha_programada: e.target.value }))}
+                    <label className="form-label">Notas</label>
+                    <textarea className="form-input" rows={2} style={{ resize: 'vertical' }}
+                      placeholder="Descripción o notas adicionales..."
+                      value={form.notas}
+                      onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
                     />
                   </div>
-                </div>
-
-                {/* Notas */}
-                <div className="form-group">
-                  <label className="form-label">Notas</label>
-                  <textarea
-                    className="form-input" rows={2} style={{ resize: 'vertical' }}
-                    placeholder="Descripción o notas adicionales..."
-                    value={form.notas}
-                    onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
-                  />
+                  <div className="form-group">
+                    <label className="form-label">Comprobante de Pago (Archivo)</label>
+                    <input type="file" className="form-input" accept="image/*,.pdf"
+                      onChange={e => { if (e.target.files.length > 0) setForm(f => ({ ...f, comprobante_archivo: e.target.files[0] })); }}
+                    />
+                  </div>
                 </div>
               </div>
 
