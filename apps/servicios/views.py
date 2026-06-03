@@ -766,7 +766,9 @@ class CompraServicioViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         return create_excel_response(
             filename='compras_servicios.xlsx',
             headers=['Fecha', 'Comprobante', 'Servicio', 'Proveedor', 'Almacén', 'Estado', 'Precio Base', 'Descuento', 'Impuesto', 'Total (S/.)'],
-            data_rows=data_rows,
-            sheet_name='Compras de Servicios'
+            rows=data_rows,
+            sheet_name='Compras de Servicios',
+            title='Compras de Servicios',
+            period_label='Todo el historial',
         )
 
