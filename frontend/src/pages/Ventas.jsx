@@ -1,11 +1,12 @@
-﻿import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { ventasAPI, productosAPI, clientesAPI, serviciosAPI } from '../services/api';
 import { 
   PlusOutlined, EditOutlined, DeleteOutlined, CheckOutlined, CloseOutlined, 
   PlayCircleOutlined, OrderedListOutlined, EyeOutlined, DownloadOutlined,
-  FileTextOutlined, HistoryOutlined, CalendarOutlined, SearchOutlined, EllipsisOutlined, CheckCircleOutlined, CloseCircleOutlined, PrinterOutlined
+  FileTextOutlined, HistoryOutlined, CalendarOutlined, SearchOutlined, EllipsisOutlined, CheckCircleOutlined, CloseCircleOutlined, PrinterOutlined,
+  ShoppingCartOutlined, ToolOutlined
 } from '@ant-design/icons';
-import { message } from 'antd';
+import { message, Tabs } from 'antd';
 
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -60,7 +61,7 @@ function Ventas() {
   // Alias for Cliente General (separate from formData/ventaData so it's not sent as-is)
   const [clienteAlias, setClienteAlias] = useState('');
   const [ventaClienteAlias, setVentaClienteAlias] = useState('');
-  // IGV calculation flags: false = IGV ya incluido en precios, true = calcular IGV automÃ¡ticamente
+  // IGV calculation flags: false = IGV ya incluido en precios, true = calcular IGV automáticamente
   const [calcularIgv, setCalcularIgv] = useState(false);
   const [calcularIgvServicio, setCalcularIgvServicio] = useState(false);
 
@@ -295,7 +296,7 @@ function Ventas() {
     return `${prefix}-${(maxNum + 1).toString().padStart(6, '0')}`;
   };
 
-  // Auto-calculate IGV for Products â€” only when calcularIgv is enabled
+  // Auto-calculate IGV for Products "” only when calcularIgv is enabled
   useEffect(() => {
     if (modalMode === 'create' || modalMode === 'edit') {
       if (calcularIgv) {
@@ -314,7 +315,7 @@ function Ventas() {
     }
   }, [formData.detalle, formData.descuento, modalMode, calcularIgv]);
 
-  // Auto-calculate IGV for Services â€” only when calcularIgvServicio is enabled
+  // Auto-calculate IGV for Services "” only when calcularIgvServicio is enabled
   useEffect(() => {
     if (modalMode === 'venta' || modalMode === 'editVenta') {
       if (calcularIgvServicio) {
@@ -979,17 +980,17 @@ function Ventas() {
       <ConfirmDialog
         visible={confirmDialog.visible}
         title="Eliminar Venta"
-        message={`Â¿EstÃ¡s seguro de que deseas eliminar "${confirmDialog.nombre}"? Esta acciÃ³n no se puede deshacer.`}
+        message={`¿Estás seguro de que deseas eliminar "${confirmDialog.nombre}"? Esta acción no se puede deshacer.`}
         onConfirm={handleDeleteConfirm}
         onCancel={() => setConfirmDialog({ visible: false, id: null, nombre: '' })}
-        confirmText="SÃ­, eliminar"
+        confirmText="Sí, eliminar"
         danger={true}
       />
 
             <ConfirmDialog
         visible={ventaConfirmDialog.visible}
         title="Eliminar Venta de Servicio"
-        message={`Â¿EstÃ¡s seguro de que deseas eliminar la venta del servicio "${ventaConfirmDialog.nombre}"? Esta acciÃ³n no se puede deshacer.`}
+        message={`¿Estás seguro de que deseas eliminar la venta del servicio "${ventaConfirmDialog.nombre}"? Esta acción no se puede deshacer.`}
         onConfirm={handleDeleteVentaConfirm}
         onCancel={() => setVentaConfirmDialog({ visible: false, id: null, nombre: '' })}
         danger={true}
@@ -1042,22 +1043,33 @@ function Ventas() {
       </div>
 
       
-      <div className="card" style={{ marginBottom: '24px', padding: 0, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', borderBottom: '1px solid #eee' }}>
-          <button 
-            style={{ flex: 1, padding: '16px', fontSize: '16px', background: activeTab === 'PRODUCTOS' ? '#ffffff' : '#fafafa', border: 'none', borderBottom: activeTab === 'PRODUCTOS' ? '2px solid #1890ff' : '2px solid transparent', fontWeight: activeTab === 'PRODUCTOS' ? 'bold' : 'normal', color: activeTab === 'PRODUCTOS' ? '#1890ff' : '#666', cursor: 'pointer', transition: 'all 0.3s' }}
-            onClick={() => setActiveTab('PRODUCTOS')}
-          >
-            Venta de Productos
-          </button>
-          <button 
-            style={{ flex: 1, padding: '16px', fontSize: '16px', background: activeTab === 'SERVICIOS' ? '#ffffff' : '#fafafa', border: 'none', borderBottom: activeTab === 'SERVICIOS' ? '2px solid #1890ff' : '2px solid transparent', fontWeight: activeTab === 'SERVICIOS' ? 'bold' : 'normal', color: activeTab === 'SERVICIOS' ? '#1890ff' : '#666', cursor: 'pointer', transition: 'all 0.3s' }}
-            onClick={() => setActiveTab('SERVICIOS')}
-          >
-            Venta de Servicios
-          </button>
-        </div>
-      </div>
+      {/* Tabs con diseño igual a Compras */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={(key) => setActiveTab(key)}
+        size="large"
+        tabBarStyle={{ marginBottom: 24 }}
+        items={[
+          {
+            key: 'PRODUCTOS',
+            label: (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <ShoppingCartOutlined />
+                Venta de Productos
+              </span>
+            ),
+          },
+          {
+            key: 'SERVICIOS',
+            label: (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <ToolOutlined />
+                Venta de Servicios
+              </span>
+            ),
+          },
+        ]}
+      />
 
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -1158,7 +1170,7 @@ function Ventas() {
                 <th style={{ width: '120px' }}>Comprobante</th>
                 <th>Cliente</th>
                 <th style={{ textAlign: 'center' }}>Producto</th>
-                <th>AlmacÃ©n</th>
+                <th>Almacén</th>
                   <th>Estado</th>
                 <th style={{ textAlign: 'right' }}>Total</th>
                 <th style={{ width: '120px' }}>Acciones</th>
@@ -1246,7 +1258,7 @@ function Ventas() {
                   <th>Servicio</th>
                   <th>Cliente</th>
                   <th>F. Programada</th>
-                  <th>AlmacÃ©n</th>
+                  <th>Almacén</th>
                   <th>Estado</th>
                   <th style={{ textAlign: 'right' }}>Total</th>
                   <th style={{ width: '120px' }}>Acciones</th>
@@ -1338,7 +1350,7 @@ function Ventas() {
               <h3 className="modal-title">
                 {modalMode === 'create' ? 'Nueva Venta' : modalMode === 'edit' ? 'Editar Venta' : modalMode === 'venta' ? 'Nueva Venta de Servicio' : 'Editar Venta de Servicio'}
               </h3>
-              <button className="modal-close" onClick={closeModal}>Ã—</button>
+              <button className="modal-close" onClick={closeModal}><CloseOutlined /></button>
             </div>
             <form onSubmit={modalMode === 'venta' || modalMode === 'editVenta' ? handleVentaSubmit : handleSubmit}>
               
@@ -1420,12 +1432,12 @@ function Ventas() {
                         {ventaData.cliente_nombre === 'Cliente General' && (
                           <div style={{ marginTop: '8px' }}>
                             <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
-                              Alias <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>(Nombre y Apellidos â€” opcional)</span>
+                              Alias <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>(Nombre y Apellidos "” opcional)</span>
                             </label>
                             <input
                               type="text"
                               className="form-input"
-                              placeholder="Ej: Juan PÃ©rez o Tienda MartÃ­nez"
+                              placeholder="Ej: Juan Pérez o Tienda Martínez"
                               value={ventaClienteAlias}
                               onChange={(e) => setVentaClienteAlias(e.target.value)}
                               style={{ borderColor: 'var(--accent, #1677ff)', transition: 'border-color 0.2s' }}
@@ -1534,7 +1546,7 @@ function Ventas() {
                               onChange={(e) => setCalcularIgvServicio(e.target.checked)}
                               style={{ width: '14px', height: '14px', cursor: 'pointer', accentColor: 'var(--accent, #1677ff)' }}
                             />
-                            Agregar CÃ¡lculo de IGV
+                            Agregar Cálculo de IGV
                           </label>
                           {!calcularIgvServicio && (
                             <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
@@ -1599,12 +1611,12 @@ function Ventas() {
                     {formData.cliente_nombre === 'Cliente General' && (
                       <div style={{ marginTop: '8px' }}>
                         <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
-                          Alias <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>(Nombre y Apellidos â€” opcional)</span>
+                          Alias <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>(Nombre y Apellidos "” opcional)</span>
                         </label>
                         <input
                           type="text"
                           className="form-input"
-                          placeholder="Ej: Juan PÃ©rez o Tienda MartÃ­nez"
+                          placeholder="Ej: Juan Pérez o Tienda Martínez"
                           value={clienteAlias}
                           onChange={(e) => setClienteAlias(e.target.value)}
                           style={{ borderColor: 'var(--accent, #1677ff)', transition: 'border-color 0.2s' }}
@@ -1769,7 +1781,7 @@ function Ventas() {
                           onChange={(e) => setCalcularIgv(e.target.checked)}
                           style={{ width: '14px', height: '14px', cursor: 'pointer', accentColor: 'var(--accent, #1677ff)' }}
                         />
-                        Agregar CÃ¡lculo de IGV
+                        Agregar Cálculo de IGV
                       </label>
                       {!calcularIgv && (
                         <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
@@ -1820,7 +1832,7 @@ function Ventas() {
               <h3 className="modal-title">
                 Crear Nuevo {nestedModal === 'servicio' ? 'Servicio' : ''}
               </h3>
-              <button className="modal-close" onClick={() => setNestedModal(null)}>Ã—</button>
+              <button className="modal-close" onClick={() => setNestedModal(null)}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleNestedSubmit} style={{ padding: '20px' }}>
               {nestedModal === 'servicio' && (
@@ -1828,7 +1840,7 @@ function Ventas() {
                   <div className="form-group"><label className="form-label">Nombre del Servicio *</label><input required className="form-input" value={nestedFormData.nombre} onChange={(e) => setNestedFormData(p => ({...p, nombre: e.target.value}))} /></div>
                   <div className="grid grid-2">
                      <div className="form-group"><label className="form-label">Precio de Servicio</label><input type="number" step="0.01" required className="form-input" value={nestedFormData.precio_base} onChange={(e) => setNestedFormData(p => ({...p, precio_base: Number(e.target.value)}))} /></div>
-                     <div className="form-group"><label className="form-label">DuraciÃ³n (min)</label><input type="number" required className="form-input" value={nestedFormData.duracion_minutos} onChange={(e) => setNestedFormData(p => ({...p, duracion_minutos: Number(e.target.value)}))} /></div>
+                     <div className="form-group"><label className="form-label">Duración (min)</label><input type="number" required className="form-input" value={nestedFormData.duracion_minutos} onChange={(e) => setNestedFormData(p => ({...p, duracion_minutos: Number(e.target.value)}))} /></div>
                   </div>
                 </>
               )}
@@ -1921,7 +1933,7 @@ function Ventas() {
             `}</style>
             <div className="modal-header">
               <h3 className="modal-title">Detalle de {selectedVentaForDetail.isService ? 'Servicio' : 'Venta'} #{selectedVentaForDetail.id}</h3>
-              <button className="modal-close" onClick={closeDetailModal}>Ã—</button>
+              <button className="modal-close" onClick={closeDetailModal}><CloseOutlined /></button>
             </div>
             <div className="modal-body" style={{ padding: "24px" }}>
               <div className="grid grid-2" style={{ marginBottom: "24px", background: "var(--bg-body)", padding: "16px", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
@@ -1972,7 +1984,7 @@ function Ventas() {
                           <tr key={idx}>
                             <td style={{ padding: "12px", borderBottom: "1px solid var(--border-color)" }}>
                               <div style={{ fontWeight: 500 }}>{item.producto_nombre || prod?.nombre || "Producto"}</div>
-                              <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>CÃ³digo: {item.producto_codigo || prod?.codigo || "S/C"}</div>
+                              <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>Código: {item.producto_codigo || prod?.codigo || "S/C"}</div>
                             </td>
                             <td style={{ padding: "12px", borderBottom: "1px solid var(--border-color)", textAlign: "center" }}>{item.cantidad || 0}</td>
                             <td style={{ padding: "12px", borderBottom: "1px solid var(--border-color)", textAlign: "right" }}><span>S/. </span>{Number(item.precio_venta || 0).toFixed(2)}</td>
@@ -2076,7 +2088,7 @@ function Ventas() {
             
             {isFormalizing && (
               <div style={{ padding: '0 24px 24px 24px', borderTop: '1px solid var(--border-color)', marginTop: '0' }}>
-                <h4 style={{ margin: '16px 0 12px 0', color: 'var(--accent)' }}>FormalizaciÃ³n de Comprobante</h4>
+                <h4 style={{ margin: '16px 0 12px 0', color: 'var(--accent)' }}>Formalización de Comprobante</h4>
                 <div className="grid grid-2" style={{ alignItems: 'flex-end' }}>
                   <div className="form-group">
                     <label className="form-label">Tipo de Comprobante Legal</label>
@@ -2127,7 +2139,7 @@ function Ventas() {
                         });
                         
                         if (response.ok) {
-                          alert('Comprobante formalizado con Ã©xito');
+                          alert('Comprobante formalizado con éxito');
                           setIsFormalizing(false);
                           closeDetailModal();
                           if (activeTab === 'PRODUCTOS') fetchVentas();
@@ -2138,11 +2150,11 @@ function Ventas() {
                         }
                       } catch (error) {
                         console.error('Error formalizando:', error);
-                        alert('Error de conexiÃ³n al formalizar');
+                        alert('Error de conexión al formalizar');
                       }
                     }}
                   >
-                    Confirmar EmisiÃ³n
+                    Confirmar Emisión
                   </button>
                 </div>
               </div>
@@ -2151,27 +2163,27 @@ function Ventas() {
         </div>
       )}
 
-      {/* DiÃ¡logos de ConfirmaciÃ³n de EliminaciÃ³n */}
+      {/* Diálogos de Confirmación de Eliminación */}
       <ConfirmDialog
         visible={confirmDialog.visible || ventaConfirmDialog.visible}
-        title="Confirmar EliminaciÃ³n"
+        title="Confirmar Eliminación"
         message={
           confirmDialog.visible 
             ? (confirmDialog.estado === 'CONFIRMADA' 
-                ? `Esta venta estÃ¡ CONFIRMADA. Al eliminarla, el stock de los productos se reintegrarÃ¡ automÃ¡ticamente al inventario. Â¿Deseas eliminar la venta ${confirmDialog.nombre}?`
+                ? `Esta venta está CONFIRMADA. Al eliminarla, el stock de los productos se reintegrará automáticamente al inventario. ¿Deseas eliminar la venta ${confirmDialog.nombre}?`
                 : confirmDialog.estado === 'CANCELADA'
-                ? `Esta venta ya fue CANCELADA. Al eliminarla se borrarÃ¡ el registro permanentemente. Â¿Deseas eliminar la venta ${confirmDialog.nombre}?`
-                : `Esta venta es un BORRADOR y no ha afectado el inventario. Al eliminarla se perderÃ¡ permanentemente. Â¿Deseas eliminar la venta ${confirmDialog.nombre}?`)
+                ? `Esta venta ya fue CANCELADA. Al eliminarla se borrará el registro permanentemente. ¿Deseas eliminar la venta ${confirmDialog.nombre}?`
+                : `Esta venta es un BORRADOR y no ha afectado el inventario. Al eliminarla se perderá permanentemente. ¿Deseas eliminar la venta ${confirmDialog.nombre}?`)
             : (ventaConfirmDialog.estado === 'TERMINADO'
-                ? `Este servicio estÃ¡ TERMINADO. Al eliminarlo se borrarÃ¡ el registro permanentemente. Â¿Deseas eliminar el servicio ${ventaConfirmDialog.nombre}?`
-                : `Al eliminar este servicio se perderÃ¡ permanentemente. Â¿Deseas eliminar el servicio ${ventaConfirmDialog.nombre}?`)
+                ? `Este servicio está TERMINADO. Al eliminarlo se borrará el registro permanentemente. ¿Deseas eliminar el servicio ${ventaConfirmDialog.nombre}?`
+                : `Al eliminar este servicio se perderá permanentemente. ¿Deseas eliminar el servicio ${ventaConfirmDialog.nombre}?`)
         }
         onConfirm={confirmDialog.visible ? handleDeleteConfirm : handleDeleteVentaConfirm}
         onCancel={() => {
           if (confirmDialog.visible) setConfirmDialog({ visible: false, id: null, nombre: '', estado: '' });
           if (ventaConfirmDialog.visible) setVentaConfirmDialog({ visible: false, id: null, nombre: '', estado: '' });
         }}
-        confirmText="SÃ­, eliminar"
+        confirmText="Sí, eliminar"
         danger={true}
       />
     </div>

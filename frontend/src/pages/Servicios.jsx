@@ -5,8 +5,7 @@ import {
   EditOutlined, 
   DeleteOutlined, 
   HistoryOutlined,
-  SettingOutlined
-} from '@ant-design/icons';
+  SettingOutlined, CloseOutlined } from '@ant-design/icons';
 import Pagination from '../components/Pagination';
 import SearchableSelect from '../components/SearchableSelect';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -549,7 +548,7 @@ function Servicios() {
               <h3 className="modal-title">
                 {modalMode === 'create' ? 'Nuevo Servicio' : 'Editar Servicio'}
               </h3>
-              <button className="modal-close" onClick={closeModal}>×</button>
+              <button className="modal-close" onClick={closeModal}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
@@ -762,7 +761,7 @@ function Servicios() {
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
             <div className="modal-header">
               <h3 className="modal-title">Gestionar Categorías de Servicios</h3>
-              <button className="modal-close" onClick={() => setCatModalVisible(false)}>×</button>
+              <button className="modal-close" onClick={() => setCatModalVisible(false)}><CloseOutlined /></button>
             </div>
             <div className="modal-body">
               {/* Form to create/edit */}

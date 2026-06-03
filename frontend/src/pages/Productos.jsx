@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import { productosAPI, categoriasAPI } from '../services/api';
-import { PlusOutlined, EditOutlined, DeleteOutlined, HistoryOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, HistoryOutlined, CloseOutlined } from '@ant-design/icons';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
@@ -419,7 +419,7 @@ function Productos() {
                 <button className="btn btn-secondary" onClick={handleExportHistorialIndividual} style={{ padding: '4px 12px', fontSize: '12px' }}>
                   Exportar Excel
                 </button>
-                <button className="modal-close" onClick={closeHistoryModal}>x</button>
+                <button className="modal-close" onClick={closeHistoryModal}><CloseOutlined /></button>
               </div>
             </div>
 
