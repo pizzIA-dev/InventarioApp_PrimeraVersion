@@ -123,10 +123,10 @@ function FiadosClientes() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div className="page-header" style={{ marginBottom: '24px' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: '24px', color: 'var(--text-primary, #f8fafc)' }}>Módulo de Fiados</h1>
-          <p style={{ margin: '4px 0 0', color: 'var(--text-muted, #94a3b8)' }}>Gestión interna de cuentas por cobrar y cliente fiados</p>
+          <h1 className="page-title">Clientes Fiados</h1>
+          <p className="page-subtitle">Registro de clientes con credito / cuenta por cobrar</p>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {!isVendedor && (
@@ -141,8 +141,8 @@ function FiadosClientes() {
               />
             </>
           )}
-          <button className="btn btn-primary" onClick={() => openModal('create')} style={{ borderRadius: '8px', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PlusOutlined /> Nuevo Cliente
+          <button className="btn btn-primary" onClick={() => openModal('create')}>
+            <PlusOutlined /> Nuevo Cliente Fiado
           </button>
         </div>
       </div>
@@ -159,6 +159,7 @@ function FiadosClientes() {
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ flex: 1, minWidth: '250px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Buscar</label>
             <input 
               type="text" 
               className="form-input" 
@@ -203,17 +204,19 @@ function FiadosClientes() {
                     </span>
                   </td>
                   <td>
-                    <button className="btn btn-secondary" onClick={() => { setClienteToKardex(cliente); setKardexVisible(true); }} title="Ver Kardex Global">
-                      <HistoryOutlined />
-                    </button>
-                    <button className="btn btn-secondary" onClick={() => openModal('edit', cliente)} title="Editar">
-                      <EditOutlined />
-                    </button>
-                    {!isVendedor && (
-                      <button className="btn btn-danger" onClick={() => handleDeleteClick(cliente)} title="Eliminar/Desactivar">
-                        <DeleteOutlined />
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button className="btn btn-secondary" onClick={() => { setClienteToKardex(cliente); setKardexVisible(true); }} title="Ver Kardex Global">
+                        <HistoryOutlined />
                       </button>
-                    )}
+                      <button className="btn btn-secondary" onClick={() => openModal('edit', cliente)} title="Editar">
+                        <EditOutlined />
+                      </button>
+                      {!isVendedor && (
+                        <button className="btn btn-danger" onClick={() => handleDeleteClick(cliente)} title="Eliminar/Desactivar">
+                          <DeleteOutlined />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

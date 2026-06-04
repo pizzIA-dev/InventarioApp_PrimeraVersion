@@ -403,10 +403,10 @@ function FiadosOperaciones() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div className="page-header" style={{ marginBottom: '24px' }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: '24px', color: 'var(--text-primary, #f8fafc)' }}>Módulo de Fiados</h1>
-          <p style={{ margin: '4px 0 0', color: 'var(--text-muted, #94a3b8)' }}>Gestión interna de cuentas por cobrar y cliente fiados</p>
+          <h1 className="page-title">Registro de Fiados</h1>
+          <p className="page-subtitle">Gestion de cuentas por cobrar y deudas de clientes</p>
         </div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {!isVendedor && (
@@ -421,7 +421,7 @@ function FiadosOperaciones() {
               />
             </>
           )}
-          <button className="btn btn-primary" onClick={() => openFormModal()} style={{ borderRadius: '8px', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button className="btn btn-primary" onClick={() => openFormModal()}>
             <PlusOutlined /> Nuevo Fiado
           </button>
         </div>
@@ -605,6 +605,9 @@ function FiadosOperaciones() {
           onClose={closeFormModal}
           onSave={handleFormSubmit}
           onReactivar={handleReactivar}
+          onNewCliente={(newCliente) => setClientes(prev => 
+            prev.find(c => c.id === newCliente.id) ? prev : [...prev, newCliente]
+          )}
         />
       )}
 
