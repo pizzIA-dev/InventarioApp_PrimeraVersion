@@ -28,6 +28,7 @@ export default function ComprasServicios() {
 
   // Modal
   const [modalOpen, setModalOpen] = useState(false);
+  const [servicioContratadoModalVisible, setServicioContratadoModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selected, setSelected]   = useState(null);
   const [form, setForm]           = useState(EMPTY_FORM);
@@ -349,7 +350,7 @@ export default function ComprasServicios() {
                       }));
                     }}
                       placeholder="Buscar servicio..."
-                      onActionClick={() => setServicioModalVisible(true)}
+                      onActionClick={() => setServicioContratadoModalVisible(true)}
                       actionLabel="Nuevo Servicio"
                       error={errors.servicio}
                     />
@@ -471,11 +472,11 @@ export default function ComprasServicios() {
       {/* Modal: Crear Nuevo Servicio */}
       <ServicioContratadoFormModal
         visible={servicioContratadoModalVisible}
-        onClose={() => setServicioModalVisible(false)}
+        onClose={() => setServicioContratadoModalVisible(false)}
         onSave={(newSvc) => {
           setServiciosContratados(prev => prev.find(s => s.id === newSvc.id) ? prev : [...prev, newSvc]);
           setForm(f => ({ ...f, servicio: String(newSvc.id) }));
-          setServicioModalVisible(false);
+          setServicioContratadoModalVisible(false);
         }}
       />
     </>
