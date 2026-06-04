@@ -29,7 +29,7 @@ function ClienteHistorialSimple({ visible, onClose, cliente, fiados }) {
       LIQUIDADO: 'Liquidado',
       CANCELADO: 'Cancelado',
     };
-    return <span className={adge }>{labels[estado] || estado}</span>;
+    return <span className={`badge ${map[estado] || ''}`}>{labels[estado] || estado}</span>;
   };
 
   return (
@@ -223,7 +223,7 @@ function FiadosClientes() {
                     </td>
                     <td style={{ fontSize: '12px' }}>{c.numero_documento || '-'}</td>
                     <td style={{ textAlign: 'center' }}>
-                      <span className={adge }>{c.activos}</span>
+                      <span className={`badge ${c.activos > 0 ? 'badge-danger' : 'badge-secondary'}`}>{c.activos}</span>
                     </td>
                     <td style={{ textAlign: 'right', fontWeight: 'bold', color: c.totalDeuda > 0 ? 'var(--color-danger, #ef4444)' : 'var(--color-success, #22c55e)' }}>
                       S/ {c.totalDeuda.toFixed(2)}
