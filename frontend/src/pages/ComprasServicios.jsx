@@ -23,7 +23,7 @@ const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'var(--text-seco
 export default function ComprasServicios() {
   const [data, setData]               = useState([]);
   const [loading, setLoading]         = useState(true);
-  const [servicios, setServicios]     = useState([]);
+  const [serviciosContratados, setServiciosContratados] = useState([]);
   const [proveedores, setProveedores] = useState([]);
 
   // Modal
