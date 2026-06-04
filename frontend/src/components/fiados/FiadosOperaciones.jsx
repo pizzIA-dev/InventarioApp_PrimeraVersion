@@ -60,26 +60,33 @@ function FiadosOperaciones() {
 
   const fetchData = async () => {
     setLoading(true);
+    // Fetch independently so a failure in one does not block the others:
     try {
-      const [fiadosRes, clientesRes, productosRes, serviciosRes, regularesRes] = await Promise.all([
-        fiadosAPI.getFiados(),
-        fiadosAPI.getClientes(),
-        productosAPI.getAll(),
-        serviciosAPI.getAll(),
-        clientesAPI.getAll()
-      ]);
+      const fiadosRes = await fiadosAPI.getFiados();
       setFiados(fiadosRes.data.results || fiadosRes.data);
+    } catch (e) { console.error('Error fetching fiados:', e); }
+
+    try {
+      const clientesRes = await fiadosAPI.getClientes();
       setClientes(clientesRes.data.results || clientesRes.data);
+    } catch (e) { console.error('Error fetching clientes fiados:', e); }
+
+    try {
+      const productosRes = await productosAPI.getAll({ page_size: 999 });
       setProductos(productosRes.data.results || productosRes.data);
+    } catch (e) { console.error('Error fetching productos:', e); }
+
+    try {
+      const serviciosRes = await serviciosAPI.getAll({ page_size: 999 });
       setServicios(serviciosRes.data.results || serviciosRes.data);
+    } catch (e) { console.error('Error fetching servicios:', e); }
+
+    try {
+      const regularesRes = await clientesAPI.getAll({ page_size: 999 });
       setClientesRegulares(regularesRes.data.results || regularesRes.data);
-      setProductos(productosRes.data.results || productosRes.data);
-      setServicios(serviciosRes.data.results || serviciosRes.data);
-    } catch (error) {
-      console.error('Error fetching fiados data:', error);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error('Error fetching clientes regulares:', e); }
+
+    setLoading(false);
   };
 
   const openFormModal = (fiado = null) => {
