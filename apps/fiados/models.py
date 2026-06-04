@@ -66,7 +66,8 @@ class Fiado(models.Model):
         ordering = ['-creado_en']
 
     def __str__(self):
-        return f"Fiado #{self.id} - {self.cliente.nombre} ({self.tipo})"
+        cliente_str = self.cliente.nombre if self.cliente else "Sin cliente"
+        return f"Fiado #{self.id} - {cliente_str} ({self.tipo})"
     
     def save(self, *args, **kwargs):
         is_new = self.pk is None
