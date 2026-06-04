@@ -133,6 +133,12 @@ function Compras({ openNew = 0 }) {
     fetchData();
   }, []);
 
+  // Open modal when parent triggers (via counter prop):
+  useEffect(() => {
+    if (openNew > 0) openModal('create');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openNew]);
+
   // async-parallel: las 3 peticiones iniciales se ejecutan en paralelo
   const fetchData = async () => {
     try {
@@ -669,12 +675,6 @@ function Compras({ openNew = 0 }) {
   if (loading) {
     return <LoadingScreen message="OBTENIENDO COMPRAS..." />;
   }
-
-
-  // Open modal when parent triggers it via counter:
-  useEffect(() => {
-    if (openNew > 0) openModal('create');
-  }, [openNew]);
 
 
   return (
