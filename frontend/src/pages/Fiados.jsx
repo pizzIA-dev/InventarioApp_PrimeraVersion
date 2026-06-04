@@ -11,6 +11,7 @@ const Loader = () => (
 );
 
 function Fiados() {
+  const [headerActions, setHeaderActions] = useState(null);
   const [activeTab, setActiveTab] = useState("operaciones");
 
   const tabItems = [
@@ -24,7 +25,7 @@ function Fiados() {
       ),
       children: (
         <Suspense fallback={<Loader />}>
-          <FiadosOperaciones />
+          <FiadosOperaciones onHeaderActions={setHeaderActions} isActive={activeTab === "operaciones"} />
         </Suspense>
       ),
     },
@@ -38,7 +39,7 @@ function Fiados() {
       ),
       children: (
         <Suspense fallback={<Loader />}>
-          <FiadosClientes />
+          <FiadosClientes onHeaderActions={setHeaderActions} isActive={activeTab === "clientes"} />
         </Suspense>
       ),
     },
@@ -46,11 +47,12 @@ function Fiados() {
 
   return (
     <div>
-      <div className="page-header" style={{ marginBottom: 4 }}>
+      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
         <div>
           <h1 className="page-title" style={{ display: "inline", marginRight: 10 }}>Fiados</h1>
           <span className="page-subtitle">Operaciones de cuentas por cobrar</span>
         </div>
+        <div style={{ display: "flex", gap: "10px" }}>{headerActions}</div>
       </div>
       <Tabs
         activeKey={activeTab}

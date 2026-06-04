@@ -20,7 +20,7 @@ const PAGE_SIZE     = 15;
 
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' };
 
-export default function ComprasServicios() {
+export default function ComprasServicios({ onHeaderActions, isActive }) {
   const [data, setData]               = useState([]);
   const [loading, setLoading]         = useState(true);
   const [serviciosContratados, setServiciosContratados] = useState([]);
@@ -170,21 +170,27 @@ export default function ComprasServicios() {
     } catch { alert('Error al exportar datos.'); }
   };
 
+  // Register action buttons in parent header when this tab is active:
+  useEffect(() => {
+    if (!isActive || !onHeaderActions) return;
+    onHeaderActions(
+      <div style={{ display: 'flex', gap: '10px' }}>
+        {!isVendedor && (
+          <ExportDropdown onExport={handleExportar} label="Exportar Compras Servicios" />
+        )}
+        <button className="btn btn-primary" onClick={openCreate}>
+          <PlusOutlined /> Nueva Compra
+        </button>
+      </div>
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive, isVendedor]);
+
+
   return (
     <>
       {/* Page Header */}
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 className="page-title">Compra de Servicios</h1>
-          <p className="page-subtitle">Registro de compras de servicios</p>
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <ExportDropdown onExport={handleExportar} label="Exportar Compras" />
-          <button className="btn btn-primary" onClick={openCreate}>
-            <PlusOutlined /> Nueva Compra
-          </button>
-        </div>
-      </div>
+
 
       {/* Filters */}
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>

@@ -15,7 +15,7 @@ import CompraDetailModal from '../components/compras/CompraDetailModal';
 import LoadingScreen from '../components/LoadingScreen';
 import SearchableSelect from '../components/SearchableSelect';
 
-function Compras() {
+function Compras({ onHeaderActions, isActive }) {
   const [loading, setLoading] = useState(true);
   const [compras, setCompras] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -670,6 +670,26 @@ function Compras() {
     return <LoadingScreen message="OBTENIENDO COMPRAS..." />;
   }
 
+  // Register action buttons in parent header when this tab is active:
+  useEffect(() => {
+    if (!isActive || !onHeaderActions) return;
+    onHeaderActions(
+      <div style={{ display: 'flex', gap: '10px' }}>
+        {!isVendedor && (
+          <>
+            <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
+            <ExportDropdown onExport={handleExportar} label="Exportar Compras" />
+          </>
+        )}
+        <button className="btn btn-primary" onClick={() => openModal('create')}>
+          <PlusOutlined /> Nueva Compra
+        </button>
+      </div>
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive, isVendedor]);
+
+
   return (
     <>
     <div>
@@ -683,16 +703,7 @@ function Compras() {
         danger={confirmDialog.danger}
       />
 
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div></div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
-          <ExportDropdown onExport={handleExportar} label="Exportar Compras" />
-          <button className="btn btn-primary" onClick={() => openModal('create')}>
-            <PlusOutlined /> Nueva Compra
-          </button>
-        </div>
-      </div>
+
 
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>

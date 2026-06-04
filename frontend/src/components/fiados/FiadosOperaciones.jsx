@@ -406,28 +406,35 @@ function FiadosOperaciones() {
     }
   };
 
+  // Register action buttons in parent header when this tab is active:
+  useEffect(() => {
+    if (!isActive || !onHeaderActions) return;
+    onHeaderActions(
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        {!isVendedor && (
+          <>
+            <ExportDropdown
+              label="Exportar Historial Global"
+              onExport={handleExportHistorialGlobal}
+            />
+            <ExportDropdown
+              label="Exportar Fiados"
+              onExport={handleExportFiados}
+            />
+          </>
+        )}
+        <button className="btn btn-primary" onClick={() => openFormModal()}>
+          <PlusOutlined /> Nuevo Fiado
+        </button>
+      </div>
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive, isVendedor]);
+
+
   return (
     <div>
-      <div className="page-header" style={{ marginBottom: '24px' }}>
-        <div></div>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {!isVendedor && (
-            <>
-              <ExportDropdown 
-                label="Exportar Historial Global"
-                onExport={handleExportHistorialGlobal}
-              />
-              <ExportDropdown 
-                label="Exportar Fiados"
-                onExport={handleExportFiados}
-              />
-            </>
-          )}
-          <button className="btn btn-primary" onClick={() => openFormModal()}>
-            <PlusOutlined /> Nuevo Fiado
-          </button>
-        </div>
-      </div>
+
 
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>

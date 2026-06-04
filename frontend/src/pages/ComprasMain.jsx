@@ -1,46 +1,53 @@
-import { useState } from 'react';
-import { Tabs } from 'antd';
-import { ContainerOutlined, ToolOutlined } from '@ant-design/icons';
-import { lazy, Suspense } from 'react';
+import { useState, Suspense } from "react";
+import { Tabs } from "antd";
+import { ContainerOutlined, ToolOutlined } from "@ant-design/icons";
+import { lazy } from "react";
 
-const ComprasProductos = lazy(() => import('./Compras'));
-const ComprasServicios = lazy(() => import('./ComprasServicios'));
+const ComprasProductos = lazy(() => import("./Compras"));
+const ComprasServicios = lazy(() => import("./ComprasServicios"));
 
 const Loader = () => (
-  <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
+  <div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}>
     <div className="spinner" />
   </div>
 );
 
 function ComprasMain() {
-  const [activeTab, setActiveTab] = useState('productos');
+  const [activeTab, setActiveTab] = useState("productos");
+  const [headerActions, setHeaderActions] = useState(null);
 
   const tabItems = [
     {
-      key: 'productos',
+      key: "productos",
       label: (
-        <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
           <ContainerOutlined />
           Compra de Productos
         </span>
       ),
       children: (
         <Suspense fallback={<Loader />}>
-          <ComprasProductos />
+          <ComprasProductos
+            onHeaderActions={setHeaderActions}
+            isActive={activeTab === "productos"}
+          />
         </Suspense>
       ),
     },
     {
-      key: 'servicios',
+      key: "servicios",
       label: (
-        <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
           <ToolOutlined />
           Compra de Servicios
         </span>
       ),
       children: (
         <Suspense fallback={<Loader />}>
-          <ComprasServicios />
+          <ComprasServicios
+            onHeaderActions={setHeaderActions}
+            isActive={activeTab === "servicios"}
+          />
         </Suspense>
       ),
     },
@@ -48,11 +55,15 @@ function ComprasMain() {
 
   return (
     <div>
-      <div className="page-header" style={{ marginBottom: 4 }}>
+      <div
+        className="page-header"
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}
+      >
         <div>
-          <h1 className="page-title" style={{ display: 'inline', marginRight: 10 }}>Compras</h1>
+          <h1 className="page-title" style={{ display: "inline", marginRight: 10 }}>Compras</h1>
           <span className="page-subtitle">Registro de compras a proveedores</span>
         </div>
+        <div style={{ display: "flex", gap: "10px" }}>{headerActions}</div>
       </div>
       <Tabs
         activeKey={activeTab}
