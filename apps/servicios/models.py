@@ -45,6 +45,7 @@ class ServicioContratado(models.Model):
 class Servicio(models.Model):
     """Servicio ofrecido por el negocio"""
     empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='servicios', null=True)
+    codigo  = models.CharField(max_length=50, blank=True, null=True, db_index=True)
     nombre = models.CharField(max_length=200)
     descripcion = models.TextField(blank=True, null=True)
     categoria = models.ForeignKey(

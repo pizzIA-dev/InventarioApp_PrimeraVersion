@@ -21,7 +21,7 @@ class ServicioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Servicio
         fields = [
-            'id', 'nombre', 'descripcion', 'categoria', 'categoria_nombre',
+            'id', 'codigo', 'nombre', 'descripcion', 'categoria', 'categoria_nombre',
             'precio_base', 'costo', 'duracion_minutos', 'margen_ganancia',
             'activo', 'creado_en', 'actualizado_en'
         ]

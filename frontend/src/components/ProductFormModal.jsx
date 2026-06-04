@@ -21,7 +21,8 @@ const ProductFormModal = ({ visible, mode = 'create', initialData = null, onClos
   const [errors, setErrors] = useState({});
   const [categorias, setCategorias] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [autoCode, setAutoCode] = useState(false);
+  const [autoCode, setAutoCode] = useState(true);
+  const [userEditedCode, setUserEditedCode] = useState(false);
   const [generando, setGenerando] = useState(false);
   const autoCodeTimer = useRef(null);
 
@@ -74,6 +75,12 @@ const ProductFormModal = ({ visible, mode = 'create', initialData = null, onClos
           precio_venta: 0,
           activo: true,
         });
+        setUserEditedCode(false);
+        // Auto-generate code when opening in create mode:
+        productosAPI.getAll({ page_size: 500 }).then(r => {
+          const ex = (r.data.results || r.data).map(p => p.codigo).filter(Boolean);
+          triggerAutoCode('', '', ex);
+        }).catch(() => triggerAutoCode('', '', []));
       }
       setErrors({});
       setIsSubmitting(false);
@@ -91,10 +98,21 @@ const ProductFormModal = ({ visible, mode = 'create', initialData = null, onClos
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+    const newValue = type === 'checkbox' ? checked : value;
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: newValue };
+      // Auto-generate code when nombre or categoria changes (only if user hasn't manually edited):
+      if ((name === 'nombre' || name === 'categoria_nombre') && autoCode && !userEditedCode && mode === 'create') {
+        const newNombre = name === 'nombre' ? value : prev.nombre;
+        const newCat    = name === 'categoria_nombre' ? value : prev.categoria_nombre;
+        productosAPI.getAll({ page_size: 500 }).then(r => {
+          const ex = (r.data.results || r.data).map(p => p.codigo).filter(Boolean);
+          triggerAutoCode(newNombre, newCat, ex);
+        }).catch(() => triggerAutoCode(newNombre, newCat, []));
+      }
+      if (name === 'codigo') setUserEditedCode(true);
+      return updated;
+    });
   };
 
   const handleToggleAutoCode = () => {
@@ -201,16 +219,37 @@ const ProductFormModal = ({ visible, mode = 'create', initialData = null, onClos
           <div className="modal-body">
             <div className="grid grid-2">
               <div className="form-group">
-                <label className="form-label">Código *</label>
-                <input
-                  type="text"
-                  name="codigo"
-                  className={`form-input${errors.codigo ? ' input-error' : ''}`}
-                  value={formData.codigo}
-                  onChange={handleChange}
-                  onFocus={(e) => e.target.select()}
-                  disabled={isSubmitting}
-                />
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  Código *
+                  {mode === 'create' && !userEditedCode && (
+                    <span style={{ fontSize: '10px', background: 'var(--color-primary)', color: '#fff',
+                      padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>AUTO</span>
+                  )}
+                </label>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <input
+                    type="text"
+                    name="codigo"
+                    className={`form-input${errors.codigo ? ' input-error' : ''}`}
+                    value={formData.codigo}
+                    onChange={handleChange}
+                    onFocus={(e) => e.target.select()}
+                    disabled={isSubmitting}
+                    placeholder={generando ? 'Generando...' : ''}
+                    style={{ flex: 1 }}
+                  />
+                  {mode === 'create' && (
+                    <button
+                      type="button"
+                      title="Regenerar código automáticamente"
+                      onClick={() => { setUserEditedCode(false); handleRegenerate(); }}
+                      disabled={generando || isSubmitting}
+                      style={{ padding: '0 10px', borderRadius: '8px', border: '1px solid var(--border-color)',
+                        background: 'var(--bg-secondary)', cursor: 'pointer', fontSize: '16px',
+                        opacity: generando ? 0.5 : 1, transition: 'opacity 0.2s' }}
+                    >🔄</button>
+                  )}
+                </div>
                 {errors.codigo && <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{errors.codigo}</div>}
               </div>
               <div className="form-group">
