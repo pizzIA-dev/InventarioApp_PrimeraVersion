@@ -577,13 +577,139 @@ function FiadosOperaciones() {
                         </button>
                       )}
 
-                      {fiado.estado === 'LIQUIDADO' && !fiado.venta_ref && !fiado.venta_servicio_ref && (
-                        <button className="btn btn-success" onClick={() => handleManualRegistrarVenta(fiado)} title="Formalizar Venta">
-                          <CheckCircleOutlined /> Validar Venta
-                        </button>
-                      )}
-                      {(fiado.venta_ref || fiado.venta_servicio_ref) && (
-                        <span className="badge badge-success" style={{ fontSize: '11px' }}>Venta N° {fiado.venta_ref || fiado.venta_servicio_ref}</span>
+                      {(fiado.venta_ref || fiado.venta_servicio_ref) ? (
+                        <span className="badge badge-success" style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <CheckCircleOutlined /> Venta #{fiado.venta_ref || fiado.venta_servicio_ref}
+                        </span>
+                      ) : fiado.estado === 'LIQUIDADO' ? (
+                        <span className="badge badge-success" style={{ fontSize: '11px' }}>
+                          Liquidado
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filteredFiados.length === 0 && (
+                <tr>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '24px', color: '#888' }}>
+                    No se encontraron operaciones de fiados.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <FiadoDetailModal 
+        visible={detailModalVisible}
+        onClose={() => { setDetailModalVisible(false); setFiadoForDetail(null); }}
+        fiado={fiadoForDetail}
+      />
+
+      <FiadoHistorialModal 
+        visible={historialModalVisible}
+        onClose={() => { setHistorialModalVisible(false); setFiadoForHistorial(null); }}
+        fiado={fiadoForHistorial}
+      />
+
+      {formModalVisible && (
+        <FiadoOperacionFormModal 
+          visible={formModalVisible}
+          clientes={clientes}
+          initialData={selectedFiado}
+          onClose={closeFormModal}
+          onSave={handleFormSubmit}
+          onReactivar={handleReactivar}
+          onNewCliente={(newCliente) => {
+            setClientes(prev => 
+              prev.find(c => c.id === newCliente.id) ? prev : [...prev, newCliente]
+            );
+          }}
+        />
+      )}
+
+      {abonoModalVisible && selectedFiado && (
+        <FiadoAbonoModal 
+          visible={abonoModalVisible}
+          fiado={selectedFiado}
+          onClose={closeAbonoModal}
+          onSave={(data) => handleAbonoSubmit(selectedFiado.id, data)}
+        />
+      )}
+
+      <ConfirmDialog 
+        visible={confirmDeleteVisible}
+        title="Eliminar Operación de Fiado"
+        message={`¿Estás seguro de que deseas eliminar la operación #${fiadoToDelete?.id?.toString().padStart(6, '0')}? Esta acción revertirá cualquier salida de stock asociada y borrará el registro de la vista.`}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => { setConfirmDeleteVisible(false); setFiadoToDelete(null); }}
+        confirmText="Sí, eliminar y revertir"
+        danger={true}
+      />
+
+      <ConfirmDialog 
+        visible={confirmCancelVisible}
+        title="Cancelar Operación de Fiado"
+        message={`¿Estás seguro de que deseas cancelar la operación #${fiadoToCancel?.id?.toString().padStart(6, '0')}? Su registro se mantendrá como CANCELADO y se revertirá cualquier salida de stock.`}
+        onConfirm={handleCancelConfirm}
+        onCancel={() => { setConfirmCancelVisible(false); setFiadoToCancel(null); }}
+        confirmText="Sí, cancelar y revertir"
+        danger={true}
+      />
+
+      {/* Sales Portals */}
+      <VentaFormModal 
+        visible={ventaModalVisible}
+        onClose={() => setVentaModalVisible(false)}
+        initialData={initialVentaData}
+        clientes={clientesRegulares}
+        productos={productos}
+        onOpenClienteModal={() => setClienteModalVisible(true)}
+        onOpenProductModal={() => setProductModalVisible(true)}
+        onSave={async (data) => {
+          try {
+            // Include reference to fiado so backend knows it's a liquidation formalization
+            await ventasAPI.create({ ...data, origen_fiado_id: initialVentaData.fromFiado });
+            message.success('Venta formalizada exitosamente');
+            setVentaModalVisible(false);
+            fetchData();
+          } catch (err) {
+            message.error('Error formalizando venta');
+          }
+        }}
+      />
+
+      <ServicioVentaFormModal
+        visible={servicioModalVisible}
+        onClose={() => setServicioModalVisible(false)}
+        initialData={initialVentaData}
+        clientes={clientesRegulares}
+        servicios={servicios}
+        onOpenClienteModal={() => setClienteModalVisible(true)}
+        onSave={async (data) => {
+          try {
+             await serviciosAPI.createVenta({ ...data, origen_fiado_id: initialVentaData.fromFiado });
+             message.success('Servicio formalizado exitosamente');
+             setServicioModalVisible(false);
+             fetchData();
+          } catch (err) {
+             message.error('Error formalizando servicio');
+          }
+        }}
+      />
+
+      <ClienteFormModal visible={clienteModalVisible} onClose={() => setClienteModalVisible(false)} onSave={fetchData} />
+      <ProductFormModal visible={productModalVisible} onClose={() => setProductModalVisible(false)} onSave={fetchData} />
+    </div>
+  );
+}
+
+export default FiadosOperaciones;{(fiado.venta_ref || fiado.venta_servicio_ref) && (
+                        <span className="badge badge-success" style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <CheckCircleOutlined /> Venta #{fiado.venta_ref || fiado.venta_servicio_ref}
+                        </span>
                       )}
                     </div>
                   </td>
