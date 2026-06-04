@@ -48,6 +48,12 @@ function ComprasMain() {
 
   return (
     <div>
+      <div className="page-header" style={{ marginBottom: 4 }}>
+        <div>
+          <h1 className="page-title" style={{ display: 'inline', marginRight: 10 }}>Compras</h1>
+          <span className="page-subtitle">Registro de compras a proveedores</span>
+        </div>
+      </div>
       <Tabs
         activeKey={activeTab}
         onChange={setActiveTab}
@@ -55,14 +61,6 @@ function ComprasMain() {
         size="large"
         tabBarStyle={{ marginBottom: 20 }}
         destroyInactiveTabPane={false}
-        tabBarExtraContent={{
-          left: (
-            <div style={{ marginRight: 24, paddingBottom: 4 }}>
-              <h1 className="page-title" style={{ margin: 0, display: 'inline' }}>Compras</h1>
-              <span className="page-subtitle" style={{ marginLeft: 10 }}>Registro de compras a proveedores</span>
-            </div>
-          ),
-        }}
       />
     </div>
   );
