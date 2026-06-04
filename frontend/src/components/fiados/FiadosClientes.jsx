@@ -155,11 +155,8 @@ function FiadosClientes() {
   return (
     <div>
       <div className="page-header" style={{ marginBottom: '24px' }}>
-        <div>
-          <h1 className="page-title">Clientes con Fiados</h1>
-          <p className="page-subtitle">Vista dinamica de deudores — desaparecen al liquidar</p>
-        </div>
-        <div style={{ textAlign: 'right' }}>
+        <div></div>
+        <div<div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Total en Deuda</div>
           <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--color-danger, #ef4444)' }}>
             S/ {totalDeudaGlobal.toFixed(2)}

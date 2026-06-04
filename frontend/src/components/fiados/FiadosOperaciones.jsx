@@ -409,10 +409,7 @@ function FiadosOperaciones() {
   return (
     <div>
       <div className="page-header" style={{ marginBottom: '24px' }}>
-        <div>
-          <h1 className="page-title">Fiados</h1>
-          <p className="page-subtitle">Operaciones de cuentas por cobrar</p>
-        </div>
+        <div></div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {!isVendedor && (
             <>

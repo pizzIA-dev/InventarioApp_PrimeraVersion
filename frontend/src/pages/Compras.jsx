@@ -684,10 +684,7 @@ function Compras() {
       />
 
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 className="page-title">Compras</h1>
-          <p className="page-subtitle">Registro de compras a proveedores</p>
-        </div>
+        <div></div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
           <ExportDropdown onExport={handleExportar} label="Exportar Compras" />
