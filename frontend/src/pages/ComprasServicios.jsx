@@ -61,14 +61,16 @@ export default function ComprasServicios() {
   };
 
   const fetchCatalogs = async () => {
+    // Fetch independently so a failure in one doesn't block the other:
     try {
-      const [sRes, pRes] = await Promise.all([
-        serviciosContratadosAPI.getAll({ page_size: 999, activo: true }),
-        proveedoresAPI.getAll({ page_size: 999 }),
-      ]);
-      setServiciosContratados(sRes.data.results || sRes.data);
+      const pRes = await proveedoresAPI.getAll({ page_size: 999 });
       setProveedores(pRes.data.results || pRes.data);
-    } catch {}
+    } catch (e) { console.error('Error fetching proveedores:', e); }
+
+    try {
+      const sRes = await serviciosContratadosAPI.getAll({ page_size: 999 });
+      setServiciosContratados(sRes.data.results || sRes.data);
+    } catch (e) { console.error('Error fetching servicios contratados:', e); }
   };
 
   useEffect(() => { fetchData(); fetchCatalogs(); }, []);
