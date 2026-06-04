@@ -311,8 +311,12 @@ export default function ComprasServicios() {
                         className="btn btn-secondary"
                         style={{ padding: '2px 8px', fontSize: '11px', height: 'auto' }}
                         onClick={() => {
-                          const pg = proveedores.find(p => p.identificador === '00000000');
-                          if (pg) setForm(f => ({ ...f, proveedor: String(pg.id) }));
+                          const pg = proveedores.find(p => p.identificador === '00000000' || p.nombre === 'Proveedor General');
+                          if (pg) {
+                            setForm(f => ({ ...f, proveedor: String(pg.id), proveedor_nombre: pg.nombre }));
+                          } else {
+                            alert('Proveedor General no encontrado. Asegurate de haber ejecutado las migraciones o crea un proveedor con nombre "Proveedor General".');
+                          }
                         }}
                       >
                         Proveedor General
