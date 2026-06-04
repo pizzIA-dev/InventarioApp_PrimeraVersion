@@ -5,7 +5,7 @@ import { lazy } from "react";
 import { message } from "antd";
 import { fiadosAPI } from "../services/api";
 import ExportDropdown from "../components/ExportDropdown";
-import AuthContext from "../context/AuthContext";
+import { AuthContext } from "../context/AuthContext";
 
 const FiadosOperacionesPage = lazy(() => import("../components/fiados/FiadosOperaciones"));
 const FiadosClientesPage = lazy(() => import("../components/fiados/FiadosClientes"));

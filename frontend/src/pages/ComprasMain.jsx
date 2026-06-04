@@ -5,7 +5,7 @@ import { lazy } from "react";
 import { message } from "antd";
 import { comprasAPI, comprasServiciosAPI } from "../services/api";
 import ExportDropdown from "../components/ExportDropdown";
-import AuthContext from "../context/AuthContext";
+import { AuthContext } from "../context/AuthContext";
 
 const ComprasProductos = lazy(() => import("./Compras"));
 const ComprasServicios = lazy(() => import("./ComprasServicios"));
