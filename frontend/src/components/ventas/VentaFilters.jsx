@@ -1,4 +1,5 @@
 import React from 'react';
+import SearchableSelect from '../SearchableSelect';
 
 const VentaFilters = ({
   activeTab,

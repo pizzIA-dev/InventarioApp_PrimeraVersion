@@ -7,6 +7,7 @@ import ExportDropdown from '../components/ExportDropdown';
 import ProductFormModal from '../components/ProductFormModal';
 import LoadingScreen from '../components/LoadingScreen';
 import { AuthContext } from '../context/AuthContext';
+import SearchableSelect from '../components/SearchableSelect';
 
 function Productos() {
   const { isVendedor } = useContext(AuthContext);

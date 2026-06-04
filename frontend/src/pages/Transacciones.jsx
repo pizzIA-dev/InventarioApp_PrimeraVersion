@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import SearchableSelect from '../components/SearchableSelect';
 import { transaccionesAPI } from '../services/api';
 import { PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, EditOutlined, DeleteOutlined, SettingOutlined, HistoryOutlined, CloseOutlined } from '@ant-design/icons';
 import Pagination from '../components/Pagination';
