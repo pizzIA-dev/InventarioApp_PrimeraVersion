@@ -14,7 +14,7 @@ import FiadoDetailModal from './FiadoDetailModal';
 import ExportDropdown from '../ExportDropdown';
 import { AuthContext } from '../../context/AuthContext';
 
-function FiadosOperaciones() {
+function FiadosOperaciones({ onHeaderActions, isActive }) {
   const { isVendedor } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [fiados, setFiados] = useState([]);

@@ -175,16 +175,14 @@ export default function ComprasServicios({ onHeaderActions, isActive }) {
     if (!isActive || !onHeaderActions) return;
     onHeaderActions(
       <div style={{ display: 'flex', gap: '10px' }}>
-        {!isVendedor && (
-          <ExportDropdown onExport={handleExportar} label="Exportar Compras Servicios" />
-        )}
+        <ExportDropdown onExport={handleExportar} label="Exportar Compras" />
         <button className="btn btn-primary" onClick={openCreate}>
           <PlusOutlined /> Nueva Compra
         </button>
       </div>
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive, isVendedor]);
+  }, [isActive]);
 
 
   return (

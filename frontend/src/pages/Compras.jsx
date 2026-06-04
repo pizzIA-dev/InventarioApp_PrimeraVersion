@@ -675,19 +675,15 @@ function Compras({ onHeaderActions, isActive }) {
     if (!isActive || !onHeaderActions) return;
     onHeaderActions(
       <div style={{ display: 'flex', gap: '10px' }}>
-        {!isVendedor && (
-          <>
-            <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
-            <ExportDropdown onExport={handleExportar} label="Exportar Compras" />
-          </>
-        )}
+        <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
+        <ExportDropdown onExport={handleExportar} label="Exportar Compras" />
         <button className="btn btn-primary" onClick={() => openModal('create')}>
           <PlusOutlined /> Nueva Compra
         </button>
       </div>
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive, isVendedor]);
+  }, [isActive]);
 
 
   return (
