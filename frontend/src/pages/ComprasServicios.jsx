@@ -20,7 +20,7 @@ const PAGE_SIZE     = 15;
 
 const LABEL_STYLE = { fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' };
 
-export default function ComprasServicios({ onHeaderActions, isActive }) {
+export default function ComprasServicios({ openNew = 0 }) {
   const [data, setData]               = useState([]);
   const [loading, setLoading]         = useState(true);
   const [serviciosContratados, setServiciosContratados] = useState([]);
@@ -170,19 +170,11 @@ export default function ComprasServicios({ onHeaderActions, isActive }) {
     } catch { alert('Error al exportar datos.'); }
   };
 
-  // Register action buttons in parent header when this tab is active:
+
+  // Open modal when parent triggers it via counter:
   useEffect(() => {
-    if (!isActive || !onHeaderActions) return;
-    onHeaderActions(
-      <div style={{ display: 'flex', gap: '10px' }}>
-        <ExportDropdown onExport={handleExportar} label="Exportar Compras" />
-        <button className="btn btn-primary" onClick={openCreate}>
-          <PlusOutlined /> Nueva Compra
-        </button>
-      </div>
-    );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive]);
+    if (openNew > 0) openCreate();
+  }, [openNew]);
 
 
   return (

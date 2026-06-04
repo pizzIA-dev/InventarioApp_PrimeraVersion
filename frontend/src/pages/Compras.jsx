@@ -15,7 +15,7 @@ import CompraDetailModal from '../components/compras/CompraDetailModal';
 import LoadingScreen from '../components/LoadingScreen';
 import SearchableSelect from '../components/SearchableSelect';
 
-function Compras({ onHeaderActions, isActive }) {
+function Compras({ openNew = 0 }) {
   const [loading, setLoading] = useState(true);
   const [compras, setCompras] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -670,20 +670,11 @@ function Compras({ onHeaderActions, isActive }) {
     return <LoadingScreen message="OBTENIENDO COMPRAS..." />;
   }
 
-  // Register action buttons in parent header when this tab is active:
+
+  // Open modal when parent triggers it via counter:
   useEffect(() => {
-    if (!isActive || !onHeaderActions) return;
-    onHeaderActions(
-      <div style={{ display: 'flex', gap: '10px' }}>
-        <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
-        <ExportDropdown onExport={handleExportar} label="Exportar Compras" />
-        <button className="btn btn-primary" onClick={() => openModal('create')}>
-          <PlusOutlined /> Nueva Compra
-        </button>
-      </div>
-    );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive]);
+    if (openNew > 0) openModal('create');
+  }, [openNew]);
 
 
   return (

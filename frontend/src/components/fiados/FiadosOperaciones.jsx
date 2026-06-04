@@ -14,7 +14,7 @@ import FiadoDetailModal from './FiadoDetailModal';
 import ExportDropdown from '../ExportDropdown';
 import { AuthContext } from '../../context/AuthContext';
 
-function FiadosOperaciones({ onHeaderActions, isActive }) {
+function FiadosOperaciones({ openNew = 0 }) {
   const { isVendedor } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [fiados, setFiados] = useState([]);
@@ -406,30 +406,12 @@ function FiadosOperaciones({ onHeaderActions, isActive }) {
     }
   };
 
-  // Register action buttons in parent header when this tab is active:
+
+
+  // Open modal when parent triggers it via counter:
   useEffect(() => {
-    if (!isActive || !onHeaderActions) return;
-    onHeaderActions(
-      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-        {!isVendedor && (
-          <>
-            <ExportDropdown
-              label="Exportar Historial Global"
-              onExport={handleExportHistorialGlobal}
-            />
-            <ExportDropdown
-              label="Exportar Fiados"
-              onExport={handleExportFiados}
-            />
-          </>
-        )}
-        <button className="btn btn-primary" onClick={() => openFormModal()}>
-          <PlusOutlined /> Nuevo Fiado
-        </button>
-      </div>
-    );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive, isVendedor]);
+    if (openNew > 0) openFormModal();
+  }, [openNew]);
 
 
   return (
