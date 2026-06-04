@@ -1,20 +1,11 @@
-import { useState, Suspense, useContext } from "react";
-import { Tabs } from "antd";
+import { useState, useContext } from "react";
+import { Tabs, message } from "antd";
 import { ContainerOutlined, ToolOutlined, PlusOutlined } from "@ant-design/icons";
-import { lazy } from "react";
-import { message } from "antd";
 import { comprasAPI, comprasServiciosAPI } from "../services/api";
 import ExportDropdown from "../components/ExportDropdown";
 import { AuthContext } from "../context/AuthContext";
-
-const ComprasProductos = lazy(() => import("./Compras"));
-const ComprasServicios = lazy(() => import("./ComprasServicios"));
-
-const Loader = () => (
-  <div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}>
-    <div className="spinner" />
-  </div>
-);
+import Compras from "./Compras";
+import ComprasServicios from "./ComprasServicios";
 
 function ComprasMain() {
   const { isVendedor } = useContext(AuthContext);
@@ -32,13 +23,9 @@ function ComprasMain() {
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", `historial_compras_${periodo}${anio ? "_" + anio : ""}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      document.body.appendChild(link); link.click(); link.remove();
       window.URL.revokeObjectURL(url);
-    } catch {
-      message.error("Error al exportar historial de compras.");
-    }
+    } catch { message.error("Error al exportar historial."); }
   };
 
   const handleExportCompras = async (periodo, anio) => {
@@ -51,13 +38,9 @@ function ComprasMain() {
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", `compras_${periodo}${anio ? "_" + anio : ""}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      document.body.appendChild(link); link.click(); link.remove();
       window.URL.revokeObjectURL(url);
-    } catch {
-      message.error("Error al exportar compras.");
-    }
+    } catch { message.error("Error al exportar compras."); }
   };
 
   const handleExportComprasServicios = async (periodo, anio) => {
@@ -70,71 +53,52 @@ function ComprasMain() {
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", `compras_servicios_${periodo}${anio ? "_" + anio : ""}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      document.body.appendChild(link); link.click(); link.remove();
       window.URL.revokeObjectURL(url);
-    } catch {
-      message.error("Error al exportar compras de servicios.");
-    }
+    } catch { message.error("Error al exportar compras de servicios."); }
   };
 
-  const renderHeaderButtons = () => {
-    if (activeTab === "productos") {
-      return (
+  const headerButtons = activeTab === "productos" ? (
+    <>
+      {!isVendedor && (
         <>
-          {!isVendedor && (
-            <>
-              <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
-              <ExportDropdown onExport={handleExportCompras} label="Exportar Compras" />
-            </>
-          )}
-          <button className="btn btn-primary" onClick={() => setOpenProductosCount(c => c + 1)}>
-            <PlusOutlined /> Nueva Compra
-          </button>
+          <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
+          <ExportDropdown onExport={handleExportCompras} label="Exportar Compras" />
         </>
-      );
-    }
-    return (
-      <>
-        {!isVendedor && (
-          <ExportDropdown onExport={handleExportComprasServicios} label="Exportar Compras Servicios" />
-        )}
-        <button className="btn btn-primary" onClick={() => setOpenServiciosCount(c => c + 1)}>
-          <PlusOutlined /> Nueva Compra Servicio
-        </button>
-      </>
-    );
-  };
+      )}
+      <button className="btn btn-primary" onClick={() => setOpenProductosCount(n => n + 1)}>
+        <PlusOutlined /> Nueva Compra
+      </button>
+    </>
+  ) : (
+    <>
+      {!isVendedor && (
+        <ExportDropdown onExport={handleExportComprasServicios} label="Exportar Compras Servicios" />
+      )}
+      <button className="btn btn-primary" onClick={() => setOpenServiciosCount(n => n + 1)}>
+        <PlusOutlined /> Nueva Compra Servicio
+      </button>
+    </>
+  );
 
   const tabItems = [
     {
       key: "productos",
       label: (
         <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <ContainerOutlined />
-          Compra de Productos
+          <ContainerOutlined /> Compra de Productos
         </span>
       ),
-      children: (
-        <Suspense fallback={<Loader />}>
-          <ComprasProductos openNew={openProductosCount} />
-        </Suspense>
-      ),
+      children: <Compras openNew={openProductosCount} />,
     },
     {
       key: "servicios",
       label: (
         <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <ToolOutlined />
-          Compra de Servicios
+          <ToolOutlined /> Compra de Servicios
         </span>
       ),
-      children: (
-        <Suspense fallback={<Loader />}>
-          <ComprasServicios openNew={openServiciosCount} />
-        </Suspense>
-      ),
+      children: <ComprasServicios openNew={openServiciosCount} />,
     },
   ];
 
@@ -148,7 +112,7 @@ function ComprasMain() {
           <h1 className="page-title" style={{ display: "inline", marginRight: 10 }}>Compras</h1>
           <span className="page-subtitle">Registro de compras a proveedores</span>
         </div>
-        <div style={{ display: "flex", gap: "10px" }}>{renderHeaderButtons()}</div>
+        <div style={{ display: "flex", gap: "10px" }}>{headerButtons}</div>
       </div>
       <Tabs
         activeKey={activeTab}

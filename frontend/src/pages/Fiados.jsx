@@ -1,20 +1,11 @@
-import { useState, Suspense, useContext } from "react";
-import { Tabs } from "antd";
+import { useState, useContext } from "react";
+import { Tabs, message } from "antd";
 import { CreditCardOutlined, TeamOutlined, PlusOutlined } from "@ant-design/icons";
-import { lazy } from "react";
-import { message } from "antd";
 import { fiadosAPI } from "../services/api";
 import ExportDropdown from "../components/ExportDropdown";
 import { AuthContext } from "../context/AuthContext";
-
-const FiadosOperacionesPage = lazy(() => import("../components/fiados/FiadosOperaciones"));
-const FiadosClientesPage = lazy(() => import("../components/fiados/FiadosClientes"));
-
-const Loader = () => (
-  <div style={{ display: "flex", justifyContent: "center", padding: "60px 0" }}>
-    <div className="spinner" />
-  </div>
-);
+import FiadosOperaciones from "../components/fiados/FiadosOperaciones";
+import FiadosClientes from "../components/fiados/FiadosClientes";
 
 function Fiados() {
   const { isVendedor } = useContext(AuthContext);
@@ -28,12 +19,8 @@ function Fiados() {
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", `historial_fiados_${periodo}_${anio || "todo"}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch {
-      message.error("No se pudo generar el reporte de historial.");
-    }
+      document.body.appendChild(link); link.click(); link.remove();
+    } catch { message.error("No se pudo generar el reporte de historial."); }
   };
 
   const handleExportFiados = async (periodo, anio) => {
@@ -43,61 +30,42 @@ function Fiados() {
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute("download", `reporte_fiados_${periodo}_${anio || "todo"}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch {
-      message.error("No se pudo generar el reporte de fiados.");
-    }
+      document.body.appendChild(link); link.click(); link.remove();
+    } catch { message.error("No se pudo generar el reporte de fiados."); }
   };
 
-  const renderHeaderButtons = () => {
-    if (activeTab === "operaciones") {
-      return (
+  const headerButtons = activeTab === "operaciones" ? (
+    <>
+      {!isVendedor && (
         <>
-          {!isVendedor && (
-            <>
-              <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
-              <ExportDropdown onExport={handleExportFiados} label="Exportar Fiados" />
-            </>
-          )}
-          <button className="btn btn-primary" onClick={() => setOpenFiadoCount(c => c + 1)}>
-            <PlusOutlined /> Nuevo Fiado
-          </button>
+          <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
+          <ExportDropdown onExport={handleExportFiados} label="Exportar Fiados" />
         </>
-      );
-    }
-    return null;
-  };
+      )}
+      <button className="btn btn-primary" onClick={() => setOpenFiadoCount(n => n + 1)}>
+        <PlusOutlined /> Nuevo Fiado
+      </button>
+    </>
+  ) : null;
 
   const tabItems = [
     {
       key: "operaciones",
       label: (
         <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <CreditCardOutlined />
-          Operaciones / Deudas
+          <CreditCardOutlined /> Operaciones / Deudas
         </span>
       ),
-      children: (
-        <Suspense fallback={<Loader />}>
-          <FiadosOperacionesPage openNew={openFiadoCount} />
-        </Suspense>
-      ),
+      children: <FiadosOperaciones openNew={openFiadoCount} />,
     },
     {
       key: "clientes",
       label: (
         <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
-          <TeamOutlined />
-          Clientes Fiados
+          <TeamOutlined /> Clientes Fiados
         </span>
       ),
-      children: (
-        <Suspense fallback={<Loader />}>
-          <FiadosClientesPage />
-        </Suspense>
-      ),
+      children: <FiadosClientes />,
     },
   ];
 
@@ -111,7 +79,7 @@ function Fiados() {
           <h1 className="page-title" style={{ display: "inline", marginRight: 10 }}>Fiados</h1>
           <span className="page-subtitle">Operaciones de cuentas por cobrar</span>
         </div>
-        <div style={{ display: "flex", gap: "10px" }}>{renderHeaderButtons()}</div>
+        <div style={{ display: "flex", gap: "10px" }}>{headerButtons}</div>
       </div>
       <Tabs
         activeKey={activeTab}
