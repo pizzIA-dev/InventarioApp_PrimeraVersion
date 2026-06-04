@@ -80,7 +80,6 @@ function Servicios() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterActivo, setFilterActivo] = useState('ALL');
   const [filterCategoria, setFilterCategoria] = useState('ALL');
-    codigo: '',
   const [confirmDialog, setConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
   const [confirmCatDialog, setConfirmCatDialog] = useState({ visible: false, id: null, nombre: '' });
   const [categorias, setCategorias] = useState([]);
