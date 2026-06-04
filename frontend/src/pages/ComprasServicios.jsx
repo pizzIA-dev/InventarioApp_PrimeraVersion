@@ -12,7 +12,7 @@ import ServicioContratadoFormModal from '../components/ServicioContratadoFormMod
 const ESTADO_BADGE = { PENDIENTE: 'badge-warning', EN_PROGRESO: 'badge-info', TERMINADO: 'badge-success', CANCELADO: 'badge-danger' };
 const ESTADO_LABEL = { PENDIENTE: 'PENDIENTE', EN_PROGRESO: 'EN PROCESO', TERMINADO: 'TERMINADO', CANCELADO: 'CANCELADO' };
 const EMPTY_FORM    = {
-  servicio: '', servicio_nombre: '', proveedor: '', precio: '', descuento: '0', impuesto: '0',
+  servicio: '', servicio_nombre: '', proveedor: '', proveedor_nombre: '', precio: '', descuento: '0', impuesto: '0',
   fecha_programada: '', estado: 'PENDIENTE', notas: '',
   numero_comprobante: '', numero_comprobante_simple: '', tipo_comprobante: '',
 };
@@ -100,6 +100,7 @@ export default function ComprasServicios() {
     setForm({
       servicio: String(r.servicio || ''),
         servicio_nombre: r.servicio_nombre || '',
+        proveedor_nombre: r.proveedor_nombre_display || r.proveedor_nombre || '',
       proveedor: String(r.proveedor || ''),
       precio: String(r.precio || ''),
       descuento: String(r.descuento || '0'),
@@ -131,6 +132,7 @@ export default function ComprasServicios() {
         servicio: null,
         servicio_nombre: form.servicio_nombre || '',
         proveedor: form.proveedor ? Number(form.proveedor) : null,
+        proveedor_nombre: form.proveedor_nombre || '',
         precio: Number(form.precio) || 0,
         descuento: Number(form.descuento) || 0,
         impuesto: Number(form.impuesto) || 0,
@@ -244,7 +246,7 @@ export default function ComprasServicios() {
                 <tr key={r.id}>
                   <td>{new Date(r.fecha_programada || r.creado_en).toLocaleDateString()}</td>
                   <td style={{ fontWeight: 500 }}>{r.servicio_nombre || '—'}</td>
-                  <td style={{ color: r.proveedor_nombre ? 'inherit' : 'var(--text-secondary)', fontStyle: r.proveedor_nombre ? 'normal' : 'italic' }}>{r.proveedor_nombre || 'Sin proveedor'}</td>
+                  <td style={{ color: r.proveedor_nombre ? 'inherit' : 'var(--text-secondary)', fontStyle: r.proveedor_nombre ? 'normal' : 'italic' }}>{r.proveedor_nombre_display || r.proveedor_nombre || 'Sin proveedor'}</td>
                   <td style={{ textAlign: 'right', fontWeight: 600 }}>S/. {Number(r.precio || 0).toFixed(2)}</td>
                   <td><span className={`badge ${ESTADO_BADGE[r.estado] || 'badge-secondary'}`}>{ESTADO_LABEL[r.estado] || r.estado}</span></td>
                   <td style={{ whiteSpace: 'nowrap' }}>
