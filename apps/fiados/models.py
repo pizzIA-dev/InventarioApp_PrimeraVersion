@@ -41,7 +41,7 @@ class Fiado(models.Model):
     ]
 
     empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='fiados', null=True)
-    cliente = models.ForeignKey(ClienteFiado, on_delete=models.PROTECT, related_name='fiados')
+    cliente = models.ForeignKey('clientes.Cliente', on_delete=models.SET_NULL, related_name='fiados', null=True, blank=True)
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE')
     
@@ -204,7 +204,7 @@ class HistorialFiado(models.Model):
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     """Registro de abonos y cambios de cada Fiado o acciones de cliente"""
     fiado = models.ForeignKey(Fiado, on_delete=models.CASCADE, related_name='historial', null=True, blank=True)
-    cliente = models.ForeignKey(ClienteFiado, on_delete=models.CASCADE, related_name='historial_directo', null=True, blank=True)
+    cliente = models.ForeignKey('clientes.Cliente', on_delete=models.SET_NULL, related_name='historial_fiados', null=True, blank=True)
     fecha = models.DateTimeField(auto_now_add=True)
     total_deuda = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     abono = models.DecimalField(max_digits=12, decimal_places=2, default=0)

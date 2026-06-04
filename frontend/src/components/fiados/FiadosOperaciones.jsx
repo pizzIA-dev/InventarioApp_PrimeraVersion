@@ -26,6 +26,7 @@ function FiadosOperaciones() {
   const [filterTipo, setFilterTipo] = useState('ALL');
   const [filterFechaInicio, setFilterFechaInicio] = useState('');
   const [filterFechaFin, setFilterFechaFin] = useState('');
+  const [filterCliente, setFilterCliente] = useState('');
   
   // Historial Kardex Modal
   const [historialModalVisible, setHistorialModalVisible] = useState(false);
@@ -58,6 +59,11 @@ function FiadosOperaciones() {
     fetchData();
   }, []);
 
+  // Keep clientesRegulares in sync with clientes (same table now):
+  useEffect(() => {
+    setClientesRegulares(clientes);
+  }, [clientes]);
+
   const fetchData = async () => {
     setLoading(true);
     // Fetch independently so a failure in one does not block the others:
@@ -67,9 +73,9 @@ function FiadosOperaciones() {
     } catch (e) { console.error('Error fetching fiados:', e); }
 
     try {
-      const clientesRes = await fiadosAPI.getClientes();
+      const clientesRes = await clientesAPI.getAll({ page_size: 999 });
       setClientes(clientesRes.data.results || clientesRes.data);
-    } catch (e) { console.error('Error fetching clientes fiados:', e); }
+    } catch (e) { console.error('Error fetching clientes:', e); }
 
     try {
       const productosRes = await productosAPI.getAll({ page_size: 999 });
@@ -81,10 +87,8 @@ function FiadosOperaciones() {
       setServicios(serviciosRes.data.results || serviciosRes.data);
     } catch (e) { console.error('Error fetching servicios:', e); }
 
-    try {
-      const regularesRes = await clientesAPI.getAll({ page_size: 999 });
-      setClientesRegulares(regularesRes.data.results || regularesRes.data);
-    } catch (e) { console.error('Error fetching clientes regulares:', e); }
+    // clientesRegulares = same as clientes (unified client table)
+    // setClientesRegulares is handled above via setClientes
 
     setLoading(false);
   };
@@ -351,13 +355,14 @@ function FiadosOperaciones() {
     const idMatch = f.id.toString().includes(term);
     const estadoMatch = filterEstado === 'ALL' ? true : f.estado === filterEstado;
     const tipoMatch = filterTipo === 'ALL' ? true : f.tipo === filterTipo;
+    const clienteFiltroMatch = !filterCliente || String(f.cliente) === String(filterCliente);
     
     // Filtro por Fechas
     const saleDate = f.creado_en ? new Date(f.creado_en).toISOString().split('T')[0] : null;
     const dateMatch = (!filterFechaInicio || (saleDate && saleDate >= filterFechaInicio)) &&
                       (!filterFechaFin || (saleDate && saleDate <= filterFechaFin));
     
-    return (clienteMatch || idMatch) && estadoMatch && tipoMatch && dateMatch;
+    return (clienteMatch || idMatch) && estadoMatch && tipoMatch && dateMatch && clienteFiltroMatch;
   });
 
   const getEstadoBadge = (estado) => {
@@ -480,6 +485,16 @@ function FiadosOperaciones() {
             </select>
           </div>
 
+          <div style={{ minWidth: '180px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Cliente</label>
+            <select className="form-input" value={filterCliente} onChange={(e) => setFilterCliente(e.target.value)}>
+              <option value="">Todos los Clientes</option>
+              {clientes.map(c => (
+                <option key={c.id} value={c.id}>{c.nombre}</option>
+              ))}
+            </select>
+          </div>
+
           <button 
             className="btn btn-secondary" 
             onClick={() => {
@@ -488,6 +503,7 @@ function FiadosOperaciones() {
               setFilterTipo('ALL');
               setFilterFechaInicio('');
               setFilterFechaFin('');
+              setFilterCliente('');
             }}
             title="Limpiar Filtros"
           >
@@ -605,9 +621,11 @@ function FiadosOperaciones() {
           onClose={closeFormModal}
           onSave={handleFormSubmit}
           onReactivar={handleReactivar}
-          onNewCliente={(newCliente) => setClientes(prev => 
-            prev.find(c => c.id === newCliente.id) ? prev : [...prev, newCliente]
-          )}
+          onNewCliente={(newCliente) => {
+            setClientes(prev => 
+              prev.find(c => c.id === newCliente.id) ? prev : [...prev, newCliente]
+            );
+          }}
         />
       )}
 

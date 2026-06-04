@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { fiadosAPI, productosAPI, serviciosAPI } from '../../services/api';
-import { DeleteOutlined, PlusOutlined, UserAddOutlined, CloseOutlined } from '@ant-design/icons';
+import { productosAPI, serviciosAPI } from '../../services/api';
+import { DeleteOutlined, PlusOutlined, CloseOutlined } from '@ant-design/icons';
 import { message } from 'antd';
 import SearchableSelect from '../SearchableSelect';
-import FiadoClienteFormModal from './FiadoClienteFormModal';
+import ClienteFormModal from '../ClienteFormModal';
 
 function FiadoOperacionFormModal({ visible, clientes, initialData, onClose, onSave, onReactivar, onNewCliente }) {
   const isEdit = !!initialData;
@@ -247,7 +247,7 @@ function FiadoOperacionFormModal({ visible, clientes, initialData, onClose, onSa
                   onChange={(val) => setFormData(prev => ({ ...prev, cliente: val }))}
                   placeholder="Buscar cliente fiado..."
                   onActionClick={() => setClienteModalVisible(true)}
-                  actionLabel="+ Nuevo Cliente Fiado"
+                  actionLabel="+ Nuevo Cliente"
                   error={!formData.cliente && undefined}
                 />
                 {clientes.length === 0 && (
@@ -498,21 +498,13 @@ function FiadoOperacionFormModal({ visible, clientes, initialData, onClose, onSa
             </button>
           </div>
         </form>
-      <FiadoClienteFormModal
+      <ClienteFormModal
         visible={clienteModalVisible}
-        mode="create"
         onClose={() => setClienteModalVisible(false)}
-        onSave={async (formData) => {
-          try {
-            const res = await fiadosAPI.createCliente(formData);
-            setFormData(prev => ({ ...prev, cliente: String(res.data.id) }));
-            if (typeof onNewCliente === 'function') onNewCliente(res.data);
-            setClienteModalVisible(false);
-            message.success('Cliente fiado creado correctamente');
-          } catch (e) {
-            const msg = e.response?.data?.nombre?.[0] || e.response?.data?.detail || 'Error al crear cliente';
-            message.error(msg);
-          }
+        onSave={(newCliente) => {
+          setFormData(prev => ({ ...prev, cliente: String(newCliente.id) }));
+          if (typeof onNewCliente === 'function') onNewCliente(newCliente);
+          setClienteModalVisible(false);
         }}
       />
     </div>

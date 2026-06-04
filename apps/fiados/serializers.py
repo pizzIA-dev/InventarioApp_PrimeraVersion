@@ -1,13 +1,53 @@
 from decimal import Decimal
 from rest_framework import serializers
 from .models import ClienteFiado, Fiado, DetalleFiadoProducto, DetalleFiadoServicio, HistorialFiado
+from apps.clientes.serializers import ClienteSerializer
 from apps.inventario.serializers import ProductoSerializer
 from apps.servicios.serializers import ServicioSerializer
 
 class ClienteFiadoSerializer(serializers.ModelSerializer):
+    total_fiados       = serializers.SerializerMethodField()
+    total_deuda        = serializers.SerializerMethodField()
+    tiene_fiados_activos = serializers.SerializerMethodField()
+    ultimo_fiado       = serializers.SerializerMethodField()
+
     class Meta:
         model = ClienteFiado
         fields = '__all__'
+        # extra read-only computed fields:
+        extra_fields = ['total_fiados', 'total_deuda', 'tiene_fiados_activos', 'ultimo_fiado']
+
+    def get_fields(self):
+        fields = super().get_fields()
+        # Ensure computed fields are always included
+        return fields
+
+    def get_total_fiados(self, obj):
+        return obj.fiados.exclude(estado='CANCELADO').count()
+
+    def get_total_deuda(self, obj):
+        from decimal import Decimal
+        total = sum(
+            f.saldo_pendiente for f in obj.fiados.exclude(estado='CANCELADO')
+        )
+        return float(total)
+
+    def get_tiene_fiados_activos(self, obj):
+        return obj.fiados.filter(estado__in=['PENDIENTE', 'PAGADO_PARCIAL']).exists()
+
+    def get_ultimo_fiado(self, obj):
+        ultimo = obj.fiados.exclude(estado='CANCELADO').order_by('-creado_en').first()
+        if ultimo:
+            return str(ultimo.creado_en.date())
+        return None
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        ret['total_fiados'] = self.get_total_fiados(instance)
+        ret['total_deuda'] = self.get_total_deuda(instance)
+        ret['tiene_fiados_activos'] = self.get_tiene_fiados_activos(instance)
+        ret['ultimo_fiado'] = self.get_ultimo_fiado(instance)
+        return ret
 
 
 class DetalleFiadoProductoSerializer(serializers.ModelSerializer):
@@ -49,7 +89,18 @@ class HistorialFiadoSerializer(serializers.ModelSerializer):
         return "-"
 
 class FiadoSerializer(serializers.ModelSerializer):
-    cliente_nombre = serializers.CharField(source='cliente.nombre', read_only=True)
+    cliente_nombre = serializers.SerializerMethodField()
+    cliente_documento = serializers.SerializerMethodField()
+
+    def get_cliente_nombre(self, obj):
+        if obj.cliente:
+            return obj.cliente.nombre
+        return ''
+
+    def get_cliente_documento(self, obj):
+        if obj.cliente:
+            return obj.cliente.numero_documento or ''
+        return ''
     detalles_producto = DetalleFiadoProductoSerializer(many=True, read_only=True)
     detalles_servicio = DetalleFiadoServicioSerializer(many=True, read_only=True)
     historial = HistorialFiadoSerializer(many=True, read_only=True)
