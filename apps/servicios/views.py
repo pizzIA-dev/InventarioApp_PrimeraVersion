@@ -12,7 +12,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Sum, Count
 from django.utils import timezone
 from .models import CategoriaServicio, Servicio, VentaServicio, MovimientoServicio, ServicioContratado
-from .serializers import (, ServicioContratadoSerializer
+from .serializers import (ServicioContratadoSerializer,
     CategoriaServicioSerializer,
     ServicioSerializer, ServicioCreateSerializer,
     VentaServicioSerializer, VentaServicioCreateSerializer,
