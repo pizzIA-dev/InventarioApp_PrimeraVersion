@@ -156,7 +156,7 @@ function FiadosClientes() {
     <div>
       <div className="page-header" style={{ marginBottom: '24px' }}>
         <div></div>
-        <div<div style={{ textAlign: 'right' }}>
+        <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Total en Deuda</div>
           <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--color-danger, #ef4444)' }}>
             S/ {totalDeudaGlobal.toFixed(2)}
