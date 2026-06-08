@@ -94,7 +94,13 @@ export default function ComprasServicios({ openNew = 0 }) {
   const hasFilters   = searchProveedor || searchServicio || filterFechaInicio || filterFechaFin || filterEstado !== 'ALL';
 
   // Handlers
-  const openCreate = () => { setModalMode('create'); setSelected(null); setForm(EMPTY_FORM); setErrors({}); setModalOpen(true); };
+  const openCreate = () => {
+    setModalMode('create');
+    setSelected(null);
+    setForm({ ...EMPTY_FORM, numero_comprobante: generateComprobanteCS(data) });
+    setErrors({});
+    setModalOpen(true);
+  };
   const openEdit   = (r)  => {
     setModalMode('edit'); setSelected(r);
     setForm({

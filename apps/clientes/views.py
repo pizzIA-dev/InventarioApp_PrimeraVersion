@@ -575,7 +575,7 @@ class SegmentoClienteViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         # Create initial history entry when client is registered:
         MovimientoEstadoCliente.objects.create(
             cliente=cliente,
-            estado_anterior=None,
+            estado_anterior='',
             estado_nuevo='ACTIVO',
             notas='Cliente registrado en el sistema.',
             usuario=self.request.user if self.request and self.request.user.is_authenticated else None,

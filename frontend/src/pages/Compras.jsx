@@ -256,7 +256,7 @@ function Compras({ openNew = 0 }) {
         proveedor: '',
         proveedor_nombre: '',
         tipo_compra: 'PROVEEDOR',
-        numero_comprobante: '',
+        numero_comprobante: generateComprobanteCompra(compras),
         tipo_comprobante: '',
         estado: 'CONFIRMADA',
         impuesto: 0,
