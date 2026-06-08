@@ -8,7 +8,7 @@ from apps.core.export_utils import create_multi_sheet_excel_response
 
 from apps.ventas.models import Venta, DetalleVenta
 from apps.compras.models import Compra, DetalleCompra
-from apps.servicios.models import VentaServicio, Servicio
+from apps.servicios.models import VentaServicio, Servicio, CompraServicio
 from apps.transacciones.models import Transaccion
 from apps.clientes.models import Cliente
 from apps.proveedores.models import Proveedor
@@ -52,13 +52,23 @@ class BalanceGeneralView(APIView):
         total_ingresos = total_ventas + total_servicios + total_ingresos_extra
         
         # EGRESOS
-        # Compras a proveedores
+        # Compras de productos a proveedores
         compras_query = Compra.objects.filter(estado='CONFIRMADA')
         if fecha_inicio:
             compras_query = compras_query.filter(creado_en__date__gte=fecha_inicio)
         if fecha_fin:
             compras_query = compras_query.filter(creado_en__date__lte=fecha_fin)
-        total_compras = sum(c.total for c in compras_query)
+        total_compras_productos = sum(c.total for c in compras_query)
+
+        # Compras de servicios operacionales (NO están en Otras Transacciones):
+        compras_srv_query = CompraServicio.objects.filter(estado='TERMINADO')
+        if fecha_inicio:
+            compras_srv_query = compras_srv_query.filter(creado_en__date__gte=fecha_inicio)
+        if fecha_fin:
+            compras_srv_query = compras_srv_query.filter(creado_en__date__lte=fecha_fin)
+        total_compras_servicios = sum(float(c.total or 0) for c in compras_srv_query)
+
+        total_compras = total_compras_productos + total_compras_servicios
         
         # Egresos independientes
         egresos_query = Transaccion.objects.filter(tipo='EGRESO')
@@ -290,7 +300,10 @@ class DashboardView(APIView):
             cantidad_compras = 0
         else:
             compras_mes = Compra.objects.filter(estado='CONFIRMADA', **filtro_fechas)
-            total_compras_mes = sum(c.total for c in compras_mes)
+            total_compras_productos_mes = sum(c.total for c in compras_mes)
+            compras_srv_mes = CompraServicio.objects.filter(estado='TERMINADO', **filtro_fechas)
+            total_compras_servicios_mes2 = sum(float(c.total or 0) for c in compras_srv_mes)
+            total_compras_mes = total_compras_productos_mes + total_compras_servicios_mes2
             cantidad_compras = compras_mes.count()
         
         # CLIENTES Y PROVEEDORES
@@ -444,7 +457,14 @@ class ReporteMensualView(APIView):
                     creado_en__date__gte=inicio_mes,
                     creado_en__date__lt=fin_mes
                 )
-                total_compras = sum(c.total for c in compras)
+                total_compras_prod_mes = sum(c.total for c in compras)
+                compras_srv = CompraServicio.objects.filter(
+                    estado='TERMINADO',
+                    creado_en__date__gte=inicio_mes,
+                    creado_en__date__lt=fin_mes
+                )
+                total_compras_srv_mes = sum(float(c.total or 0) for c in compras_srv)
+                total_compras = total_compras_prod_mes + total_compras_srv_mes
             
             # Servicios del mes
             if servicio_id:

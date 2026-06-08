@@ -206,10 +206,8 @@ class ClienteViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             servicios_total=Sum('servicios_contratados__total', filter=models.Q(servicios_contratados__estado='TERMINADO'))
         )
 
-        period_range = get_period_range(periodo, anio)
-        if period_range:
-            date_from, date_to = period_range
-            queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
+        # Note: period filter removed for client list — exports ALL clients.
+        # Purchase/service totals already reflect full history.
 
         # Cabeceras: ID Nombre Tipo Documento Contacto Email Teléfono Recurrencia Total Comprado Estado Última Modificación Responsable
         headers = [
@@ -240,25 +238,23 @@ class ClienteViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
                 usuario_str
             ]
 
-            # Product sheet logic
-            if (obj.num_ventas or 0) > 0:
-                total_v = float(obj.ventas_total) if obj.ventas_total else 0.0
-                rows_productos.append(
-                    common_data + [
-                        obj.num_ventas or 0,
-                        total_v,
-                    ] + common_footer
-                )
+            # Product sheet: include ALL clients (0 if no purchases)
+            total_v = float(obj.ventas_total) if obj.ventas_total else 0.0
+            rows_productos.append(
+                common_data + [
+                    obj.num_ventas or 0,
+                    total_v,
+                ] + common_footer
+            )
 
-            # Service sheet logic
-            if (obj.num_servicios or 0) > 0:
-                total_s = float(obj.servicios_total) if obj.servicios_total else 0.0
-                rows_servicios.append(
-                    common_data + [
-                        obj.num_servicios or 0,
-                        total_s,
-                    ] + common_footer
-                )
+            # Service sheet: include ALL clients (0 if no services)
+            total_s = float(obj.servicios_total) if obj.servicios_total else 0.0
+            rows_servicios.append(
+                common_data + [
+                    obj.num_servicios or 0,
+                    total_s,
+                ] + common_footer
+            )
 
         period_label = get_period_label(periodo, anio)
         sheets_data = [
@@ -574,6 +570,17 @@ class SegmentoClienteViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     ordering_fields = ['nombre']
     pagination_class = None
     
+    def perform_create(self, serializer):
+        cliente = serializer.save()
+        # Create initial history entry when client is registered:
+        MovimientoEstadoCliente.objects.create(
+            cliente=cliente,
+            estado_anterior=None,
+            estado_nuevo='ACTIVO',
+            notas='Cliente registrado en el sistema.',
+            usuario=self.request.user if self.request and self.request.user.is_authenticated else None,
+        )
+
     def perform_destroy(self, instance):
         instance.activo = False
         instance.save()

@@ -198,6 +198,12 @@ const Login = () => {
           </Form.Item>
 
           {/* Botón Entrar */}
+          <Form.Item style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: '12px', color: 'rgba(128,128,128,0.85)', textAlign: 'center', padding: '6px 0',
+              borderRadius: '6px', background: 'rgba(128,128,128,0.06)', border: '1px solid rgba(128,128,128,0.12)' }}>
+              Puedes ingresar con tu cuenta de <strong>gerente</strong>, <strong>vendedor</strong> o <strong>colaborador</strong>
+            </div>
+          </Form.Item>
           <Form.Item style={{ marginBottom: 0 }}>
             <Button
               type="primary"

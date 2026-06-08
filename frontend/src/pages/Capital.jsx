@@ -28,13 +28,14 @@ function Capital() {
   const [filterFechaFin, setFilterFechaFin] = useState('');
   const [filterEstadoCapital, setFilterEstadoCapital] = useState('ALL');
   const [filterTipoCapital, setFilterTipoCapital] = useState('ALL');
+  const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
     tipo: '',
     nombre: '',
     descripcion: '',
     valor_inicial: 0,
     valor_actual: 0,
-    fecha_adquisicion: '',
+    fecha_adquisicion: new Date().toISOString().slice(0, 10),
     vida_util_anios: '',
     cuenta: '',
     banco: '',
@@ -152,7 +153,7 @@ function Capital() {
         descripcion: '',
         valor_inicial: 0,
         valor_actual: 0,
-        fecha_adquisicion: '',
+        fecha_adquisicion: new Date().toISOString().slice(0, 10),
         vida_util_anios: '',
         cuenta: '',
         banco: '',
@@ -173,6 +174,10 @@ function Capital() {
     
     if (!formData.tipo) {
       alert('Debe seleccionar un tipo de capital.');
+      return;
+    }
+    if (!formData.fecha_adquisicion) {
+      setErrors(prev => ({ ...prev, fecha_adquisicion: 'La fecha de adquisición es obligatoria' }));
       return;
     }
 
@@ -699,14 +704,19 @@ function Capital() {
 
                 <div className="grid grid-2">
                   <div className="form-group">
-                    <label className="form-label">Fecha de Adquisición</label>
+                    <label className="form-label">Fecha de Adquisición *</label>
                     <input
                       type="date"
                       name="fecha_adquisicion"
-                      className="form-input"
+                      className={`form-input${errors.fecha_adquisicion ? ' input-error' : ''}`}
                       value={formData.fecha_adquisicion}
                       onChange={handleChange}
                     />
+                    {errors.fecha_adquisicion && (
+                      <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>
+                        {errors.fecha_adquisicion}
+                      </div>
+                    )}
                   </div>
                   <div className="form-group">
                     <label className="form-label">Vida Útil (años)</label>

@@ -568,9 +568,19 @@ function FiadosOperaciones({ openNew = 0 }) {
                           <CheckCircleOutlined /> Venta #{fiado.venta_ref || fiado.venta_servicio_ref}
                         </span>
                       ) : fiado.estado === 'LIQUIDADO' ? (
-                        <span className="badge badge-success" style={{ fontSize: '11px' }}>
-                          Liquidado
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                          <span className="badge badge-success" style={{ fontSize: '11px' }}>Liquidado</span>
+                          {(!fiado.venta_ref && !fiado.venta_servicio_ref) && (
+                            <button
+                              className="btn btn-primary"
+                              style={{ fontSize: '11px', padding: '3px 8px', lineHeight: '1.3' }}
+                              onClick={() => handleManualRegistrarVenta(fiado)}
+                              title="Abrir formulario para registrar la venta formal"
+                            >
+                              Formalizar Venta
+                            </button>
+                          )}
+                        </div>
                       ) : null}
                     </div>
                   </td>

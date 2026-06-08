@@ -1306,13 +1306,15 @@ function Ventas() {
                         {/* Formalizar moved to detail modal */}
                         <button className="btn btn-secondary" onClick={() => openVentaEditModal(venta)} title="Editar"><EditOutlined /></button>
                         {venta.estado === 'PENDIENTE' && (
-                          <button className="btn btn-primary" onClick={() => handleIniciarServicio(venta.id)} title="Iniciar"><PlayCircleOutlined /></button>
+                          <button className="btn btn-primary" onClick={() => handleIniciarServicio(venta.id)} title="Iniciar servicio"><PlayCircleOutlined /> Iniciar</button>
                         )}
                         {venta.estado === 'EN_PROGRESO' && (
-                          <button className="btn btn-success" onClick={() => handleCompletarServicio(venta.id)} title="Terminar"><CheckOutlined /></button>
+                          <button className="btn btn-success" onClick={() => handleCompletarServicio(venta.id)} title="Marcar como terminado"><CheckOutlined /> Terminar</button>
                         )}
                         {(venta.estado === 'PENDIENTE' || venta.estado === 'EN_PROGRESO') && (
-                          <button className="btn btn-warning" onClick={() => openCancelModal(venta.id, 'servicio')} title="Cancelar" style={{ color: 'white' }}><CloseOutlined /></button>
+                          <button className="btn btn-danger" onClick={() => openCancelModal(venta.id, 'servicio')} title="Cancelar este servicio" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <CloseOutlined /> Cancelar
+                          </button>
                         )}
                         {!isVendedor && (
                           <button className="btn btn-danger" onClick={() => handleDeleteVentaClick(venta)} title="Eliminar"><DeleteOutlined /></button>

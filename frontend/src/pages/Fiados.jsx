@@ -34,6 +34,20 @@ function Fiados() {
     } catch { message.error("No se pudo generar el reporte de fiados."); }
   };
 
+  const handleExportClientes = async (periodo, anio) => {
+    try {
+      const response = await fiadosAPI.exportarClientes({ periodo, anio });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `clientes_fiados_${periodo || "todo"}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Error exportando clientes fiados:", e);
+    }
+  };
+
   const headerButtons = activeTab === "operaciones" ? (
     <>
       {!isVendedor && (
@@ -46,6 +60,10 @@ function Fiados() {
         <PlusOutlined /> Nuevo Fiado
       </button>
     </>
+  ) : activeTab === "clientes" ? (
+    <div style={{ display: "flex", gap: "10px" }}>
+      <ExportDropdown onExport={handleExportClientes} label="Exportar Clientes Fiados" />
+    </div>
   ) : null;
 
   const tabItems = [

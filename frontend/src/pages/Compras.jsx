@@ -158,6 +158,22 @@ function Compras({ openNew = 0 }) {
   };
 
   // Aliases para compatibilidad con callbacks individuales (onSave de modales, etc.)
+  // Genera sugerencia de número de comprobante para compras: C-YYYYMM-NNNNN
+  const generateComprobanteCompra = (existingCompras = []) => {
+    const now = new Date();
+    const prefix = `C-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const month_compras = existingCompras.filter(c =>
+      c.numero_comprobante && c.numero_comprobante.startsWith(prefix)
+    );
+    let maxNum = 0;
+    month_compras.forEach(c => {
+      const parts = c.numero_comprobante.split('-');
+      const num = parseInt(parts[parts.length - 1]);
+      if (!isNaN(num) && num > maxNum) maxNum = num;
+    });
+    return `${prefix}-${String(maxNum + 1).padStart(5, '0')}`;
+  };
+
   const fetchCompras = async () => {
     try {
       const response = await comprasAPI.getAll();
@@ -974,8 +990,17 @@ function Compras({ openNew = 0 }) {
 
                 <div className="grid grid-2">
                   <div className="form-group">
-                    <label className="form-label">Nro Comprobante</label>
-                    <input type="text" name="numero_comprobante" className="form-input" value={formData.numero_comprobante} onChange={handleChange} onFocus={(e) => e.target.select()} />
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      Nro Comprobante
+                      {modalMode === 'create' && <span style={{ fontSize: '10px', background: 'var(--color-primary)', color: '#fff', padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>SUGERIDO</span>}
+                    </label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input type="text" name="numero_comprobante" className="form-input" value={formData.numero_comprobante} onChange={handleChange} onFocus={(e) => e.target.select()} style={{ flex: 1 }} />
+                      {modalMode === 'create' && (
+                        <button type="button" title="Regenerar número" onClick={() => setFormData(p => ({ ...p, numero_comprobante: generateComprobanteCompra(compras) }))}
+                          style={{ padding: '0 10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', cursor: 'pointer', fontSize: '16px' }}>🔄</button>
+                      )}
+                    </div>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Tipo Comprobante</label>

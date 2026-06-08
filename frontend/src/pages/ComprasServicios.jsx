@@ -123,7 +123,23 @@ export default function ComprasServicios({ openNew = 0 }) {
     setErrors(e); return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = async (ev) => {
+  // Sugerencia número comprobante compra-servicios: CS-YYYYMM-NNNNN
+  const generateComprobanteCS = (existingList = []) => {
+    const now = new Date();
+    const prefix = `CS-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const filtered = existingList.filter(c =>
+      c.numero_comprobante && c.numero_comprobante.startsWith(prefix)
+    );
+    let maxNum = 0;
+    filtered.forEach(c => {
+      const parts = c.numero_comprobante.split('-');
+      const num = parseInt(parts[parts.length - 1]);
+      if (!isNaN(num) && num > maxNum) maxNum = num;
+    });
+    return `${prefix}-${String(maxNum + 1).padStart(5, '0')}`;
+  };
+
+    const handleSubmit = async (ev) => {
     ev.preventDefault();
     if (!validate()) return;
     setSaving(true);
