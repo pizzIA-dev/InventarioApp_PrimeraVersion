@@ -1,3 +1,4 @@
+# DEPLOY: 2026-06-09 17:03 UTC
 from apps.core.renderers import PassthroughRenderer
 from django.http import HttpResponse
 from django.utils import timezone
