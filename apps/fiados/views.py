@@ -54,99 +54,55 @@ class ClienteFiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         )
 
     def list(self, request, *args, **kwargs):
-        """Sobrescribir listado para incluir la fecha límite más próxima de sus fiados"""
-        from django.db.models import Min, Q
-        
+        """Listado de clientes del módulo Fiados"""
         queryset = self.get_queryset()
-        # Agregar anotación de la fecha límite mínima de fiados no liquidados
-        queryset = queryset.annotate(
-            proxima_fecha_limite=Min(
-                'fiados__fecha_limite',
-                filter=Q(fiados__estado__in=['PENDIENTE', 'PAGADO_PARCIAL']) & Q(fiados__fecha_limite__isnull=False)
-            )
-        )
-        
         page = self.paginate_queryset(queryset)
         if page is not None:
-            data = []
-            for c in page:
-                d = self.get_serializer(c).data
-                d['proxima_fecha_limite'] = c.proxima_fecha_limite.isoformat() if hasattr(c, 'proxima_fecha_limite') and c.proxima_fecha_limite else None
-                data.append(d)
-            return self.get_paginated_response(data)
-            
-        data = []
-        for c in queryset:
-            d = self.get_serializer(c).data
-            d['proxima_fecha_limite'] = c.proxima_fecha_limite.isoformat() if hasattr(c, 'proxima_fecha_limite') and c.proxima_fecha_limite else None
-            data.append(d)
-            
-        return Response(data)
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
     @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
-        """Exportar lista de clientes fiados con resumen de deuda"""
-        from django.db.models import Sum, Min, Q
-        
+        """Exportar lista de clientes del módulo Fiados (ClienteFiado)"""
         periodo = request.query_params.get('periodo', 'todo')
-        anio = request.query_params.get('anio')
-        anio = int(anio) if anio else None
+        anio    = request.query_params.get('anio')
+        anio    = int(anio) if anio else None
 
         queryset = self.get_queryset()
-        
+
         # Filtro de periodo basado en creado_en del cliente
         period_range = get_period_range(periodo, anio)
         if period_range:
             date_from, date_to = period_range
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
-        # Anotaciones financieras
-        queryset = queryset.annotate(
-            total_deuda=Sum('fiados__total'),
-            saldo_pendiente_total=Sum('fiados__saldo_pendiente'),
-            proxima_fecha_limite=Min(
-                'fiados__fecha_limite',
-                filter=Q(fiados__estado__in=['PENDIENTE', 'PAGADO_PARCIAL']) & Q(fiados__fecha_limite__isnull=False)
-            )
-        )
-
         headers = [
-            'ID', 'Nombre', 'Documento', 'Tel/Celular', 'Dirección', 
-            'Total Deuda (S/.)', 'Saldo Pendiente (S/.)', 'Próxima Fecha Límite', 
-            'Estado', 'Última Modificación', 'Responsable'
+            'ID', 'Nombre', 'Documento', 'Teléfono', 'Dirección',
+            'Notas', 'Estado', 'Fecha Registro'
         ]
-        
+
         rows = []
         for obj in queryset:
-            fecha_modificacion = obj.actualizado_en.strftime('%d/%m/%Y %H:%M:%S') if obj.actualizado_en else ''
-            proxima_fecha = obj.proxima_fecha_limite.strftime('%d/%m/%Y') if obj.proxima_fecha_limite else '-'
-            estado = 'Activo' if obj.activo else 'Inactivo'
-            
-            # Get latest administrative movement to find the responsible user
-            last_mov = HistorialFiado.objects.filter(cliente=obj, fiado__isnull=True).order_by('-fecha').first()
-            usuario_str = f"{last_mov.usuario.get_full_name() or last_mov.usuario.username} ({last_mov.usuario.perfil.get_rol_display() if hasattr(last_mov.usuario, 'perfil') else '-'})" if last_mov and last_mov.usuario else "Sistema"
-
             rows.append([
                 str(obj.id).zfill(6),
                 obj.nombre,
                 obj.documento or '-',
                 obj.telefono or '-',
                 obj.direccion or '-',
-                float(obj.total_deuda or 0),
-                float(obj.saldo_pendiente_total or 0),
-                proxima_fecha,
-                estado,
-                fecha_modificacion,
-                usuario_str
+                obj.notas or '-',
+                'Activo' if obj.activo else 'Inactivo',
+                obj.creado_en.strftime('%d/%m/%Y') if obj.creado_en else '-',
             ])
 
         period_label = get_period_label(periodo, anio)
         return create_excel_response(
             filename='reporte_clientes_fiados.xlsx',
-            sheet_name='Clientes',
+            sheet_name='Clientes Fiados',
             headers=headers,
             rows=rows,
-            title='Reporte General de Clientes Fiados',
+            title='Reporte de Clientes Fiados',
             period_label=period_label
         )
 
