@@ -27,9 +27,9 @@ const VentaTable = ({
               <th style={{ width: '120px' }}>Comprobante</th>
               <th>Cliente</th>
               <th>Producto</th>
-              <th>Estado</th>
-              <th style={{ textAlign: 'right' }}>Total</th>
-              <th style={{ width: '120px' }}>Acciones</th>
+              <th style={{ width: '110px' }}>Estado</th>
+              <th style={{ textAlign: 'right', width: '90px' }}>Total</th>
+              <th style={{ width: '140px', textAlign: 'center' }}>Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -67,7 +67,7 @@ const VentaTable = ({
                   </span>
                 </td>
                 <td style={{ textAlign: "right", fontWeight: "bold" }}>S/. {Number(venta.total || 0).toFixed(2)}</td>
-                <td style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                <td style={{ whiteSpace: "nowrap" }}><div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
                   <button className="btn btn-secondary btn-sm btn-icon" onClick={() => onViewHistory(venta, 'producto')} title="Ver Historial/Kardex">
                     <HistoryOutlined />
                   </button>
@@ -82,7 +82,7 @@ const VentaTable = ({
                   <button className="btn btn-danger btn-sm btn-icon" onClick={() => onDelete(venta)} title="Eliminar">
                     <DeleteOutlined />
                   </button>
-                </td>
+                </div></td>
               </tr>
             ))}
             {data.length === 0 && (

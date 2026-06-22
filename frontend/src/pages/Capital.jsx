@@ -6,8 +6,7 @@ import {
   DeleteOutlined, 
   HistoryOutlined, 
   FileExcelOutlined,
-  SettingOutlined
-} from '@ant-design/icons';
+  SettingOutlined, CloseOutlined } from '@ant-design/icons';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
@@ -29,13 +28,14 @@ function Capital() {
   const [filterFechaFin, setFilterFechaFin] = useState('');
   const [filterEstadoCapital, setFilterEstadoCapital] = useState('ALL');
   const [filterTipoCapital, setFilterTipoCapital] = useState('ALL');
+  const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
     tipo: '',
     nombre: '',
     descripcion: '',
     valor_inicial: 0,
     valor_actual: 0,
-    fecha_adquisicion: '',
+    fecha_adquisicion: new Date().toISOString().slice(0, 10),
     vida_util_anios: '',
     cuenta: '',
     banco: '',
@@ -153,7 +153,7 @@ function Capital() {
         descripcion: '',
         valor_inicial: 0,
         valor_actual: 0,
-        fecha_adquisicion: '',
+        fecha_adquisicion: new Date().toISOString().slice(0, 10),
         vida_util_anios: '',
         cuenta: '',
         banco: '',
@@ -174,6 +174,10 @@ function Capital() {
     
     if (!formData.tipo) {
       alert('Debe seleccionar un tipo de capital.');
+      return;
+    }
+    if (!formData.fecha_adquisicion) {
+      setErrors(prev => ({ ...prev, fecha_adquisicion: 'La fecha de adquisición es obligatoria' }));
       return;
     }
 
@@ -609,7 +613,7 @@ function Capital() {
               <h3 className="modal-title">
                 {modalMode === 'create' ? 'Nuevo Capital' : 'Editar Capital'}
               </h3>
-              <button className="modal-close" onClick={closeModal}>×</button>
+              <button className="modal-close" onClick={closeModal}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
@@ -700,14 +704,19 @@ function Capital() {
 
                 <div className="grid grid-2">
                   <div className="form-group">
-                    <label className="form-label">Fecha de Adquisición</label>
+                    <label className="form-label">Fecha de Adquisición *</label>
                     <input
                       type="date"
                       name="fecha_adquisicion"
-                      className="form-input"
+                      className={`form-input${errors.fecha_adquisicion ? ' input-error' : ''}`}
                       value={formData.fecha_adquisicion}
                       onChange={handleChange}
                     />
+                    {errors.fecha_adquisicion && (
+                      <div style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>
+                        {errors.fecha_adquisicion}
+                      </div>
+                    )}
                   </div>
                   <div className="form-group">
                     <label className="form-label">Vida Útil (años)</label>
@@ -795,7 +804,7 @@ function Capital() {
               <button className="modal-close" onClick={() => {
                 setTipoModalVisible(false);
                 resetTipoForm();
-              }}>×</button>
+              }}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleTipoSubmit}>
               <div className="modal-body">
@@ -975,7 +984,7 @@ function Capital() {
                 <button className="btn btn-secondary" onClick={handleKardexExport} style={{ padding: '4px 12px', fontSize: '12px' }}>
                   Exportar Excel
                 </button>
-                <button className="modal-close" onClick={closeKardex}>x</button>
+                <button className="modal-close" onClick={closeKardex}><CloseOutlined /></button>
               </div>
             </div>
 

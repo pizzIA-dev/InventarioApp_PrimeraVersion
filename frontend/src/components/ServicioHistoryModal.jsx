@@ -83,7 +83,7 @@ const ServicioHistoryModal = ({ visible, onClose, servicio }) => {
                 Exportar Excel
               </button>
             )}
-            <button className="modal-close" onClick={onClose}>×</button>
+            <button className="modal-close" onClick={onClose}><CloseOutlined /></button>
           </div>
         </div>
         

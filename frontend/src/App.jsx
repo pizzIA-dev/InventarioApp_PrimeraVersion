@@ -1,4 +1,34 @@
-﻿import { lazy, Suspense } from 'react';
+import { lazy, Suspense, Component } from 'react';
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error('ErrorBoundary caught:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>
+          <h2>Algo salió mal</h2>
+          <pre style={{ fontSize: '12px', textAlign: 'left', background: '#fee2e2', padding: '16px', borderRadius: '8px', overflowX: 'auto' }}>
+            {this.state.error?.message}
+          </pre>
+          <button onClick={() => this.setState({ hasError: false, error: null })}
+            style={{ marginTop: '16px', padding: '8px 16px', cursor: 'pointer' }}>
+            Intentar de nuevo
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ConfigProvider, theme } from 'antd';
 import esES from 'antd/locale/es_ES';
@@ -9,25 +39,24 @@ import Layout from './components/Layout';
 import Login from './pages/Login';
 import Landing from './pages/Landing';
 import ResetPassword from './pages/ResetPassword';
+import RegistroExitoso from './pages/RegistroExitoso';
 
-// Lazy loading de pÃ¡ginas (bundle-dynamic-imports / code-splitting)
-// Cada pÃ¡gina se cargarÃ¡ solo cuando el usuario navegue a esa ruta
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Productos = lazy(() => import('./pages/Productos'));
-const Proveedores = lazy(() => import('./pages/Proveedores'));
-const Clientes = lazy(() => import('./pages/Clientes'));
-const Ventas = lazy(() => import('./pages/Ventas'));
-const Compras = lazy(() => import('./pages/Compras'));
-const Capital = lazy(() => import('./pages/Capital'));
-const Servicios = lazy(() => import('./pages/Servicios'));
+// Lazy loading de paginas (bundle-dynamic-imports / code-splitting)
+const Dashboard     = lazy(() => import('./pages/Dashboard'));
+const Productos     = lazy(() => import('./pages/Productos'));
+const Proveedores   = lazy(() => import('./pages/Proveedores'));
+const Clientes      = lazy(() => import('./pages/Clientes'));
+const Ventas        = lazy(() => import('./pages/Ventas'));
+const ComprasMain   = lazy(() => import('./pages/ComprasMain'));
+const Capital       = lazy(() => import('./pages/Capital'));
+const Servicios     = lazy(() => import('./pages/Servicios'));
 const Transacciones = lazy(() => import('./pages/Transacciones'));
-const Reportes = lazy(() => import('./pages/Reportes'));
-const Fiados = lazy(() => import('./pages/Fiados'));
+const Reportes      = lazy(() => import('./pages/Reportes'));
+const Fiados        = lazy(() => import('./pages/Fiados'));
 const GestionUsuarios = lazy(() => import('./pages/GestionUsuarios'));
 const GestionRoles    = lazy(() => import('./pages/GestionRoles'));
-const Backups          = lazy(() => import('./pages/Backups'));
+const Backups         = lazy(() => import('./pages/Backups'));
 
-// Fallback de carga para Suspense â€” usa el spinner ya definido en index.css
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
     <div className="spinner" />
@@ -36,59 +65,48 @@ const PageLoader = () => (
 
 const AppContent = () => {
   const { isDark } = useTheme();
-  
+
   return (
-    <ConfigProvider 
+    <ConfigProvider
       locale={esES}
-      theme={{
-        algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
-      }}
+      theme={{ algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm }}
     >
       <Router>
-        {/* Suspense envuelve las rutas para mostrar el PageLoader mientras
-            se descarga el chunk de la pÃ¡gina correspondiente */}
-        <Suspense fallback={<PageLoader />}>
+        <ErrorBoundary><Suspense fallback={<PageLoader />}>
           <Routes>
-                        {/* Routing: dominio principal (landing) vs subdominio de tenant (app) */}
-            {/* VITE_ROOT_DOMAIN en .env de producciÃ³n: 'tudominio.com' */}
-            {(() => {
-              const rootDomain = import.meta.env.VITE_ROOT_DOMAIN || 'localhost';
-              const h = window.location.hostname;
-              const isMain = h === rootDomain || h === `www.${rootDomain}` || h === 'localhost';
-              return isMain;
-            })() ? (
-              <>
-                <Route path="/" element={<Landing view="planes" />} />
-                <Route path="/planes" element={<Landing view="planes" />} />
-                <Route path="/registro/:planId" element={<Landing view="registro" />} />
-                {/* Fallback para la landing si ponen cualquier cosa */}
-                <Route path="*" element={<Landing view="planes" />} />
-              </>
-            ) : (
-              /* Si estamos en un subdominio de un cliente (ej. mitienda.localhost), mostramos app privada */
-              <>
-                <Route path="/login" element={<Login />} />
-                <Route path="/reset-password/:uid/:token" element={<ResetPassword />} />
-                <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-                  <Route index element={<ProtectedRoute allowedRoles={['GERENTE']}><Dashboard /></ProtectedRoute>} />
-                  <Route path="productos"     element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Productos /></ProtectedRoute>} />
-                  <Route path="proveedores"   element={<ProtectedRoute allowedRoles={['GERENTE']}><Proveedores /></ProtectedRoute>} />
-                  <Route path="clientes"      element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Clientes /></ProtectedRoute>} />
-                  <Route path="ventas"        element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Ventas /></ProtectedRoute>} />
-                  <Route path="compras"       element={<ProtectedRoute allowedRoles={['GERENTE']}><Compras /></ProtectedRoute>} />
-                  <Route path="capital"       element={<ProtectedRoute allowedRoles={['GERENTE']}><Capital /></ProtectedRoute>} />
-                  <Route path="servicios"     element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Servicios /></ProtectedRoute>} />
-                  <Route path="transacciones" element={<ProtectedRoute allowedRoles={['GERENTE']}><Transacciones /></ProtectedRoute>} />
-                  <Route path="reportes"      element={<ProtectedRoute allowedRoles={['GERENTE']}><Reportes /></ProtectedRoute>} />
-                  <Route path="fiados"        element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Fiados /></ProtectedRoute>} />
-                  <Route path="usuarios"      element={<ProtectedRoute allowedRoles={['GERENTE']}><GestionUsuarios /></ProtectedRoute>} />
-                  <Route path="roles"         element={<ProtectedRoute allowedRoles={['GERENTE']}><GestionRoles /></ProtectedRoute>} />
-                  <Route path="backups"       element={<ProtectedRoute allowedRoles={['GERENTE']}><Backups /></ProtectedRoute>} />
-                </Route>
-              </>
-            )}
+            {/* â”€â”€ Rutas Publicas / Landing â”€â”€ */}
+            <Route path="/"                  element={<Landing view="planes" />} />
+            <Route path="/planes"            element={<Landing view="planes" />} />
+            <Route path="/acceder"           element={<Landing view="acceder" />} />
+            <Route path="/registro/:planId"  element={<Landing view="registro" />} />
+            <Route path="/registro/exitoso"  element={<RegistroExitoso />} />
+
+            {/* â”€â”€ Rutas de Tenant (path-based: /t/:schema/) â”€â”€ */}
+            <Route path="/t/:schema/login"                          element={<Login />} />
+            <Route path="/t/:schema/reset-password/:uid/:token"     element={<ResetPassword />} />
+
+            {/* App privada del tenant â€” todas bajo /t/:schema/ */}
+            <Route path="/t/:schema" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+              <Route index                element={<ProtectedRoute allowedRoles={['GERENTE']}><Dashboard /></ProtectedRoute>} />
+              <Route path="productos"     element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Productos /></ProtectedRoute>} />
+              <Route path="proveedores"   element={<ProtectedRoute allowedRoles={['GERENTE']}><Proveedores /></ProtectedRoute>} />
+              <Route path="clientes"      element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Clientes /></ProtectedRoute>} />
+              <Route path="ventas"        element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Ventas /></ProtectedRoute>} />
+              <Route path="compras"       element={<ProtectedRoute allowedRoles={['GERENTE']}><ComprasMain /></ProtectedRoute>} />
+              <Route path="capital"       element={<ProtectedRoute allowedRoles={['GERENTE']}><Capital /></ProtectedRoute>} />
+              <Route path="servicios"     element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Servicios /></ProtectedRoute>} />
+              <Route path="transacciones" element={<ProtectedRoute allowedRoles={['GERENTE']}><Transacciones /></ProtectedRoute>} />
+              <Route path="reportes"      element={<ProtectedRoute allowedRoles={['GERENTE']}><Reportes /></ProtectedRoute>} />
+              <Route path="fiados"        element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Fiados /></ProtectedRoute>} />
+              <Route path="usuarios"      element={<ProtectedRoute allowedRoles={['GERENTE']}><GestionUsuarios /></ProtectedRoute>} />
+              <Route path="roles"         element={<ProtectedRoute allowedRoles={['GERENTE']}><GestionRoles /></ProtectedRoute>} />
+              <Route path="backups"       element={<ProtectedRoute allowedRoles={['GERENTE']}><Backups /></ProtectedRoute>} />
+            </Route>
+
+            {/* Fallback */}
+            <Route path="*" element={<Landing view="planes" />} />
           </Routes>
-        </Suspense>
+        </Suspense></ErrorBoundary>
       </Router>
     </ConfigProvider>
   );
@@ -105,5 +123,3 @@ function App() {
 }
 
 export default App;
-
-

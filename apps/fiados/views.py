@@ -1,3 +1,5 @@
+# DEPLOY: 2026-06-09 17:03 UTC
+from apps.core.renderers import PassthroughRenderer
 from django.http import HttpResponse
 from django.utils import timezone
 from decimal import Decimal, InvalidOperation
@@ -7,6 +9,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import ClienteFiado, Fiado, HistorialFiado
 from .serializers import ClienteFiadoSerializer, FiadoSerializer, FiadoCreateSerializer
+from apps.ventas.models import Venta, DetalleVenta
+from apps.servicios.models import VentaServicio
 from apps.core.mixins import SoloGerenteDestroyMixin
 
 class ClienteFiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
@@ -51,99 +55,55 @@ class ClienteFiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         )
 
     def list(self, request, *args, **kwargs):
-        """Sobrescribir listado para incluir la fecha límite más próxima de sus fiados"""
-        from django.db.models import Min, Q
-        
+        """Listado de clientes del módulo Fiados"""
         queryset = self.get_queryset()
-        # Agregar anotación de la fecha límite mínima de fiados no liquidados
-        queryset = queryset.annotate(
-            proxima_fecha_limite=Min(
-                'fiados__fecha_limite',
-                filter=Q(fiados__estado__in=['PENDIENTE', 'PAGADO_PARCIAL']) & Q(fiados__fecha_limite__isnull=False)
-            )
-        )
-        
         page = self.paginate_queryset(queryset)
         if page is not None:
-            data = []
-            for c in page:
-                d = self.get_serializer(c).data
-                d['proxima_fecha_limite'] = c.proxima_fecha_limite.isoformat() if hasattr(c, 'proxima_fecha_limite') and c.proxima_fecha_limite else None
-                data.append(d)
-            return self.get_paginated_response(data)
-            
-        data = []
-        for c in queryset:
-            d = self.get_serializer(c).data
-            d['proxima_fecha_limite'] = c.proxima_fecha_limite.isoformat() if hasattr(c, 'proxima_fecha_limite') and c.proxima_fecha_limite else None
-            data.append(d)
-            
-        return Response(data)
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
-        """Exportar lista de clientes fiados con resumen de deuda"""
-        from django.db.models import Sum, Min, Q
-        
+        """Exportar lista de clientes del módulo Fiados (ClienteFiado)"""
         periodo = request.query_params.get('periodo', 'todo')
-        anio = request.query_params.get('anio')
-        anio = int(anio) if anio else None
+        anio    = request.query_params.get('anio')
+        anio    = int(anio) if anio else None
 
         queryset = self.get_queryset()
-        
+
         # Filtro de periodo basado en creado_en del cliente
         period_range = get_period_range(periodo, anio)
         if period_range:
             date_from, date_to = period_range
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
-        # Anotaciones financieras
-        queryset = queryset.annotate(
-            total_deuda=Sum('fiados__total'),
-            saldo_pendiente_total=Sum('fiados__saldo_pendiente'),
-            proxima_fecha_limite=Min(
-                'fiados__fecha_limite',
-                filter=Q(fiados__estado__in=['PENDIENTE', 'PAGADO_PARCIAL']) & Q(fiados__fecha_limite__isnull=False)
-            )
-        )
-
         headers = [
-            'ID', 'Nombre', 'Documento', 'Tel/Celular', 'Dirección', 
-            'Total Deuda (S/.)', 'Saldo Pendiente (S/.)', 'Próxima Fecha Límite', 
-            'Estado', 'Última Modificación', 'Responsable'
+            'ID', 'Nombre', 'Documento', 'Teléfono', 'Dirección',
+            'Notas', 'Estado', 'Fecha Registro'
         ]
-        
+
         rows = []
         for obj in queryset:
-            fecha_modificacion = obj.actualizado_en.strftime('%d/%m/%Y %H:%M:%S') if obj.actualizado_en else ''
-            proxima_fecha = obj.proxima_fecha_limite.strftime('%d/%m/%Y') if obj.proxima_fecha_limite else '-'
-            estado = 'Activo' if obj.activo else 'Inactivo'
-            
-            # Get latest administrative movement to find the responsible user
-            last_mov = HistorialFiado.objects.filter(cliente=obj, fiado__isnull=True).order_by('-fecha').first()
-            usuario_str = f"{last_mov.usuario.get_full_name() or last_mov.usuario.username} ({last_mov.usuario.perfil.get_rol_display() if hasattr(last_mov.usuario, 'perfil') else '-'})" if last_mov and last_mov.usuario else "Sistema"
-
             rows.append([
                 str(obj.id).zfill(6),
                 obj.nombre,
                 obj.documento or '-',
                 obj.telefono or '-',
                 obj.direccion or '-',
-                float(obj.total_deuda or 0),
-                float(obj.saldo_pendiente_total or 0),
-                proxima_fecha,
-                estado,
-                fecha_modificacion,
-                usuario_str
+                obj.notas or '-',
+                'Activo' if obj.activo else 'Inactivo',
+                obj.creado_en.strftime('%d/%m/%Y') if obj.creado_en else '-',
             ])
 
         period_label = get_period_label(periodo, anio)
         return create_excel_response(
             filename='reporte_clientes_fiados.xlsx',
-            sheet_name='Clientes',
+            sheet_name='Clientes Fiados',
             headers=headers,
             rows=rows,
-            title='Reporte General de Clientes Fiados',
+            title='Reporte de Clientes Fiados',
             period_label=period_label
         )
 
@@ -214,7 +174,7 @@ class ClienteFiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             "page_size": page_size
         })
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial(self, request, pk=None):
         """Exporta el historial de movimientos de un cliente a Excel usando el formato estándar"""
         cliente = self.get_object()
@@ -249,6 +209,67 @@ class ClienteFiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             title=f"Kardex Global de Cliente: {cliente.nombre} (DNI: {cliente.documento or 'S/D'})",
             period_label="Historial Completo"
         )
+
+
+def _auto_registrar_venta(fiado):
+    """
+    Crea automáticamente una Venta o VentaServicio cuando un Fiado se liquida.
+    No descuenta stock (ya fue descontado cuando se creó el fiado).
+    """
+    empresa = fiado.empresa
+    cliente = fiado.cliente
+    cliente_nombre = cliente.nombre if cliente else ''
+    notas_auto = f"Venta generada automáticamente al liquidar Fiado #{fiado.id}"
+
+    if fiado.tipo == 'PRODUCTO':
+        # Crear Venta CONFIRMADA
+        venta = Venta.objects.create(
+            empresa=empresa,
+            cliente=cliente,
+            cliente_nombre=cliente_nombre,
+            tipo_comprobante='SIMPLE',
+            estado='CONFIRMADA',
+            subtotal=fiado.subtotal,
+            descuento=fiado.descuento,
+            impuesto=fiado.impuesto,
+            total=fiado.total,
+            notas=notas_auto,
+        )
+        # Crear detalles SIN mover stock (el stock ya salió cuando se creó el fiado)
+        for detalle in fiado.detalles_producto.all():
+            DetalleVenta.objects.create(
+                empresa=empresa,
+                venta=venta,
+                producto=detalle.producto,
+                cantidad=detalle.cantidad,
+                precio_venta=detalle.precio_unidad,
+                descuento=detalle.descuento,
+                subtotal=detalle.subtotal,
+            )
+        # Vincular venta al fiado
+        fiado.venta_ref = venta
+        Fiado.objects.filter(pk=fiado.pk).update(venta_ref=venta)
+
+    elif fiado.tipo == 'SERVICIO':
+        primer_detalle = fiado.detalles_servicio.first()
+        servicio = primer_detalle.servicio if primer_detalle else None
+        servicio_nombre = servicio.nombre if servicio else 'Servicio fiado'
+
+        venta_srv = VentaServicio.objects.create(
+            empresa=empresa,
+            cliente=cliente,
+            cliente_nombre=cliente_nombre,
+            servicio=servicio,
+            servicio_nombre=servicio_nombre,
+            tipo_comprobante='SIMPLE',
+            estado='TERMINADO',
+            precio=fiado.subtotal,
+            descuento=fiado.descuento,
+            impuesto=fiado.impuesto,
+            total=fiado.total,
+            notas=notas_auto,
+        )
+        Fiado.objects.filter(pk=fiado.pk).update(venta_servicio_ref=venta_srv)
 
 
 class FiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
@@ -329,6 +350,15 @@ class FiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             estado_nuevo=fiado.estado,
             notas=notas or f"Abono de S/ {monto:.2f} registrado. Estado: {fiado.get_estado_display()}."
         )
+
+        # Si el fiado queda LIQUIDADO y no tiene venta registrada -> crear automáticamente
+        if fiado.estado == 'LIQUIDADO' and not fiado.venta_ref and not fiado.venta_servicio_ref:
+            try:
+                _auto_registrar_venta(fiado)
+            except Exception as e:
+                # No bloquear la respuesta si falla el registro de venta
+                import logging
+                logging.getLogger(__name__).warning(f"Auto-venta falló para Fiado #{fiado.id}: {e}")
         
         return Response(FiadoSerializer(fiado).data)
 
@@ -426,7 +456,7 @@ class FiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             "page_size": page_size
         })
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial(self, request, pk=None):
         """Exporta el historial de un fiado a Excel usando el formato estándar"""
         fiado = self.get_object()
@@ -460,7 +490,7 @@ class FiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             period_label="Historial Completo"
         )
         
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exportar lista de fiados con filtro de período"""
         periodo = request.query_params.get('periodo', 'todo')
@@ -513,7 +543,7 @@ class FiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             period_label=period_label
         )
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial_global(self, request):
         """Exportar historial global de movimientos de fiados (Kardex Global)"""
         periodo = request.query_params.get('periodo', 'todo')

@@ -1,12 +1,13 @@
 import { useState, useEffect, useContext } from 'react';
 import { productosAPI, categoriasAPI } from '../services/api';
-import { PlusOutlined, EditOutlined, DeleteOutlined, HistoryOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, HistoryOutlined, CloseOutlined } from '@ant-design/icons';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExportDropdown from '../components/ExportDropdown';
 import ProductFormModal from '../components/ProductFormModal';
 import LoadingScreen from '../components/LoadingScreen';
 import { AuthContext } from '../context/AuthContext';
+import SearchableSelect from '../components/SearchableSelect';
 
 function Productos() {
   const { isVendedor } = useContext(AuthContext);
@@ -288,16 +289,12 @@ function Productos() {
           </div>
           <div style={{ width: '180px' }}>
             <label className="form-label" style={{ fontSize: '13px' }}>Categoría</label>
-            <select 
-              className="form-input" 
+            <SearchableSelect
+              options={[{id: 'ALL', nombre: 'Todas las categorías'}, ...categorias]}
               value={filterCategoria}
-              onChange={(e) => handleFilterCategoriaChange(e.target.value)}
-            >
-              <option value="ALL">Todas las categorías</option>
-              {categorias.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.nombre}</option>
-              ))}
-            </select>
+              onChange={(val) => handleFilterCategoriaChange(val)}
+              placeholder="Todas las categorías"
+            />
           </div>
           <div style={{ width: '150px' }}>
             <label className="form-label" style={{ fontSize: '13px' }}>Stock</label>
@@ -419,7 +416,7 @@ function Productos() {
                 <button className="btn btn-secondary" onClick={handleExportHistorialIndividual} style={{ padding: '4px 12px', fontSize: '12px' }}>
                   Exportar Excel
                 </button>
-                <button className="modal-close" onClick={closeHistoryModal}>x</button>
+                <button className="modal-close" onClick={closeHistoryModal}><CloseOutlined /></button>
               </div>
             </div>
 

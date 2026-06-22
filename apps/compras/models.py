@@ -123,6 +123,7 @@ class Compra(models.Model):
             
             for detalle in self.detallecompra_set.all():
                 MovimientoStock.objects.create(
+                    empresa=self.empresa,
                     producto=detalle.producto,
                     tipo='ENTRADA',
                     origen='COMPRA',

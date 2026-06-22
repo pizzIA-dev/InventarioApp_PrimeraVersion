@@ -166,16 +166,16 @@ function Clientes() {
       <ConfirmDialog
         visible={confirmDialog.visible}
         title="Eliminar Cliente"
-        message={`Â¿EstÃ¡s seguro de que deseas eliminar al cliente "${confirmDialog.nombre}"? Esta acciÃ³n no se puede deshacer.`}
+        message={`¿Estás seguro de que deseas eliminar al cliente "${confirmDialog.nombre}"? Esta acción no se puede deshacer.`}
         onConfirm={handleDelete}
         onCancel={() => setConfirmDialog({ visible: false, id: null, nombre: '' })}
-        confirmText="SÃ­, eliminar"
+        confirmText="Sí, eliminar"
         danger={true}
       />
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title">Clientes</h1>
-          <p className="page-subtitle">GestiÃ³n de clientes y recurrencia de compras</p>
+          <p className="page-subtitle">Gestión de clientes y recurrencia de compras</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           {!isVendedor && (
@@ -259,7 +259,7 @@ function Clientes() {
                 <th>Documento</th>
                 <th>Contacto</th>
                 <th>Email</th>
-                <th>TelÃ©fono</th>
+                <th>Teléfono</th>
                 <th>Recurrencia</th>
                 <th>Total Comprado</th>
                 <th>Estado</th>

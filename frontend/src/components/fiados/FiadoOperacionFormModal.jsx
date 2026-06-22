@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { productosAPI, serviciosAPI } from '../../services/api';
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, PlusOutlined, CloseOutlined } from '@ant-design/icons';
 import { message } from 'antd';
 import SearchableSelect from '../SearchableSelect';
+import ClienteFormModal from '../ClienteFormModal';
 
-function FiadoOperacionFormModal({ visible, clientes, initialData, onClose, onSave, onReactivar }) {
+function FiadoOperacionFormModal({ visible, clientes, initialData, onClose, onSave, onReactivar, onNewCliente }) {
   const isEdit = !!initialData;
   const [formData, setFormData] = useState({
     cliente: '',
@@ -19,6 +20,7 @@ function FiadoOperacionFormModal({ visible, clientes, initialData, onClose, onSa
     igv_automatico: false
   });
   const [reactivarChecked, setReactivarChecked] = useState(false);
+  const [clienteModalVisible, setClienteModalVisible] = useState(false);
 
   const [productos, setProductos] = useState([]);
   const [servicios, setServicios] = useState([]);
@@ -235,18 +237,28 @@ function FiadoOperacionFormModal({ visible, clientes, initialData, onClose, onSa
             <div className="grid grid-3">
               <div className="form-group" style={{ gridColumn: 'span 2' }}>
                 <label className="form-label">Cliente *</label>
-                <select 
-                  name="cliente" 
-                  className="form-input" 
-                  value={formData.cliente} 
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="">-- Seleccionar Cliente --</option>
-                  {clientes.filter(c => c.activo).map(c => (
-                    <option key={c.id} value={c.id}>{c.nombre} {c.documento ? `(${c.documento})` : ''}</option>
-                  ))}
-                </select>
+                <SearchableSelect
+                  options={clientes.filter(c => c.activo).map(c => ({
+                    id: String(c.id),
+                    nombre: c.nombre,
+                    subtitle: c.documento ? c.documento : c.telefono || ''
+                  }))}
+                  value={formData.cliente ? String(formData.cliente) : ''}
+                  onChange={(val) => setFormData(prev => ({ ...prev, cliente: val }))}
+                  placeholder="Buscar cliente fiado..."
+                  onActionClick={() => setClienteModalVisible(true)}
+                  actionLabel="+ Nuevo Cliente"
+                  error={!formData.cliente && undefined}
+                />
+                {clientes.length === 0 && (
+                  <div style={{ fontSize: '12px', color: 'var(--color-warning, #f59e0b)', marginTop: '4px' }}>
+                    No hay clientes fiados registrados.{' '}
+                    <button type="button" style={{ background: 'none', border: 'none', color: 'var(--primary-color)', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontSize: '12px' }}
+                      onClick={() => setClienteModalVisible(true)}>
+                      Crear uno aquí
+                    </button>
+                  </div>
+                )}
               </div>
               
               <div className="form-group">
@@ -486,8 +498,17 @@ function FiadoOperacionFormModal({ visible, clientes, initialData, onClose, onSa
             </button>
           </div>
         </form>
-      </div>
+      <ClienteFormModal
+        visible={clienteModalVisible}
+        onClose={() => setClienteModalVisible(false)}
+        onSave={(newCliente) => {
+          setFormData(prev => ({ ...prev, cliente: String(newCliente.id) }));
+          if (typeof onNewCliente === 'function') onNewCliente(newCliente);
+          setClienteModalVisible(false);
+        }}
+      />
     </div>
+  </div>
   );
 }
 

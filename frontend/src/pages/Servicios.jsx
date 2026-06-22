@@ -1,12 +1,11 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { serviciosAPI } from '../services/api';
 import { 
   PlusOutlined, 
   EditOutlined, 
   DeleteOutlined, 
   HistoryOutlined,
-  SettingOutlined
-} from '@ant-design/icons';
+  SettingOutlined, CloseOutlined } from '@ant-design/icons';
 import Pagination from '../components/Pagination';
 import SearchableSelect from '../components/SearchableSelect';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -85,6 +84,24 @@ function Servicios() {
   const [confirmCatDialog, setConfirmCatDialog] = useState({ visible: false, id: null, nombre: '' });
   const [categorias, setCategorias] = useState([]);
   const [errors, setErrors] = useState({});
+  const [generandoCodigo, setGenerandoCodigo] = useState(false);
+  const [userEditedCodigo, setUserEditedCodigo] = useState(false);
+  const autoCodeTimer = useRef(null);
+
+  const generateServicioCode = useCallback((nombre, existingCodes = []) => {
+    clearTimeout(autoCodeTimer.current);
+    setGenerandoCodigo(true);
+    autoCodeTimer.current = setTimeout(() => {
+      const base = (nombre || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5) || 'SRV';
+      let num = 1;
+      let code = `SRV-${base}-${String(num).padStart(3, '0')}`;
+      while (existingCodes.includes(code)) { num++; code = `SRV-${base}-${String(num).padStart(3, '0')}`; }
+      setFormData(prev => ({ ...prev, codigo: code }));
+      setGenerandoCodigo(false);
+    }, 350);
+  }, []);
+
+
   const [historyModalVisible, setHistoryModalVisible] = useState(false);
   const [historyServicio, setHistoryServicio] = useState(null);
   
@@ -92,10 +109,12 @@ function Servicios() {
   const [catModalVisible, setCatModalVisible] = useState(false);
   const [catModalMode, setCatModalMode] = useState('create');
   const [editingCatId, setEditingCatId] = useState(null);
-  const [catFormData, setCatFormData] = useState({ nombre: '', descripcion: '', activo: true });
+  const [catFormData, setCatFormData] = useState({ codigo: '',
+    nombre: '', descripcion: '', activo: true });
   const [catPage, setCatPage] = useState(1);
   
   const [formData, setFormData] = useState({
+    codigo: '',
     nombre: '',
     descripcion: '',
     categoria: '',
@@ -227,6 +246,7 @@ function Servicios() {
       setSelectedServicio(servicio);
       const parts = decodeDuration(servicio.duracion_minutos);
       setFormData({
+        codigo: servicio.codigo || '',
         nombre: servicio.nombre || '',
         descripcion: servicio.descripcion || '',
         categoria: servicio.categoria || '',
@@ -237,7 +257,14 @@ function Servicios() {
         activo: servicio.activo !== undefined ? servicio.activo : true,
       });
     } else {
+      setUserEditedCodigo(false);
+      // Auto-generate code:
+      serviciosAPI.getAll({ page_size: 500 }).then(r => {
+        const ex = (r.data.results || r.data).map(sv => sv.codigo).filter(Boolean);
+        generateServicioCode('', ex);
+      }).catch(() => generateServicioCode('', []));
       setFormData({
+        codigo: '',
         nombre: '',
         descripcion: '',
         categoria: '',
@@ -284,6 +311,7 @@ function Servicios() {
 
         const submitData = {
           ...formData,
+          codigo: formData.codigo || undefined,
           categoria: categoriaId,
           precio_base: Number(formData.precio_base || 0),
           costo: Number(formData.costo || 0),
@@ -329,6 +357,14 @@ function Servicios() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'codigo') {
+      setUserEditedCodigo(true);
+    } else if (name === 'nombre' && !userEditedCodigo && modalMode === 'create') {
+      serviciosAPI.getAll({ page_size: 500 }).then(r => {
+        const ex = (r.data.results || r.data).map(sv => sv.codigo).filter(Boolean);
+        generateServicioCode(value, ex);
+      }).catch(() => generateServicioCode(value, []));
+    }
   };
 
   const handleExportar = async (periodo, anio) => {
@@ -549,7 +585,7 @@ function Servicios() {
               <h3 className="modal-title">
                 {modalMode === 'create' ? 'Nuevo Servicio' : 'Editar Servicio'}
               </h3>
-              <button className="modal-close" onClick={closeModal}>×</button>
+              <button className="modal-close" onClick={closeModal}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
@@ -568,6 +604,44 @@ function Servicios() {
                     required
                   />
                   {errors.nombre && <div className="error-message" style={{ color: '#ff4d4f', fontSize: '12px', marginTop: '4px' }}>{errors.nombre}</div>}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    Código
+                    {!userEditedCodigo && modalMode === 'create' && (
+                      <span style={{ fontSize: '10px', background: 'var(--color-primary)', color: '#fff',
+                        padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>AUTO</span>
+                    )}
+                  </label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <input
+                      type="text"
+                      name="codigo"
+                      className="form-input"
+                      value={formData.codigo}
+                      onChange={handleChange}
+                      onFocus={(e) => e.target.select()}
+                      placeholder={generandoCodigo ? 'Generando...' : 'SRV-NOMBRE-001'}
+                      style={{ flex: 1 }}
+                    />
+                    {modalMode === 'create' && (
+                      <button
+                        type="button"
+                        title="Regenerar código"
+                        onClick={() => {
+                          setUserEditedCodigo(false);
+                          serviciosAPI.getAll({ page_size: 500 }).then(r => {
+                            const ex = (r.data.results || r.data).map(sv => sv.codigo).filter(Boolean);
+                            generateServicioCode(formData.nombre, ex);
+                          }).catch(() => generateServicioCode(formData.nombre, []));
+                        }}
+                        disabled={generandoCodigo}
+                        style={{ padding: '0 10px', borderRadius: '8px', border: '1px solid var(--border-color)',
+                          background: 'var(--bg-secondary)', cursor: 'pointer', fontSize: '16px' }}
+                      >🔄</button>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="form-group">
@@ -762,7 +836,7 @@ function Servicios() {
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
             <div className="modal-header">
               <h3 className="modal-title">Gestionar Categorías de Servicios</h3>
-              <button className="modal-close" onClick={() => setCatModalVisible(false)}>×</button>
+              <button className="modal-close" onClick={() => setCatModalVisible(false)}><CloseOutlined /></button>
             </div>
             <div className="modal-body">
               {/* Form to create/edit */}

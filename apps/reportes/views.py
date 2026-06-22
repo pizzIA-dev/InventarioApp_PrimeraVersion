@@ -8,7 +8,7 @@ from apps.core.export_utils import create_multi_sheet_excel_response
 
 from apps.ventas.models import Venta, DetalleVenta
 from apps.compras.models import Compra, DetalleCompra
-from apps.servicios.models import VentaServicio, Servicio
+from apps.servicios.models import VentaServicio, Servicio, CompraServicio
 from apps.transacciones.models import Transaccion
 from apps.clientes.models import Cliente
 from apps.proveedores.models import Proveedor
@@ -52,13 +52,23 @@ class BalanceGeneralView(APIView):
         total_ingresos = total_ventas + total_servicios + total_ingresos_extra
         
         # EGRESOS
-        # Compras a proveedores
+        # Compras de productos a proveedores
         compras_query = Compra.objects.filter(estado='CONFIRMADA')
         if fecha_inicio:
             compras_query = compras_query.filter(creado_en__date__gte=fecha_inicio)
         if fecha_fin:
             compras_query = compras_query.filter(creado_en__date__lte=fecha_fin)
-        total_compras = sum(c.total for c in compras_query)
+        total_compras_productos = sum(c.total for c in compras_query)
+
+        # Compras de servicios operacionales (NO están en Otras Transacciones):
+        compras_srv_query = CompraServicio.objects.filter(estado='TERMINADO')
+        if fecha_inicio:
+            compras_srv_query = compras_srv_query.filter(creado_en__date__gte=fecha_inicio)
+        if fecha_fin:
+            compras_srv_query = compras_srv_query.filter(creado_en__date__lte=fecha_fin)
+        total_compras_servicios = sum((c.total or 0) for c in compras_srv_query)
+
+        total_compras = total_compras_productos + total_compras_servicios
         
         # Egresos independientes
         egresos_query = Transaccion.objects.filter(tipo='EGRESO')
@@ -290,24 +300,35 @@ class DashboardView(APIView):
             cantidad_compras = 0
         else:
             compras_mes = Compra.objects.filter(estado='CONFIRMADA', **filtro_fechas)
-            total_compras_mes = sum(c.total for c in compras_mes)
+            total_compras_productos_mes = sum(c.total for c in compras_mes)
+            compras_srv_mes = CompraServicio.objects.filter(estado='TERMINADO', **filtro_fechas)
+            total_compras_servicios_mes2 = sum((c.total or 0) for c in compras_srv_mes)
+            total_compras_mes = total_compras_productos_mes + total_compras_servicios_mes2
             cantidad_compras = compras_mes.count()
         
         # CLIENTES Y PROVEEDORES
         if producto_id:
-            clientes_ids = Venta.objects.filter(
-                estado='CONFIRMADA', 
-                detalleventa__producto_id=producto_id,
-                **filtro_fechas
-            ).values_list('cliente_id', flat=True).distinct()
-            total_clientes = clientes_ids.count()
+            # Get venta IDs that have this product via DetalleVenta
+            venta_ids = DetalleVenta.objects.filter(
+                producto_id=producto_id,
+                venta__estado='CONFIRMADA',
+                venta__creado_en__date__gte=filtro_fechas.get('creado_en__date__gte')
+            )
+            if 'creado_en__date__lt' in filtro_fechas:
+                venta_ids = venta_ids.filter(venta__creado_en__date__lt=filtro_fechas['creado_en__date__lt'])
+            venta_ids = venta_ids.values_list('venta_id', flat=True).distinct()
+            total_clientes = Venta.objects.filter(id__in=venta_ids).values('cliente_id').distinct().count()
             
-            proveedores_ids = Compra.objects.filter(
-                estado='CONFIRMADA',
-                detallecompra__producto_id=producto_id,
-                **filtro_fechas
-            ).values_list('proveedor_id', flat=True).distinct()
-            total_proveedores = proveedores_ids.count()
+            # Get compra IDs that have this product via DetalleCompra
+            compra_ids = DetalleCompra.objects.filter(
+                producto_id=producto_id,
+                compra__estado='CONFIRMADA',
+                compra__creado_en__date__gte=filtro_fechas.get('creado_en__date__gte')
+            )
+            if 'creado_en__date__lt' in filtro_fechas:
+                compra_ids = compra_ids.filter(compra__creado_en__date__lt=filtro_fechas['creado_en__date__lt'])
+            compra_ids = compra_ids.values_list('compra_id', flat=True).distinct()
+            total_proveedores = Compra.objects.filter(id__in=compra_ids).values('proveedor_id').distinct().count()
             
         elif servicio_id:
             clientes_ids = VentaServicio.objects.filter(
@@ -436,7 +457,14 @@ class ReporteMensualView(APIView):
                     creado_en__date__gte=inicio_mes,
                     creado_en__date__lt=fin_mes
                 )
-                total_compras = sum(c.total for c in compras)
+                total_compras_prod_mes = sum(c.total for c in compras)
+                compras_srv = CompraServicio.objects.filter(
+                    estado='TERMINADO',
+                    creado_en__date__gte=inicio_mes,
+                    creado_en__date__lt=fin_mes
+                )
+                total_compras_srv_mes = sum((c.total or 0) for c in compras_srv)
+                total_compras = total_compras_prod_mes + total_compras_srv_mes
             
             # Servicios del mes
             if servicio_id:
@@ -607,7 +635,7 @@ class ReporteMensualDetalleExportView(APIView):
                 f"{t.usuario.get_full_name() or t.usuario.username} ({t.usuario.perfil.get_rol_display() if hasattr(t.usuario, 'perfil') else '-'})" if hasattr(t, 'usuario') and t.usuario else "Sistema"
             ])
 
-        # 4. Compras
+        # 4. Compras de Productos
         detalles_c = DetalleCompra.objects.filter(
             compra__estado='CONFIRMADA',
             compra__creado_en__date__gte=inicio_mes,
@@ -634,6 +662,33 @@ class ReporteMensualDetalleExportView(APIView):
                 comp_impuesto,
                 (float(d.cantidad) * float(d.precio_compra)) - float(d.descuento) + comp_impuesto,
                 f"{c.usuario.get_full_name() or c.usuario.username} ({c.usuario.perfil.get_rol_display() if hasattr(c.usuario, 'perfil') else '-'})" if hasattr(c, 'usuario') and c.usuario else "Sistema"
+            ])
+
+        # 4b. Compras de Servicios
+        compras_srv = CompraServicio.objects.filter(
+            estado='TERMINADO',
+            creado_en__date__gte=inicio_mes,
+            creado_en__date__lt=fin_mes
+        ).select_related('servicio', 'proveedor', 'usuario').order_by('creado_en')
+        
+        headers_compras_srv = [
+            'Fecha', 'Comprobante', 'Servicio', 'Proveedor', 'Almacén',
+            'Estado', 'Precio Base', 'Descuento', 'Impuesto', 'Total (S/.)'
+        ]
+        
+        rows_compras_srv = []
+        for cs in compras_srv:
+            rows_compras_srv.append([
+                timezone.localtime(cs.creado_en).strftime("%Y-%m-%d %H:%M"),
+                str(cs.numero_comprobante or cs.id),
+                str(cs.servicio_nombre or (cs.servicio.nombre if cs.servicio else 'Servicio sin nombre')),
+                str(cs.proveedor_nombre or (cs.proveedor.nombre if cs.proveedor else 'Proveedor General')),
+                'General',
+                cs.estado,
+                float(cs.precio or 0),
+                float(cs.descuento or 0),
+                float(cs.impuesto or 0),
+                float(cs.total or 0),
             ])
 
         # 5. Gastos
@@ -723,7 +778,8 @@ class ReporteMensualDetalleExportView(APIView):
             {'sheet_name': 'Venta de Productos', 'headers': headers_vp, 'rows': rows_vp, 'title': f'Detalle de Ventas de Productos - {period_label}', 'period_label': period_label},
             {'sheet_name': 'Venta de Servicios', 'headers': headers_vs, 'rows': rows_vs, 'title': f'Detalle de Ventas de Servicios - {period_label}', 'period_label': period_label},
             {'sheet_name': 'Ingresos no Operativos', 'headers': headers_ingresos, 'rows': rows_ingresos, 'title': f'Ingresos no Operativos - {period_label}', 'period_label': period_label},
-            {'sheet_name': 'Compras', 'headers': headers_compras, 'rows': rows_compras, 'title': f'Detalle de Compras - {period_label}', 'period_label': period_label},
+            {'sheet_name': 'Compras de Productos', 'headers': headers_compras, 'rows': rows_compras, 'title': f'Detalle de Compras de Productos - {period_label}', 'period_label': period_label},
+            {'sheet_name': 'Compras de Servicios', 'headers': headers_compras_srv, 'rows': rows_compras_srv, 'title': f'Detalle de Compras de Servicios - {period_label}', 'period_label': period_label},
             {'sheet_name': 'Gastos', 'headers': headers_gastos, 'rows': rows_gastos, 'title': f'Gastos No Operativos - {period_label}', 'period_label': period_label},
             {'sheet_name': 'Productos Sin Rotación', 'headers': headers_sr_prod, 'rows': rows_sr_prod, 'title': f'Productos Sin Salida en {period_label}', 'period_label': period_label},
             {'sheet_name': 'Servicios Sin Rotación', 'headers': headers_sr_serv, 'rows': rows_sr_serv, 'title': f'Servicios No Vendidos en {period_label}', 'period_label': period_label},

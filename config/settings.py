@@ -16,7 +16,7 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 # En producción: definir en .env sin default — si falta, Django falla intencionalmente
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-DEV-ONLY-change-in-production-!!!' if DEBUG else None)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,.localhost,.nip.io,.onrender.com,.railway.app,.herokuapp.com').split(',')
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,.localhost,.nip.io,.onrender.com,.railway.app,.up.railway.app,.herokuapp.com').split(',')
 
 SHARED_APPS = [
     'django_tenants',
@@ -65,7 +65,7 @@ TENANT_DOMAIN_MODEL = "clientes_saas.Domain"
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',         # CORS primero — responde OPTIONS antes de tenant routing
-    'django_tenants.middleware.main.TenantMainMiddleware',
+    'config.tenant_middleware.TenantFromPathMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -150,8 +150,9 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = 'static/'
+WHITENOISE_MANIFEST_STRICT = False  # Evita error por fonts faltantes en DRF
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'  # whitenoise middleware sirve los archivos
 
 # Media files
 MEDIA_URL = 'media/'
@@ -171,6 +172,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # REST Framework configuration
 REST_FRAMEWORK = {
+    'EXCEPTION_HANDLER': 'apps.core.exception_handler.custom_exception_handler',
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
@@ -265,7 +267,8 @@ X_FRAME_OPTIONS             = 'DENY'
 # ── Seguridad adicional para HTTPS en PRODUCCIÓN ──────────────────────────────
 # Estos se activan automáticamente cuando DEBUG=False (producción)
 if not DEBUG:
-    SECURE_SSL_REDIRECT          = True   # HTTP → HTTPS redirect
+    SECURE_SSL_REDIRECT          = False  # Railway proxy handles SSL termination
+    SECURE_PROXY_SSL_HEADER      = ('HTTP_X_FORWARDED_PROTO', 'https')  # Trust Railway proxy SSL header
     SESSION_COOKIE_SECURE        = True   # Cookie de sesión solo por HTTPS
     CSRF_COOKIE_SECURE           = True   # CSRF cookie solo por HTTPS
     SECURE_HSTS_SECONDS          = 31536000  # 1 año de HSTS
@@ -283,19 +286,40 @@ if not DEBUG:
 BASE_DOMAIN = config('BASE_DOMAIN', default='localhost')
 FRONTEND_URL = config('FRONTEND_URL', default=f'http://localhost:5175')
 
+
+# === Culqi Payment Gateway ===
+CULQI_SECRET_KEY = config('CULQI_SECRET_KEY', default='sk_test_placeholder')
+CULQI_PUBLIC_KEY  = config('CULQI_PUBLIC_KEY',  default='pk_test_placeholder')
+
+# === Planes y Precios de NegocIA ===
+# Usado por RegistroSaaSAPIView para procesar pagos y crear suscripciones
+PLAN_PRECIOS = {
+    '1': {
+        'nombre': 'EMPRENDEDOR',
+        'PEN': 3990,   # S/39.90 en centimos para Culqi
+        'USD': 1200,   # $12.00 en centimos
+    },
+    '2': {
+        'nombre': 'EMPRESARIO',
+        'PEN': 7990,   # S/79.90 en centimos
+        'USD': 2400,   # $24.00 en centimos
+    },
+}
+
+
 # Email backend
 # Desarrollo: muestra emails en consola
-# Producción: SMTP real (SendGrid, SES, Mailgun, etc.)
+# Producción: Gmail SMTP (usa App Password de Google)
 if DEBUG:
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 else:
-    EMAIL_BACKEND  = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
-    EMAIL_HOST     = config('EMAIL_HOST', default='smtp.sendgrid.net')
-    EMAIL_PORT     = config('EMAIL_PORT', default=587, cast=int)
-    EMAIL_USE_TLS  = config('EMAIL_USE_TLS', default=True, cast=bool)
-    EMAIL_HOST_USER     = config('EMAIL_HOST_USER', default='')
+    EMAIL_BACKEND       = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+    EMAIL_HOST          = config('EMAIL_HOST', default='smtp.gmail.com')
+    EMAIL_PORT          = config('EMAIL_PORT', default=587, cast=int)
+    EMAIL_USE_TLS       = config('EMAIL_USE_TLS', default=True, cast=bool)
+    EMAIL_HOST_USER     = config('EMAIL_HOST_USER', default='pizzia.peru@gmail.com')
     EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-    DEFAULT_FROM_EMAIL  = config('DEFAULT_FROM_EMAIL', default='noreply@negocia.dev')
+    DEFAULT_FROM_EMAIL  = config('DEFAULT_FROM_EMAIL', default='NegocIA <pizzia.peru@gmail.com>')
     SERVER_EMAIL        = DEFAULT_FROM_EMAIL
 
 if 'DEFAULT_FROM_EMAIL' not in dir():

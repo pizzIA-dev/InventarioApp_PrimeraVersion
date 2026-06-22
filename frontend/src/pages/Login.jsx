@@ -1,4 +1,4 @@
-﻿import React, { useState, useContext } from 'react';
+import React, { useState, useContext } from 'react';
 import {
   Form, Input, Button, Card, Typography, Alert,
   message, Layout, Checkbox, Modal, Divider
@@ -6,7 +6,8 @@ import {
 import {
   UserOutlined, LockOutlined, MailOutlined, KeyOutlined
 } from '@ant-design/icons';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import NegocIALogo from '../components/NegocIALogo';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../ThemeContext';
 import axios from 'axios';
@@ -23,27 +24,28 @@ const Login = () => {
   const [forgotForm]                      = Form.useForm();
 
   const { login }  = useContext(AuthContext);
+  const { schema }  = useParams();
   const navigate   = useNavigate();
   const location   = useLocation();
   const { isDark } = useTheme();
 
   const from = location.state?.from?.pathname || '/';
 
-  // ─── Login ─────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Login â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const onFinish = async (values) => {
     setLoading(true);
     setError(null);
-    const result = await login(values.username, values.password, !!values.remember);
+    const result = await login(values.email, values.password, !!values.remember, schema);
     if (result.success) {
       message.success('Sesión iniciada correctamente');
-      navigate(from, { replace: true });
+      navigate(schema ? `/t/${schema}` : from, { replace: true });
     } else {
       setError(result.message);
     }
     setLoading(false);
   };
 
-  // ─── Forgot Password ────────────────────────────────────────────────────
+  // â”€â”€â”€ Forgot Password â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const onForgotSubmit = async (values) => {
     setForgotLoading(true);
     setForgotError(null);
@@ -64,7 +66,7 @@ const Login = () => {
     setForgotLoading(false);
   };
 
-  // ─── Shared card styles ─────────────────────────────────────────────────
+  // â”€â”€â”€ Shared card styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const cardBg = isDark
     ? 'rgba(255,255,255,0.04)'
     : 'rgba(255,255,255,0.85)';
@@ -143,15 +145,19 @@ const Login = () => {
           size="large"
           layout="vertical"
         >
-          {/* Usuario */}
+          {/* Correo electronico */}
           <Form.Item
-            name="username"
-            rules={[{ required: true, message: 'Ingresa tu nombre de usuario' }]}
+            name="email"
+            rules={[
+              { required: true, message: 'Ingresa tu correo electronico' },
+              { type: 'email', message: 'Ingresa un correo valido' },
+            ]}
           >
             <Input
-              prefix={<UserOutlined style={{ color: '#1677ff' }} />}
-              placeholder="Usuario"
-              autoComplete="username"
+              prefix={<MailOutlined style={{ color: '#1677ff' }} />}
+              placeholder="Correo electronico"
+              type="email"
+              autoComplete="email"
               style={{ borderRadius: 10, height: 46 }}
             />
           </Form.Item>
@@ -192,6 +198,12 @@ const Login = () => {
           </Form.Item>
 
           {/* Botón Entrar */}
+          <Form.Item style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: '12px', color: 'rgba(128,128,128,0.85)', textAlign: 'center', padding: '6px 0',
+              borderRadius: '6px', background: 'rgba(128,128,128,0.06)', border: '1px solid rgba(128,128,128,0.12)' }}>
+              Puedes ingresar con tu cuenta de <strong>gerente</strong>, <strong>vendedor</strong> o <strong>colaborador</strong>
+            </div>
+          </Form.Item>
           <Form.Item style={{ marginBottom: 0 }}>
             <Button
               type="primary"
@@ -219,7 +231,7 @@ const Login = () => {
         </Text>
       </Card>
 
-      {/* ── Modal: Olvidé mi contraseña ─────────────────────────────── */}
+      {/* â”€â”€ Modal: Olvidé mi contraseña â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Modal
         open={forgotOpen}
         onCancel={() => setForgotOpen(false)}

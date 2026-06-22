@@ -1,3 +1,4 @@
+from apps.core.renderers import PassthroughRenderer
 from django.http import HttpResponse
 from django.db.models import Sum
 from apps.core.export_utils import (
@@ -52,24 +53,31 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         return ProductoSerializer
     
     def perform_create(self, serializer):
-        # Save the product
+        # Save the product (stock_actual = stock_inicial from serializer)
         instance = serializer.save()
         
-        # Create the initial movement
-        MovimientoStock.objects.create(
-            producto=instance,
-            tipo='ENTRADA',
-            origen='AJUSTE',
-            cantidad=instance.stock_actual,
-            stock_anterior=0,
-            stock_nuevo=instance.stock_actual,
-            precio_compra_anterior=0,
-            precio_compra_nuevo=instance.precio_compra,
-            precio_venta_anterior=0,
-            precio_venta_nuevo=instance.precio_venta,
-            activo_nuevo=instance.activo,
-            notas="Registro inicial del producto"
-        )
+        # Only register initial stock movement if stock > 0
+        # NOTE: MovimientoStock.save() atomically sets stock via DB update.
+        # To avoid double-counting, we temporarily reset stock to 0 so the 
+        # movement sets it to stock_inicial correctly.
+        if instance.stock_actual and instance.stock_actual > 0:
+            stock_inicial = instance.stock_actual
+            # Reset to 0 so MovimientoStock.save() can set it correctly via ENTRADA
+            from apps.inventario.models import Producto as _Prod
+            _Prod.objects.filter(pk=instance.pk).update(stock_actual=0)
+            MovimientoStock.objects.create(
+                empresa=instance.empresa,
+                producto=instance,
+                tipo='ENTRADA',
+                origen='AJUSTE',
+                cantidad=stock_inicial,
+                precio_compra_anterior=0,
+                precio_compra_nuevo=instance.precio_compra,
+                precio_venta_anterior=0,
+                precio_venta_nuevo=instance.precio_venta,
+                activo_nuevo=instance.activo,
+                notas="Registro inicial del producto"
+            )
 
     def perform_destroy(self, instance):
         instance.activo = False
@@ -160,7 +168,7 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             'results': serializer.data
         })
         
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_movimientos(self, request, pk=None):
         """Exportar el historial de movimientos de un producto a Excel"""
         from apps.core.export_utils import create_excel_response
@@ -290,9 +298,9 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         serializer = self.get_serializer(productos_stock_bajo, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
-        """Exportar productos a Excel con filtro de período"""
+        """Exportar productos a Excel con filtro de periodo"""
         periodo = request.query_params.get('periodo', 'todo')
         anio = request.query_params.get('anio')
         anio = int(anio) if anio else None
@@ -304,29 +312,19 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
-        headers = ['ID', 'Código', 'Nombre', 'Categoría', 'Stock Actual', 'Precio Compra (S/.)', 'Precio Venta (S/.)', 'Activo', 'Fecha Creación', 'Última Modificación', 'Responsable']
+        headers = ['ID', 'Codigo', 'Nombre', 'Categoria', 'Stock Actual', 'Precio Compra (S/.)', 'Precio Venta (S/.)', 'Activo', 'Fecha Creacion', 'Ultima Modificacion', 'Responsable']
         rows = []
         for obj in queryset:
-            categoria_nombre = obj.categoria.nombre if obj.categoria else 'Sin Categoría'
+            categoria_nombre = obj.categoria.nombre if obj.categoria else 'Sin Categoria'
             fecha_creacion = obj.creado_en.strftime('%d/%m/%Y %H:%M') if obj.creado_en else ''
             fecha_modificacion = obj.actualizado_en.strftime('%d/%m/%Y %H:%M') if obj.actualizado_en else ''
-            
-            # Get latest movement to find the responsible user
             last_mov = obj.movimientos.order_by('-fecha').first()
-            usuario_str = f"{last_mov.usuario.get_full_name() or last_mov.usuario.username} ({last_mov.usuario.perfil.get_rol_display() if hasattr(last_mov.usuario, 'perfil') else '-'})" if last_mov and last_mov.usuario else "Sistema"
-
+            usuario_str = f"{last_mov.usuario.get_full_name() or last_mov.usuario.username}" if last_mov and last_mov.usuario else 'Sistema'
             rows.append([
-                obj.id,
-                obj.codigo,
-                obj.nombre,
-                categoria_nombre,
-                obj.stock_actual,
-                float(obj.precio_compra),
-                float(obj.precio_venta),
-                'Sí' if obj.activo else 'No',
-                fecha_creacion,
-                fecha_modificacion,
-                usuario_str
+                obj.id, obj.codigo, obj.nombre, categoria_nombre,
+                float(obj.stock_actual), float(obj.precio_compra), float(obj.precio_venta),
+                'Si' if obj.activo else 'No',
+                fecha_creacion, fecha_modificacion, usuario_str
             ])
 
         period_label = get_period_label(periodo, anio)
@@ -371,7 +369,7 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
         headers = self.get_success_headers(serializer.data)
         return Response(output_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exportar reporte de diario de movimientos a Excel"""
         from apps.core.export_utils import get_period_range, get_period_label, create_excel_response

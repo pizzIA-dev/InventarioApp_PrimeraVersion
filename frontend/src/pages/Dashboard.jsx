@@ -1,8 +1,8 @@
 import { useState, useEffect, useContext } from 'react';
-import { reportesAPI, productosAPI, serviciosAPI } from '../services/api';
+import SearchableSelect from '../components/SearchableSelect';
+import { reportesAPI, productosAPI, serviciosAPI, coreAPI } from '../services/api';
 import { 
-  WarningOutlined,
-} from '@ant-design/icons';
+  WarningOutlined } from '@ant-design/icons';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import LoadingScreen from '../components/LoadingScreen';
 import { AuthContext } from '../context/AuthContext';
@@ -10,6 +10,15 @@ import { AuthContext } from '../context/AuthContext';
 const COLORS = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2'];
 
 function Dashboard() {
+
+  // Crear Cliente/Proveedor General si no existen (idempotente)
+  useEffect(() => {
+    coreAPI.ensureDefaults().catch(() => {
+      // Silencioso - no bloquear al usuario si falla
+    });
+  }, []);
+
+
   const { isVendedor, user } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
@@ -138,35 +147,27 @@ function Dashboard() {
           </div>
           <div style={{ flex: 1, minWidth: '200px' }}>
             <label className="form-label" style={{ fontSize: '13px', marginBottom: '4px' }}>Filtrar por Producto</label>
-            <select 
-              className="form-input" 
+            <SearchableSelect
+              options={[{id: '', nombre: 'Todos los productos'}, ...productos]}
               value={selectedProducto}
-              onChange={(e) => {
-                setSelectedProducto(e.target.value);
-                if (e.target.value) setSelectedServicio(''); // Clear servicio if producto selected
+              onChange={(val) => {
+                setSelectedProducto(val);
+                if (val) setSelectedServicio('');
               }}
-            >
-              <option value="">Todos los productos</option>
-              {productos.map(p => (
-                <option key={p.id} value={p.id}>{p.nombre}</option>
-              ))}
-            </select>
+              placeholder="Todos los productos"
+            />
           </div>
           <div style={{ flex: 1, minWidth: '200px' }}>
             <label className="form-label" style={{ fontSize: '13px', marginBottom: '4px' }}>Filtrar por Servicio</label>
-            <select 
-              className="form-input" 
+            <SearchableSelect
+              options={[{id: '', nombre: 'Todos los servicios'}, ...servicios]}
               value={selectedServicio}
-              onChange={(e) => {
-                setSelectedServicio(e.target.value);
-                if (e.target.value) setSelectedProducto(''); // Clear producto if servicio selected
+              onChange={(val) => {
+                setSelectedServicio(val);
+                if (val) setSelectedProducto('');
               }}
-            >
-              <option value="">Todos los servicios</option>
-              {servicios.map(s => (
-                <option key={s.id} value={s.id}>{s.nombre}</option>
-              ))}
-            </select>
+              placeholder="Todos los servicios"
+            />
           </div>
           <button
             className="btn btn-secondary"
@@ -197,21 +198,21 @@ function Dashboard() {
         </div>
 
         <div className="stat-card orange">
-          <div className="stat-label">Compras del Periodo</div>
+          <div className="stat-label">Egresos del Periodo</div>
           <div className="stat-value">
-            S/. {Number(dashboardData?.compras?.total_mes || 0).toFixed(2)}
+            S/. {Number(dashboardData?.balance?.egresos_mes || 0).toFixed(2)}
           </div>
           <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.85)', marginTop: '8px' }}>
-            {dashboardData?.compras?.cantidad_compras || 0} compras a proveedores
+            {dashboardData?.compras?.cantidad_compras || 0} compras · incl. gastos
           </div>
         </div>
 
-        <div className="stat-card green">
+        <div className={`stat-card ${(dashboardData?.balance?.balance_mes || 0) >= 0 ? 'green' : 'stat-card-red'}`}>
           <div className="stat-label">Balance del Periodo</div>
           <div className="stat-value">
             S/. {Number(dashboardData?.balance?.balance_mes || 0).toFixed(2)}
           </div>
-          <div className="stat-label">
+          <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.85)', marginTop: '8px' }}>
             {dashboardData?.balance?.estado || 'EQUILIBRIO'}
           </div>
         </div>
@@ -221,8 +222,8 @@ function Dashboard() {
           <div className="stat-value">
             {dashboardData?.clientes?.total || 0}
           </div>
-          <div className="stat-label">
-            {dashboardData?.proveedores?.total || 0} proveedores
+          <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.85)', marginTop: '8px' }}>
+            {dashboardData?.proveedores?.total || 0} Proveedores registrados
           </div>
         </div>
 
