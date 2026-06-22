@@ -635,7 +635,7 @@ class ReporteMensualDetalleExportView(APIView):
                 f"{t.usuario.get_full_name() or t.usuario.username} ({t.usuario.perfil.get_rol_display() if hasattr(t.usuario, 'perfil') else '-'})" if hasattr(t, 'usuario') and t.usuario else "Sistema"
             ])
 
-        # 4. Compras
+        # 4. Compras de Productos
         detalles_c = DetalleCompra.objects.filter(
             compra__estado='CONFIRMADA',
             compra__creado_en__date__gte=inicio_mes,
@@ -662,6 +662,33 @@ class ReporteMensualDetalleExportView(APIView):
                 comp_impuesto,
                 (float(d.cantidad) * float(d.precio_compra)) - float(d.descuento) + comp_impuesto,
                 f"{c.usuario.get_full_name() or c.usuario.username} ({c.usuario.perfil.get_rol_display() if hasattr(c.usuario, 'perfil') else '-'})" if hasattr(c, 'usuario') and c.usuario else "Sistema"
+            ])
+
+        # 4b. Compras de Servicios
+        compras_srv = CompraServicio.objects.filter(
+            estado='TERMINADO',
+            creado_en__date__gte=inicio_mes,
+            creado_en__date__lt=fin_mes
+        ).select_related('servicio', 'proveedor', 'usuario').order_by('creado_en')
+        
+        headers_compras_srv = [
+            'Fecha', 'Comprobante', 'Servicio', 'Proveedor', 'Almacén',
+            'Estado', 'Precio Base', 'Descuento', 'Impuesto', 'Total (S/.)'
+        ]
+        
+        rows_compras_srv = []
+        for cs in compras_srv:
+            rows_compras_srv.append([
+                timezone.localtime(cs.creado_en).strftime("%Y-%m-%d %H:%M"),
+                str(cs.numero_comprobante or cs.id),
+                str(cs.servicio_nombre or (cs.servicio.nombre if cs.servicio else 'Servicio sin nombre')),
+                str(cs.proveedor_nombre or (cs.proveedor.nombre if cs.proveedor else 'Proveedor General')),
+                'General',
+                cs.estado,
+                float(cs.precio or 0),
+                float(cs.descuento or 0),
+                float(cs.impuesto or 0),
+                float(cs.total or 0),
             ])
 
         # 5. Gastos
@@ -751,7 +778,8 @@ class ReporteMensualDetalleExportView(APIView):
             {'sheet_name': 'Venta de Productos', 'headers': headers_vp, 'rows': rows_vp, 'title': f'Detalle de Ventas de Productos - {period_label}', 'period_label': period_label},
             {'sheet_name': 'Venta de Servicios', 'headers': headers_vs, 'rows': rows_vs, 'title': f'Detalle de Ventas de Servicios - {period_label}', 'period_label': period_label},
             {'sheet_name': 'Ingresos no Operativos', 'headers': headers_ingresos, 'rows': rows_ingresos, 'title': f'Ingresos no Operativos - {period_label}', 'period_label': period_label},
-            {'sheet_name': 'Compras', 'headers': headers_compras, 'rows': rows_compras, 'title': f'Detalle de Compras - {period_label}', 'period_label': period_label},
+            {'sheet_name': 'Compras de Productos', 'headers': headers_compras, 'rows': rows_compras, 'title': f'Detalle de Compras de Productos - {period_label}', 'period_label': period_label},
+            {'sheet_name': 'Compras de Servicios', 'headers': headers_compras_srv, 'rows': rows_compras_srv, 'title': f'Detalle de Compras de Servicios - {period_label}', 'period_label': period_label},
             {'sheet_name': 'Gastos', 'headers': headers_gastos, 'rows': rows_gastos, 'title': f'Gastos No Operativos - {period_label}', 'period_label': period_label},
             {'sheet_name': 'Productos Sin Rotación', 'headers': headers_sr_prod, 'rows': rows_sr_prod, 'title': f'Productos Sin Salida en {period_label}', 'period_label': period_label},
             {'sheet_name': 'Servicios Sin Rotación', 'headers': headers_sr_serv, 'rows': rows_sr_serv, 'title': f'Servicios No Vendidos en {period_label}', 'period_label': period_label},
