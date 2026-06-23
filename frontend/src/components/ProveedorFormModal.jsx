@@ -1,3 +1,4 @@
+import { CloseOutlined } from '@ant-design/icons';
 import React, { useState, useEffect } from 'react';
 import { proveedoresAPI } from '../services/api';
 
@@ -152,7 +153,7 @@ const ProveedorFormModal = ({ visible, mode = 'create', initialData = null, onCl
           <h3 className="modal-title">
             {mode === 'create' ? 'Nuevo Proveedor' : 'Editar Proveedor'}
           </h3>
-          <button className="modal-close" onClick={onClose} disabled={isSubmitting}>×</button>
+          <button className="modal-close" onClick={onClose} disabled={isSubmitting}><CloseOutlined /></button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="modal-body">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { WarningOutlined, SelectOutlined } from '@ant-design/icons';
+import { WarningOutlined, SelectOutlined, CloseOutlined} from '@ant-design/icons';
 
 const AjusteStockModal = ({ visible, onClose, producto, onSubmit }) => {
   const { isGerente, user } = useContext(AuthContext);
@@ -75,7 +75,7 @@ const AjusteStockModal = ({ visible, onClose, producto, onSubmit }) => {
           <h3 className="modal-title" style={{ color: 'var(--danger-color)', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <WarningOutlined /> Ajuste de Inventario
           </h3>
-          <button className="modal-close" onClick={onClose} disabled={saving}>×</button>
+          <button className="modal-close" onClick={onClose} disabled={saving}><CloseOutlined /></button>
         </div>
         
         <form onSubmit={handleSubmit}>
@@ -94,7 +94,7 @@ const AjusteStockModal = ({ visible, onClose, producto, onSubmit }) => {
                   disabled={loadingAlmacenes || saving}
                 >
                   <option value="">-- Selecciona un Almacén --</option>
-                    <option key={a.id} value={a.id}>{a.es_general ? '🏬 ' : '📦 '}{a.nombre}</option>
+                    <option key={a.id} value={a.id}>{a.es_general ? '' : ''}{a.nombre}</option>
                   ))}
                 </select>
               </div>
@@ -102,7 +102,7 @@ const AjusteStockModal = ({ visible, onClose, producto, onSubmit }) => {
               <div style={{ marginBottom: '16px', padding: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px' }}>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Caja afectada:</span>
                 <div style={{ fontWeight: 'bold' }}>
-                  📦 {user?.almacen?.nombre || 'Almacén General (Por defecto)'}
+                  {user?.almacen?.nombre || 'Almacén General (Por defecto)'}
                 </div>
               </div>
             )}

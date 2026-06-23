@@ -21,7 +21,7 @@ class ServicioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Servicio
         fields = [
-            'id', 'nombre', 'descripcion', 'categoria', 'categoria_nombre',
+            'id', 'codigo', 'nombre', 'descripcion', 'categoria', 'categoria_nombre',
             'precio_base', 'costo', 'duracion_minutos', 'margen_ganancia',
             'activo', 'creado_en', 'actualizado_en'
         ]
@@ -109,7 +109,7 @@ class MovimientoServicioSerializer(serializers.ModelSerializer):
 
 
 
-from .models import CompraServicio, MovimientoEstadoCompraServicio
+from .models import CompraServicio, MovimientoEstadoCompraServicio, ServicioContratado
 
 class CompraServicioSerializer(serializers.ModelSerializer):
     servicio_nombre_display = serializers.CharField(source='servicio.nombre', read_only=True)
@@ -157,3 +157,10 @@ class MovimientoEstadoCompraServicioSerializer(serializers.ModelSerializer):
         if obj.usuario and hasattr(obj.usuario, 'perfil'):
             return obj.usuario.perfil.get_rol_display()
         return '-'
+
+
+class ServicioContratadoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServicioContratado
+        fields = ['id', 'nombre', 'descripcion', 'precio_referencia', 'activo', 'creado']
+        read_only_fields = ['id', 'creado']

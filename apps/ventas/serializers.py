@@ -48,7 +48,7 @@ class VentaSerializer(serializers.ModelSerializer):
         if obj.cliente_nombre:
             return obj.cliente_nombre
         return obj.cliente.nombre if obj.cliente else 'Sin Cliente'
-    cliente_documento = serializers.CharField(source='cliente.numero_documento', read_only=True)
+    cliente_documento = serializers.CharField(source='cliente.numero_documento', read_only=True, default=None, allow_null=True)
     detalle = DetalleVentaSerializer(source='detalleventa_set', many=True, read_only=True)
     
     class Meta:

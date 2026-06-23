@@ -1,246 +1,271 @@
 import { useState, useEffect, useContext } from 'react';
-import { fiadosAPI } from '../../services/api';
-import { PlusOutlined, EditOutlined, DeleteOutlined, HistoryOutlined } from '@ant-design/icons';
-import ConfirmDialog from '../ConfirmDialog';
-import FiadoClienteFormModal from './FiadoClienteFormModal';
-import ClienteFiadoHistorialModal from './ClienteFiadoHistorialModal';
-import ExportDropdown from '../ExportDropdown';
+import { clientesAPI, fiadosAPI } from '../../services/api';
+import { HistoryOutlined, CloseOutlined, EyeOutlined } from '@ant-design/icons';
 import { message } from 'antd';
 import { AuthContext } from '../../context/AuthContext';
+
+// Simple inline historial modal using already-loaded fiados data
+function ClienteHistorialSimple({ visible, onClose, cliente, fiados }) {
+  if (!visible || !cliente) return null;
+
+  const fiadosCliente = fiados
+    .filter(f => String(f.cliente) === String(cliente.id))
+    .sort((a, b) => new Date(b.creado_en) - new Date(a.creado_en));
+
+  const totalDeuda = fiadosCliente
+    .filter(f => ['PENDIENTE', 'PAGADO_PARCIAL'].includes(f.estado))
+    .reduce((acc, f) => acc + Number(f.saldo_pendiente || 0), 0);
+
+  const getEstadoBadge = (estado) => {
+    const map = {
+      PENDIENTE: 'badge-danger',
+      PAGADO_PARCIAL: 'badge-warning',
+      LIQUIDADO: 'badge-success',
+      CANCELADO: 'badge-secondary',
+    };
+    const labels = {
+      PENDIENTE: 'Pendiente',
+      PAGADO_PARCIAL: 'Abono Parcial',
+      LIQUIDADO: 'Liquidado',
+      CANCELADO: 'Cancelado',
+    };
+    return <span className={`badge ${map[estado] || ''}`}>{labels[estado] || estado}</span>;
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: '780px' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <h3 className="modal-title">Historial de Fiados — {cliente.nombre}</h3>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+              {cliente.numero_documento || ''} · {fiadosCliente.length} operaciones
+            </div>
+          </div>
+          <button className="modal-close" onClick={onClose}><CloseOutlined /></button>
+        </div>
+        <div className="modal-body">
+          {totalDeuda > 0 && (
+            <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '12px 16px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontWeight: 500 }}>Deuda pendiente total</span>
+              <span style={{ fontWeight: 'bold', fontSize: '20px', color: 'var(--color-danger, #ef4444)' }}>S/ {totalDeuda.toFixed(2)}</span>
+            </div>
+          )}
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Fecha</th>
+                  <th>Tipo</th>
+                  <th style={{ textAlign: 'right' }}>Total</th>
+                  <th style={{ textAlign: 'right' }}>Saldo</th>
+                  <th>Fecha Límite</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fiadosCliente.map(f => (
+                  <tr key={f.id} style={{ opacity: f.estado === 'CANCELADO' ? 0.5 : 1 }}>
+                    <td style={{ fontWeight: 600 }}>#{String(f.id).padStart(5, '0')}</td>
+                    <td style={{ fontSize: '12px' }}>{new Date(f.creado_en).toLocaleDateString()}</td>
+                    <td><span className="badge badge-info">{f.tipo}</span></td>
+                    <td style={{ textAlign: 'right', fontWeight: 500 }}>S/ {Number(f.total).toFixed(2)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 'bold', color: f.saldo_pendiente > 0 ? 'var(--color-danger, #ef4444)' : 'var(--color-success, #22c55e)' }}>
+                      S/ {Number(f.saldo_pendiente).toFixed(2)}
+                    </td>
+                    <td style={{ fontSize: '12px', color: f.fecha_limite && new Date(f.fecha_limite) < new Date() && f.estado !== 'LIQUIDADO' ? 'var(--color-danger, #ef4444)' : 'var(--text-secondary)' }}>
+                      {f.fecha_limite ? new Date(f.fecha_limite + 'T12:00:00').toLocaleDateString() : '-'}
+                    </td>
+                    <td>{getEstadoBadge(f.estado)}</td>
+                  </tr>
+                ))}
+                {fiadosCliente.length === 0 && (
+                  <tr><td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)' }}>No hay fiados registrados para este cliente.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function FiadosClientes() {
   const { isVendedor } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [clientes, setClientes] = useState([]);
+  const [fiados, setFiados] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalMode, setModalMode] = useState('create');
-  const [selectedCliente, setSelectedCliente] = useState(null);
-  const [confirmDialog, setConfirmDialog] = useState({ visible: false, id: null, nombre: '' });
-  
-  // Kardex Global de Cliente
-  const [kardexVisible, setKardexVisible] = useState(false);
-  const [clienteToKardex, setClienteToKardex] = useState(null);
+  const [soloConDeuda, setSoloConDeuda] = useState(true);
+
+  const [historialVisible, setHistorialVisible] = useState(false);
+  const [clienteToHistorial, setClienteToHistorial] = useState(null);
 
   useEffect(() => {
-    fetchClientes();
+    fetchData();
   }, []);
 
-  const fetchClientes = async () => {
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const response = await fiadosAPI.getClientes();
-      setClientes(response.data.results || response.data);
-    } catch (error) {
-      console.error('Error fetching clientes:', error);
+      const [cRes, fRes] = await Promise.all([
+        clientesAPI.getAll({ page_size: 999 }),
+        fiadosAPI.getFiados(),
+      ]);
+      setClientes(cRes.data.results || cRes.data);
+      setFiados(fRes.data.results || fRes.data);
+    } catch (e) {
+      message.error('Error al cargar datos');
     } finally {
       setLoading(false);
     }
   };
 
-  const openModal = (mode, cliente = null) => {
-    setModalMode(mode);
-    setSelectedCliente(cliente);
-    setModalVisible(true);
+  const resumenPorCliente = (clienteId) => {
+    const fiadosCliente = fiados.filter(f => String(f.cliente) === String(clienteId));
+    const activos = fiadosCliente.filter(f => ['PENDIENTE', 'PAGADO_PARCIAL'].includes(f.estado));
+    const totalDeuda = activos.reduce((acc, f) => acc + Number(f.saldo_pendiente || 0), 0);
+    const totalFiados = fiadosCliente.filter(f => f.estado !== 'CANCELADO').length;
+    const ultimoFiado = fiadosCliente.length > 0
+      ? fiadosCliente.sort((a, b) => new Date(b.creado_en) - new Date(a.creado_en))[0]
+      : null;
+    return { activos: activos.length, totalDeuda, totalFiados, ultimoFiado };
   };
 
-  const closeModal = () => {
-    setModalVisible(false);
-    setSelectedCliente(null);
-  };
+  const clientesConResumen = clientes.map(c => ({
+    ...c,
+    ...resumenPorCliente(c.id),
+  }));
 
-  const handleSubmit = async (clientData) => {
-    try {
-      if (modalMode === 'create') {
-        await fiadosAPI.createCliente(clientData);
-      } else {
-        await fiadosAPI.updateCliente(selectedCliente.id, clientData);
-      }
-      closeModal();
-      fetchClientes();
-    } catch (error) {
-      console.error('Error saving cliente:', error);
-      alert(error.response?.data?.error || 'Error al guardar');
-    }
-  };
-
-  const handleDeleteClick = (cliente) => {
-    setConfirmDialog({ visible: true, id: cliente.id, nombre: cliente.nombre });
-  };
-
-  const handleDelete = async () => {
-    try {
-      if (!confirmDialog.id) return;
-      await fiadosAPI.deleteCliente(confirmDialog.id);
-      setConfirmDialog({ visible: false, id: null, nombre: '' });
-      fetchClientes();
-    } catch (error) {
-      console.error('Error deleting cliente:', error);
-      alert(error.response?.data?.error || 'No se pudo eliminar el cliente (puede tener fiados pendientes). Se desactivó si corresponde.');
-      setConfirmDialog({ visible: false, id: null, nombre: '' });
-      fetchClientes();
-    }
-  };
-  
-  const handleExportClientes = async (periodo, anio) => {
-    try {
-      const response = await fiadosAPI.exportarClientes({ periodo, anio });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `reporte_clientes_fiados_${periodo}_${anio || 'todo'}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (error) {
-      console.error('Error exportando clientes:', error);
-      message.error('No se pudo generar el reporte de clientes.');
-    }
-  };
-
-  const handleExportHistorialGlobal = async (periodo, anio) => {
-    try {
-      const response = await fiadosAPI.exportarHistorialGlobal({ periodo, anio });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `kardex_global_fiados_${periodo}_${anio || 'todo'}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (error) {
-      console.error('Error exportando historial global:', error);
-      message.error('No se pudo generar el historial global.');
-    }
-  };
-
-  const filteredClientes = clientes.filter(c => {
+  const filtered = clientesConResumen.filter(c => {
     const term = searchTerm.toLowerCase();
-    const nombreMatch = (c.nombre || '').toLowerCase().includes(term);
-    const docMatch = (c.documento || '').toLowerCase().includes(term);
-    return nombreMatch || docMatch;
+    const textMatch = (c.nombre || '').toLowerCase().includes(term) ||
+                      (c.numero_documento || '').toLowerCase().includes(term);
+    const deudaMatch = soloConDeuda ? c.activos > 0 : true;
+    return textMatch && deudaMatch;
   });
+
+  const totalDeudaGlobal = clientesConResumen.reduce((acc, c) => acc + c.totalDeuda, 0);
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '24px', color: 'var(--text-primary, #f8fafc)' }}>Módulo de Fiados</h1>
-          <p style={{ margin: '4px 0 0', color: 'var(--text-muted, #94a3b8)' }}>Gestión interna de cuentas por cobrar y cliente fiados</p>
-        </div>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {!isVendedor && (
-            <>
-              <ExportDropdown 
-                label="Exportar Historial Global"
-                onExport={handleExportHistorialGlobal}
-              />
-              <ExportDropdown 
-                label="Exportar Clientes Fiados"
-                onExport={handleExportClientes}
-              />
-            </>
-          )}
-          <button className="btn btn-primary" onClick={() => openModal('create')} style={{ borderRadius: '8px', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PlusOutlined /> Nuevo Cliente
-          </button>
-        </div>
-      </div>
-      <ConfirmDialog
-        visible={confirmDialog.visible}
-        title="Eliminar Cliente de Fiados"
-        message={`¿Estás seguro de que deseas eliminar a "${confirmDialog.nombre}"? Si tiene operaciones solo se desactivará.`}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirmDialog({ visible: false, id: null, nombre: '' })}
-        confirmText="Sí, procesar"
-        danger={true}
-      />
-
-      <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
-        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ flex: 1, minWidth: '250px' }}>
-            <input 
-              type="text" 
-              className="form-input" 
-              placeholder="Buscar por nombre o documento..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+      <div className="page-header" style={{ marginBottom: '24px' }}>
+        <div></div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600 }}>Total en Deuda</div>
+          <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--color-danger, #ef4444)' }}>
+            S/ {totalDeudaGlobal.toFixed(2)}
           </div>
         </div>
       </div>
 
-      <div className="card">
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Documento</th>
-                <th>Tel/Celular</th>
-                <th>Dirección</th>
-                <th>Próxima Fecha Límite</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredClientes.map((cliente) => (
-                <tr key={cliente.id} style={{ opacity: cliente.activo ? 1 : 0.6 }}>
-                  <td style={{ fontWeight: '500' }}>{cliente.nombre}</td>
-                  <td>{cliente.documento || '-'}</td>
-                  <td>{cliente.telefono || '-'}</td>
-                  <td>{cliente.direccion || '-'}</td>
-                  <td style={{ 
-                    color: cliente.proxima_fecha_limite && new Date(cliente.proxima_fecha_limite) < new Date() ? 'var(--danger-color)' : 'inherit',
-                    fontWeight: '600'
-                  }}>
-                    {cliente.proxima_fecha_limite ? new Date(cliente.proxima_fecha_limite + 'T12:00:00').toLocaleDateString() : '-'}
-                  </td>
-                  <td>
-                    <span className={`badge ${cliente.activo ? 'badge-success' : 'badge-danger'}`}>
-                      {cliente.activo ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </td>
-                  <td>
-                    <button className="btn btn-secondary" onClick={() => { setClienteToKardex(cliente); setKardexVisible(true); }} title="Ver Kardex Global">
-                      <HistoryOutlined />
-                    </button>
-                    <button className="btn btn-secondary" onClick={() => openModal('edit', cliente)} title="Editar">
-                      <EditOutlined />
-                    </button>
-                    {!isVendedor && (
-                      <button className="btn btn-danger" onClick={() => handleDeleteClick(cliente)} title="Eliminar/Desactivar">
-                        <DeleteOutlined />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {filteredClientes.length === 0 && (
-                <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '24px', color: '#888' }}>
-                    No se encontraron clientes fiados.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ flex: 1, minWidth: '250px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Buscar cliente</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Nombre o documento..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '18px' }}>
+            <input
+              type="checkbox"
+              id="soloConDeuda"
+              checked={soloConDeuda}
+              onChange={(e) => setSoloConDeuda(e.target.checked)}
+              style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+            />
+            <label htmlFor="soloConDeuda" style={{ fontSize: '13px', fontWeight: 500, cursor: 'pointer', userSelect: 'none' }}>
+              Solo con deuda activa
+            </label>
+          </div>
+          <button className="btn btn-secondary" style={{ paddingTop: '18px' }} onClick={() => { setSearchTerm(''); setSoloConDeuda(true); }}>
+            Limpiar
+          </button>
         </div>
       </div>
 
-      <ClienteFiadoHistorialModal 
-        visible={kardexVisible}
-        onClose={() => { setKardexVisible(false); setClienteToKardex(null); }}
-        cliente={clienteToKardex}
-      />
+      <div className="card">
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>Cargando...</div>
+        ) : (
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Documento</th>
+                  <th style={{ textAlign: 'center' }}>Fiados Activos</th>
+                  <th style={{ textAlign: 'right' }}>Deuda Pendiente</th>
+                  <th>Ultimo Fiado</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(c => (
+                  <tr key={c.id}>
+                    <td>
+                      <div style={{ fontWeight: 600 }}>{c.nombre}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{c.tipo_cliente || ''}</div>
+                    </td>
+                    <td style={{ fontSize: '12px' }}>{c.numero_documento || '-'}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span className={`badge ${c.activos > 0 ? 'badge-danger' : 'badge-secondary'}`}>{c.activos}</span>
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 'bold', color: c.totalDeuda > 0 ? 'var(--color-danger, #ef4444)' : 'var(--color-success, #22c55e)' }}>
+                      S/ {c.totalDeuda.toFixed(2)}
+                    </td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      {c.ultimoFiado ? new Date(c.ultimoFiado.creado_en).toLocaleDateString() : '-'}
+                    </td>
+                    <td>
+                      {c.activos > 0 ? (
+                        <span className="badge badge-danger">Con Deuda</span>
+                      ) : c.totalFiados > 0 ? (
+                        <span className="badge badge-success">Al dia</span>
+                      ) : (
+                        <span className="badge" style={{ background: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}>Sin fiados</span>
+                      )}
+                    </td>
+                    <td>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => { setClienteToHistorial(c); setHistorialVisible(true); }}
+                        title="Ver historial de fiados"
+                      >
+                        <HistoryOutlined /> Historial
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                      {soloConDeuda ? 'Ningun cliente tiene deudas activas.' : 'No se encontraron clientes.'}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
-      <FiadoClienteFormModal 
-        visible={modalVisible}
-        mode={modalMode}
-        initialData={selectedCliente}
-        onClose={closeModal}
-        onSave={handleSubmit}
+      <ClienteHistorialSimple
+        visible={historialVisible}
+        onClose={() => { setHistorialVisible(false); setClienteToHistorial(null); }}
+        cliente={clienteToHistorial}
+        fiados={fiados}
       />
     </div>
   );

@@ -14,7 +14,7 @@ import FiadoDetailModal from './FiadoDetailModal';
 import ExportDropdown from '../ExportDropdown';
 import { AuthContext } from '../../context/AuthContext';
 
-function FiadosOperaciones() {
+function FiadosOperaciones({ openNew = 0 }) {
   const { isVendedor } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [fiados, setFiados] = useState([]);
@@ -26,6 +26,7 @@ function FiadosOperaciones() {
   const [filterTipo, setFilterTipo] = useState('ALL');
   const [filterFechaInicio, setFilterFechaInicio] = useState('');
   const [filterFechaFin, setFilterFechaFin] = useState('');
+  const [filterCliente, setFilterCliente] = useState('');
   
   // Historial Kardex Modal
   const [historialModalVisible, setHistorialModalVisible] = useState(false);
@@ -58,28 +59,38 @@ function FiadosOperaciones() {
     fetchData();
   }, []);
 
+  // Keep clientesRegulares in sync with clientes (same table now):
+  useEffect(() => {
+    setClientesRegulares(clientes);
+  }, [clientes]);
+
   const fetchData = async () => {
     setLoading(true);
+    // Fetch independently so a failure in one does not block the others:
     try {
-      const [fiadosRes, clientesRes, productosRes, serviciosRes, regularesRes] = await Promise.all([
-        fiadosAPI.getFiados(),
-        fiadosAPI.getClientes(),
-        productosAPI.getAll(),
-        serviciosAPI.getAll(),
-        clientesAPI.getAll()
-      ]);
+      const fiadosRes = await fiadosAPI.getFiados();
       setFiados(fiadosRes.data.results || fiadosRes.data);
+    } catch (e) { console.error('Error fetching fiados:', e); }
+
+    try {
+      const clientesRes = await clientesAPI.getAll({ page_size: 999 });
       setClientes(clientesRes.data.results || clientesRes.data);
+    } catch (e) { console.error('Error fetching clientes:', e); }
+
+    try {
+      const productosRes = await productosAPI.getAll({ page_size: 999 });
       setProductos(productosRes.data.results || productosRes.data);
+    } catch (e) { console.error('Error fetching productos:', e); }
+
+    try {
+      const serviciosRes = await serviciosAPI.getAll({ page_size: 999 });
       setServicios(serviciosRes.data.results || serviciosRes.data);
-      setClientesRegulares(regularesRes.data.results || regularesRes.data);
-      setProductos(productosRes.data.results || productosRes.data);
-      setServicios(serviciosRes.data.results || serviciosRes.data);
-    } catch (error) {
-      console.error('Error fetching fiados data:', error);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error('Error fetching servicios:', e); }
+
+    // clientesRegulares = same as clientes (unified client table)
+    // setClientesRegulares is handled above via setClientes
+
+    setLoading(false);
   };
 
   const openFormModal = (fiado = null) => {
@@ -344,13 +355,14 @@ function FiadosOperaciones() {
     const idMatch = f.id.toString().includes(term);
     const estadoMatch = filterEstado === 'ALL' ? true : f.estado === filterEstado;
     const tipoMatch = filterTipo === 'ALL' ? true : f.tipo === filterTipo;
+    const clienteFiltroMatch = !filterCliente || String(f.cliente) === String(filterCliente);
     
     // Filtro por Fechas
     const saleDate = f.creado_en ? new Date(f.creado_en).toISOString().split('T')[0] : null;
     const dateMatch = (!filterFechaInicio || (saleDate && saleDate >= filterFechaInicio)) &&
                       (!filterFechaFin || (saleDate && saleDate <= filterFechaFin));
     
-    return (clienteMatch || idMatch) && estadoMatch && tipoMatch && dateMatch;
+    return (clienteMatch || idMatch) && estadoMatch && tipoMatch && dateMatch && clienteFiltroMatch;
   });
 
   const getEstadoBadge = (estado) => {
@@ -394,31 +406,17 @@ function FiadosOperaciones() {
     }
   };
 
+
+
+  // Open modal when parent triggers it via counter:
+  useEffect(() => {
+    if (openNew > 0) openFormModal();
+  }, [openNew]);
+
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '24px', color: 'var(--text-primary, #f8fafc)' }}>Módulo de Fiados</h1>
-          <p style={{ margin: '4px 0 0', color: 'var(--text-muted, #94a3b8)' }}>Gestión interna de cuentas por cobrar y cliente fiados</p>
-        </div>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {!isVendedor && (
-            <>
-              <ExportDropdown 
-                label="Exportar Historial Global"
-                onExport={handleExportHistorialGlobal}
-              />
-              <ExportDropdown 
-                label="Exportar Fiados"
-                onExport={handleExportFiados}
-              />
-            </>
-          )}
-          <button className="btn btn-primary" onClick={() => openFormModal()} style={{ borderRadius: '8px', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PlusOutlined /> Nuevo Fiado
-          </button>
-        </div>
-      </div>
+
 
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -473,6 +471,16 @@ function FiadosOperaciones() {
             </select>
           </div>
 
+          <div style={{ minWidth: '180px' }}>
+            <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px', display: 'block', textTransform: 'uppercase' }}>Cliente</label>
+            <select className="form-input" value={filterCliente} onChange={(e) => setFilterCliente(e.target.value)}>
+              <option value="">Todos los Clientes</option>
+              {clientes.map(c => (
+                <option key={c.id} value={c.id}>{c.nombre}</option>
+              ))}
+            </select>
+          </div>
+
           <button 
             className="btn btn-secondary" 
             onClick={() => {
@@ -481,6 +489,7 @@ function FiadosOperaciones() {
               setFilterTipo('ALL');
               setFilterFechaInicio('');
               setFilterFechaFin('');
+              setFilterCliente('');
             }}
             title="Limpiar Filtros"
           >
@@ -554,14 +563,25 @@ function FiadosOperaciones() {
                         </button>
                       )}
 
-                      {fiado.estado === 'LIQUIDADO' && !fiado.venta_ref && !fiado.venta_servicio_ref && (
-                        <button className="btn btn-success" onClick={() => handleManualRegistrarVenta(fiado)} title="Formalizar Venta">
-                          <CheckCircleOutlined /> Validar Venta
-                        </button>
-                      )}
-                      {(fiado.venta_ref || fiado.venta_servicio_ref) && (
-                        <span className="badge badge-success" style={{ fontSize: '11px' }}>Venta N° {fiado.venta_ref || fiado.venta_servicio_ref}</span>
-                      )}
+                      {(fiado.venta_ref || fiado.venta_servicio_ref) ? (
+                        <span className="badge badge-success" style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <CheckCircleOutlined /> Venta #{fiado.venta_ref || fiado.venta_servicio_ref}
+                        </span>
+                      ) : fiado.estado === 'LIQUIDADO' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                          <span className="badge badge-success" style={{ fontSize: '11px' }}>Liquidado</span>
+                          {(!fiado.venta_ref && !fiado.venta_servicio_ref) && (
+                            <button
+                              className="btn btn-primary"
+                              style={{ fontSize: '11px', padding: '3px 8px', lineHeight: '1.3' }}
+                              onClick={() => handleManualRegistrarVenta(fiado)}
+                              title="Abrir formulario para registrar la venta formal"
+                            >
+                              Formalizar Venta
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   </td>
                 </tr>
@@ -598,6 +618,11 @@ function FiadosOperaciones() {
           onClose={closeFormModal}
           onSave={handleFormSubmit}
           onReactivar={handleReactivar}
+          onNewCliente={(newCliente) => {
+            setClientes(prev => 
+              prev.find(c => c.id === newCliente.id) ? prev : [...prev, newCliente]
+            );
+          }}
         />
       )}
 

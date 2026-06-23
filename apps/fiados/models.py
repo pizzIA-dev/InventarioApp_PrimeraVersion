@@ -41,7 +41,7 @@ class Fiado(models.Model):
     ]
 
     empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='fiados', null=True)
-    cliente = models.ForeignKey(ClienteFiado, on_delete=models.PROTECT, related_name='fiados')
+    cliente = models.ForeignKey('clientes.Cliente', on_delete=models.SET_NULL, related_name='fiados', null=True, blank=True)
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE')
     
@@ -66,7 +66,8 @@ class Fiado(models.Model):
         ordering = ['-creado_en']
 
     def __str__(self):
-        return f"Fiado #{self.id} - {self.cliente.nombre} ({self.tipo})"
+        cliente_str = self.cliente.nombre if self.cliente else "Sin cliente"
+        return f"Fiado #{self.id} - {cliente_str} ({self.tipo})"
     
     def save(self, *args, **kwargs):
         is_new = self.pk is None
@@ -96,18 +97,15 @@ class Fiado(models.Model):
         """Devuelve el stock de los productos al inventario si se cancela o elimina el fiado"""
         if self.tipo == 'PRODUCTO':
             for detalle in self.detalles_producto.all():
+                # MovimientoStock.save() actualiza el stock atomicamente
                 MovimientoStock.objects.create(
+                    empresa=self.empresa,
                     producto=detalle.producto,
                     tipo='ENTRADA',
                     origen='DEVOLUCION',
                     cantidad=detalle.cantidad,
-                    stock_anterior=detalle.producto.stock_actual,
                     precio_unitario=detalle.precio_unidad,
-                    precio_compra_anterior=detalle.producto.precio_compra,
-                    precio_compra_nuevo=detalle.producto.precio_compra,
-                    precio_venta_anterior=detalle.producto.precio_venta,
-                    precio_venta_nuevo=detalle.producto.precio_venta,
-                    referencia=f"Reversión de stock por eliminación/cancelación de Fiado #{self.id}"
+                    referencia=f"Reversion de stock por cancelacion de Fiado #{self.id}"
                 )
 
     def reactivar(self):
@@ -207,7 +205,7 @@ class HistorialFiado(models.Model):
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     """Registro de abonos y cambios de cada Fiado o acciones de cliente"""
     fiado = models.ForeignKey(Fiado, on_delete=models.CASCADE, related_name='historial', null=True, blank=True)
-    cliente = models.ForeignKey(ClienteFiado, on_delete=models.CASCADE, related_name='historial_directo', null=True, blank=True)
+    cliente = models.ForeignKey('clientes.Cliente', on_delete=models.SET_NULL, related_name='historial_fiados', null=True, blank=True)
     fecha = models.DateTimeField(auto_now_add=True)
     total_deuda = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     abono = models.DecimalField(max_digits=12, decimal_places=2, default=0)

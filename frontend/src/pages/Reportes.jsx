@@ -538,11 +538,11 @@ function Reportes() {
                 <h3 className="card-title">Productos sin rotación</h3>
               </div>
               <div style={{ overflowY: 'auto', flex: 1, padding: '0 16px' }}>
-                {balance.analiticas?.productos_sin_rotacion?.length === 0 ? (
+                {balance?.analiticas?.productos_sin_rotacion?.length === 0 ? (
                   <p style={{ textAlign: 'center', marginTop: '20px', color: 'var(--text-secondary)' }}>Todos los productos han tenido salida.</p>
                 ) : (
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                    {balance.analiticas?.productos_sin_rotacion?.map((item, idx) => (
+                    {balance?.analiticas?.productos_sin_rotacion?.map((item, idx) => (
                       <li key={idx} style={{ padding: '12px 0', borderBottom: '1px solid var(--bg-table-header)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontWeight: 500 }}>{item.nombre}</span>
                         <div style={{ textAlign: 'right' }}>
@@ -561,11 +561,11 @@ function Reportes() {
                 <h3 className="card-title">Servicios sin rotación</h3>
               </div>
               <div style={{ overflowY: 'auto', flex: 1, padding: '0 16px' }}>
-                {balance.analiticas?.servicios_sin_rotacion?.length === 0 ? (
+                {balance?.analiticas?.servicios_sin_rotacion?.length === 0 ? (
                   <p style={{ textAlign: 'center', marginTop: '20px', color: 'var(--text-secondary)' }}>Todos los servicios activos han sido contratados.</p>
                 ) : (
                   <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                    {balance.analiticas?.servicios_sin_rotacion?.map((item, idx) => (
+                    {balance?.analiticas?.servicios_sin_rotacion?.map((item, idx) => (
                       <li key={idx} style={{ padding: '12px 0', borderBottom: '1px solid var(--bg-table-header)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontWeight: 500 }}>{item.nombre}</span>
                         <span style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Vendido: 0</span>

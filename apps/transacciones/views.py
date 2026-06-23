@@ -1,3 +1,4 @@
+from apps.core.renderers import PassthroughRenderer
 from django.http import HttpResponse
 from apps.core.export_utils import (
     get_period_range, get_period_label, create_excel_response
@@ -50,7 +51,7 @@ class CategoriaTransaccionViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet
         serializer = MovimientoCategoriaSerializer(queryset, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial(self, request, pk=None):
         instance = self.get_object()
         fecha_desde = request.query_params.get('fecha_desde')
@@ -134,7 +135,7 @@ class TransaccionViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         serializer = HistorialTransaccionSerializer(queryset, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial(self, request, pk=None):
         """Exportar el historial de auditoría de una transacción específica a Excel con columnas estándar"""
         instance = self.get_object()
@@ -242,7 +243,7 @@ class TransaccionViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             })
         return Response(data)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exportar movimientos a Excel con 2 hojas: Ingresos y Gastos"""
         periodo = request.query_params.get('periodo', 'todo')
@@ -263,7 +264,7 @@ class TransaccionViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         ingresos = queryset.filter(tipo='INGRESO')
         rows_ingresos = []
         for obj in ingresos:
-            usuario_str = f"{obj.usuario.get_full_name() or obj.usuario.username} ({obj.usuario.perfil.get_rol_display() if hasattr(obj.usuario, 'perfil') else '-'})" if obj.usuario else "Sistema"
+            usuario_str = "-"  # Transaccion model has no usuario field
             rows_ingresos.append([
                 obj.id,
                 obj.creado_en.strftime("%d/%m/%Y %H:%M:%S") if obj.creado_en else '',
@@ -279,7 +280,7 @@ class TransaccionViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         egresos = queryset.filter(tipo='EGRESO')
         rows_egresos = []
         for obj in egresos:
-            usuario_str = f"{obj.usuario.get_full_name() or obj.usuario.username} ({obj.usuario.perfil.get_rol_display() if hasattr(obj.usuario, 'perfil') else '-'})" if obj.usuario else "Sistema"
+            usuario_str = "-"  # Transaccion model has no usuario field
             rows_egresos.append([
                 obj.id,
                 obj.creado_en.strftime("%d/%m/%Y %H:%M:%S") if obj.creado_en else '',
@@ -315,7 +316,7 @@ class TransaccionViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             sheets_data=sheets,
         )
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial_global(self, request):
         """Exportar historial global de movimientos de categorías, separado por tipo"""
         periodo = request.query_params.get('periodo', 'todo')

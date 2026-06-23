@@ -1,4 +1,34 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, Component } from 'react';
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error('ErrorBoundary caught:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>
+          <h2>Algo salió mal</h2>
+          <pre style={{ fontSize: '12px', textAlign: 'left', background: '#fee2e2', padding: '16px', borderRadius: '8px', overflowX: 'auto' }}>
+            {this.state.error?.message}
+          </pre>
+          <button onClick={() => this.setState({ hasError: false, error: null })}
+            style={{ marginTop: '16px', padding: '8px 16px', cursor: 'pointer' }}>
+            Intentar de nuevo
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ConfigProvider, theme } from 'antd';
 import esES from 'antd/locale/es_ES';
@@ -17,7 +47,7 @@ const Productos     = lazy(() => import('./pages/Productos'));
 const Proveedores   = lazy(() => import('./pages/Proveedores'));
 const Clientes      = lazy(() => import('./pages/Clientes'));
 const Ventas        = lazy(() => import('./pages/Ventas'));
-const Compras       = lazy(() => import('./pages/Compras'));
+const ComprasMain   = lazy(() => import('./pages/ComprasMain'));
 const Capital       = lazy(() => import('./pages/Capital'));
 const Servicios     = lazy(() => import('./pages/Servicios'));
 const Transacciones = lazy(() => import('./pages/Transacciones'));
@@ -42,7 +72,7 @@ const AppContent = () => {
       theme={{ algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm }}
     >
       <Router>
-        <Suspense fallback={<PageLoader />}>
+        <ErrorBoundary><Suspense fallback={<PageLoader />}>
           <Routes>
             {/* â”€â”€ Rutas Publicas / Landing â”€â”€ */}
             <Route path="/"                  element={<Landing view="planes" />} />
@@ -62,7 +92,7 @@ const AppContent = () => {
               <Route path="proveedores"   element={<ProtectedRoute allowedRoles={['GERENTE']}><Proveedores /></ProtectedRoute>} />
               <Route path="clientes"      element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Clientes /></ProtectedRoute>} />
               <Route path="ventas"        element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Ventas /></ProtectedRoute>} />
-              <Route path="compras"       element={<ProtectedRoute allowedRoles={['GERENTE']}><Compras /></ProtectedRoute>} />
+              <Route path="compras"       element={<ProtectedRoute allowedRoles={['GERENTE']}><ComprasMain /></ProtectedRoute>} />
               <Route path="capital"       element={<ProtectedRoute allowedRoles={['GERENTE']}><Capital /></ProtectedRoute>} />
               <Route path="servicios"     element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Servicios /></ProtectedRoute>} />
               <Route path="transacciones" element={<ProtectedRoute allowedRoles={['GERENTE']}><Transacciones /></ProtectedRoute>} />
@@ -76,7 +106,7 @@ const AppContent = () => {
             {/* Fallback */}
             <Route path="*" element={<Landing view="planes" />} />
           </Routes>
-        </Suspense>
+        </Suspense></ErrorBoundary>
       </Router>
     </ConfigProvider>
   );

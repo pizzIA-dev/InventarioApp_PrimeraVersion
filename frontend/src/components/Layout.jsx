@@ -1,20 +1,17 @@
 import { useState, useEffect, useContext } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useParams } from 'react-router-dom';
 import { useTheme } from '../ThemeContext';
 import NegocIALogo from './NegocIALogo';
 import { AuthContext } from '../context/AuthContext';
 import { Modal } from 'antd';
 import {
   DashboardOutlined,
-  SafetyCertificateOutlined,
-  CloudServerOutlined,
   ShoppingOutlined,
   TeamOutlined,
   UsergroupAddOutlined,
   ShoppingCartOutlined,
   ContainerOutlined,
   WalletOutlined,
-  ToolOutlined,
   SwapOutlined,
   BarChartOutlined,
   MenuFoldOutlined,
@@ -25,45 +22,168 @@ import {
   CreditCardOutlined,
   LogoutOutlined,
   UserOutlined,
+  CaretRightOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons';
 
-// Items visibles para COLABORADOR / VENDEDOR
-const COLABORADOR_PATHS = ['/productos', '/clientes', '/ventas', '/servicios', '/fiados'];
-
-// Menu principal (todos los roles que pasan el filtro de ruta)
-const menuItems = [
-  { path: '/',              icon: <DashboardOutlined />,    label: 'Dashboard',         rolesOnly: ['GERENTE'] },
-  { path: '/productos',     icon: <ShoppingOutlined />,     label: 'Productos' },
-  { path: '/proveedores',   icon: <TeamOutlined />,         label: 'Proveedores',        rolesOnly: ['GERENTE'] },
-  { path: '/clientes',      icon: <UsergroupAddOutlined />, label: 'Clientes' },
-  { path: '/ventas',        icon: <ShoppingCartOutlined />, label: 'Ventas' },
-  { path: '/compras',       icon: <ContainerOutlined />,    label: 'Compras',            rolesOnly: ['GERENTE'] },
-  { path: '/capital',       icon: <WalletOutlined />,       label: 'Capital',            rolesOnly: ['GERENTE'] },
-  { path: '/servicios',     icon: <ToolOutlined />,         label: 'Servicios' },
-  { path: '/transacciones', icon: <SwapOutlined />,         label: 'Transacciones Generales',       rolesOnly: ['GERENTE'] },
-  { path: '/fiados',        icon: <CreditCardOutlined />,   label: 'Fiados' },
-  { path: '/reportes',      icon: <BarChartOutlined />,     label: 'Reportes',           rolesOnly: ['GERENTE'] },
+/* ================================================================
+   NAV DATA
+   ================================================================ */
+const GROUPS = [
+  {
+    key: 'general',
+    label: 'General',
+    alwaysOpen: true,
+    items: [
+      { path: '/',         icon: <DashboardOutlined />,   label: 'Dashboard', rolesOnly: ['GERENTE'] },
+      { path: '/reportes', icon: <BarChartOutlined />,    label: 'Reportes',  rolesOnly: ['GERENTE'] },
+    ],
+  },
+  {
+    key: 'transacciones',
+    label: 'Transacciones',
+    items: [
+      { path: '/ventas',  icon: <ShoppingCartOutlined />, label: 'Ventas' },
+      { path: '/compras', icon: <ContainerOutlined />,    label: 'Compras',  rolesOnly: ['GERENTE'] },
+      { path: '/fiados',  icon: <CreditCardOutlined />,   label: 'Fiados' },
+    ],
+  },
+  {
+    key: 'inventario',
+    label: 'Inventario',
+    items: [
+      { path: '/productos',  icon: <ShoppingOutlined />,  label: 'Productos' },
+      { path: '/servicios',  icon: <AppstoreOutlined />,  label: 'Servicios' },
+    ],
+  },
+  {
+    key: 'contactos',
+    label: 'Contactos',
+    alwaysOpen: true,
+    items: [
+      { path: '/proveedores', icon: <TeamOutlined />,          label: 'Proveedores', rolesOnly: ['GERENTE'] },
+      { path: '/clientes',    icon: <UsergroupAddOutlined />,  label: 'Clientes' },
+    ],
+  },
+  {
+    key: 'otros',
+    label: 'Otros',
+    items: [
+      { path: '/capital',       icon: <WalletOutlined />, label: 'Capital',             rolesOnly: ['GERENTE'] },
+      { path: '/transacciones', icon: <SwapOutlined />,   label: 'Otras Transacciones', rolesOnly: ['GERENTE'] },
+    ],
+  },
 ];
 
-// Seccion admin — solo Gerente
-const adminItems = [
-  { path: '/usuarios',  icon: <UserOutlined />,               label: 'Colaboradores' },
-  { path: '/roles',     icon: <SafetyCertificateOutlined />,  label: 'Roles Corporativos' },
-  { path: '/backups',   icon: <CloudServerOutlined />,         label: 'Backups' },
+const ADMIN_ITEMS = [
+  { path: '/usuarios', icon: <UserOutlined />, label: 'Colaboradores' },
 ];
 
+const ROL_LABELS = {
+  GERENTE:      'Gerente',
+  VENDEDOR:     'Vendedor',
+  COLABORADOR:  'Colaborador',
+};
+const ROL_COLORS = {
+  GERENTE:      '#10b981',
+  VENDEDOR:     '#3b82f6',
+  COLABORADOR:  '#8b5cf6',
+};
+
+/* ================================================================
+   Collapsible group component
+   ================================================================ */
+function SidebarGroup({ groupKey, label, items, alwaysOpen, schema, location, collapsed, userRol }) {
+  const [open, setOpen] = useState(alwaysOpen || groupKey === 'general' || groupKey === 'contactos');
+
+  const isActive = items.some(item => {
+    const fullPath = `/t/${schema}${item.path === '/' ? '' : item.path}`;
+    return location.pathname === fullPath;
+  });
+
+  const filteredItems = items.filter(item => {
+    if (item.rolesOnly) return item.rolesOnly.includes(userRol);
+    return true;
+  });
+
+  if (filteredItems.length === 0) return null;
+
+  const toggle = () => { if (!alwaysOpen) setOpen(o => !o); };
+
+  return (
+    <div style={{ marginBottom: 2 }}>
+      {/* Group header — fades out when collapsed */}
+      <div
+        className={`sidebar-group-header ${collapsed ? 'sidebar-group-header--hidden' : ''}`}
+      >
+        <button
+          onClick={toggle}
+          style={{
+            width: '100%', background: 'none', border: 'none',
+            cursor: alwaysOpen ? 'default' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '6px 14px 4px', color: 'var(--text-muted)',
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+            userSelect: 'none',
+          }}
+        >
+          <span style={{ color: isActive ? 'var(--color-primary)' : 'var(--text-muted)' }}>{label}</span>
+          {!alwaysOpen && (
+            <CaretRightOutlined style={{
+              fontSize: 9,
+              transition: 'transform 0.25s ease',
+              transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+              color: 'var(--text-muted)',
+            }} />
+          )}
+        </button>
+      </div>
+
+      {/* Items */}
+      <div style={{
+        overflow: 'hidden',
+        maxHeight: (open || collapsed) ? '400px' : '0px',
+        opacity: (open || collapsed) ? 1 : 0,
+        transition: 'max-height 0.28s ease, opacity 0.2s ease',
+      }}>
+        {filteredItems.map(item => {
+          const fullPath = `/t/${schema}${item.path === '/' ? '' : item.path}`;
+          const active = location.pathname === fullPath;
+          return (
+            <Link
+              key={item.path}
+              to={fullPath}
+              className={`menu-item ${active ? 'active' : ''}`}
+              title={item.label}
+            >
+              <span className="menu-icon">{item.icon}</span>
+              <span className="menu-label">{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Divider */}
+      <div className={`sidebar-divider ${collapsed ? 'sidebar-divider--hidden' : ''}`} />
+    </div>
+  );
+}
+
+/* ================================================================
+   Main Layout
+   ================================================================ */
 function Layout() {
   const { schema } = useParams();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isDark, toggleTheme } = useTheme();
-  const { user, logout, isVendedor, isGerente } = useContext(AuthContext);
+  const { user, logout, isGerente } = useContext(AuthContext);
 
   const handleLogoutClick = () => {
     Modal.confirm({
-      title: '¿Cerrar sesion?',
-      content: '¿Estas seguro que deseas salir del sistema?',
+      title: 'Cerrar sesion',
+      content: 'Estas seguro que deseas salir del sistema?',
       okText: 'Si, cerrar sesion',
       cancelText: 'Cancelar',
       okButtonProps: { danger: true },
@@ -71,18 +191,13 @@ function Layout() {
     });
   };
 
-  // Filtrar menu segun rol
-  const isColaborador = user?.rol === 'COLABORADOR' || user?.rol === 'VENDEDOR';
-  const allowedMenuItems = menuItems.filter(item => {
-    if (item.rolesOnly) return item.rolesOnly.includes(user?.rol);
-    return true; // Sin restriccion = visible para todos
-  });
+  useEffect(() => { setMobileMenuOpen(false); }, [location.pathname]);
 
-  useEffect(() => {
-    setMobileMenuOpen(false);
-  }, [location.pathname]);
-
-  const empresaNombre = user?.empresa_nombre || 'NegocIA';
+  const empresaNombre = user?.empresa_nombre || 'Mi Empresa';
+  const userRol = user?.rol || 'VENDEDOR';
+  const userEmail = user?.email || user?.username || '';
+  const rolLabel = ROL_LABELS[userRol] || userRol;
+  const rolColor = ROL_COLORS[userRol] || '#6b7280';
 
   return (
     <div className="layout">
@@ -92,7 +207,10 @@ function Layout() {
           <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
             <MenuOutlined />
           </button>
-          <div className="mobile-header-title" style={{ fontSize: '16px' }}>{empresaNombre}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-primary)' }}>NegocIA</span>
+            <span className="mobile-header-title" style={{ fontSize: 12 }}>{empresaNombre}</span>
+          </div>
         </div>
         <button className="mobile-menu-btn" onClick={toggleTheme} style={{ fontSize: '18px' }}>
           {isDark ? <BulbFilled style={{ color: '#1b9cfc' }} /> : <BulbOutlined />}
@@ -106,102 +224,146 @@ function Layout() {
       />
 
       <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${mobileMenuOpen ? 'mobile-open' : ''}`} style={{ display: 'flex', flexDirection: 'column' }}>
+
+        {/* Sidebar Header — Business name GRANDE, NegocIA como badge pequeño */}
         <div className="sidebar-header">
-          <div className="sidebar-title">
-            {collapsed && !mobileMenuOpen ? 'N' : empresaNombre}
-          </div>
-        </div>
-
-        {/* Contenedor scrollable */}
-        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-          <nav className="sidebar-menu">
-            {allowedMenuItems.map((item) => (
-              <Link
-                key={item.path}
-                to={`/t/${schema}${item.path === '/' ? '' : item.path}`}
-                className={`menu-item ${location.pathname === `/t/${schema}${item.path === '/' ? '' : item.path}` ? 'active' : ''}`}
-              >
-                <span className="menu-icon">{item.icon}</span>
-                {!collapsed && <span>{item.label}</span>}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Seccion Admin - solo Gerente */}
-          {isGerente && (
-            <>
-              <div style={{ borderTop: '1px solid var(--bg-table-header)', margin: '8px 12px', opacity: 0.4 }} />
-              <div style={{ padding: '0 12px 4px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                {!collapsed && 'Administracion'}
+          {collapsed && !mobileMenuOpen ? (
+            <div style={{ textAlign: 'center' }}>
+              <span style={{
+                fontSize: 18, fontWeight: 900,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
+              }}>
+                {(empresaNombre || 'N')[0].toUpperCase()}
+              </span>
+            </div>
+          ) : (
+            <div>
+              {/* Nombre del negocio — principal y prominente */}
+              <div style={{
+                fontSize: 19, fontWeight: 800,
+                color: 'var(--text-primary)',
+                lineHeight: 1.1, marginBottom: 6,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>{empresaNombre}</div>
+              {/* NegocIA — badge pequeño debajo */}
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+                color: '#1677ff',
+                background: 'rgba(22, 119, 255, 0.1)',
+                border: '1px solid rgba(22, 119, 255, 0.25)',
+                borderRadius: 99, padding: '2px 8px',
+              }}>
+                ✦ NegocIA
               </div>
-              <nav className="sidebar-menu" style={{ paddingTop: 0 }}>
-                {adminItems.map((item) => (
-                  <Link
-                    key={item.path}
-                    to={`/t/${schema}${item.path === '/' ? '' : item.path}`}
-                    className={`menu-item ${location.pathname === `/t/${schema}${item.path === '/' ? '' : item.path}` ? 'active' : ''}`}
-                  >
-                    <span className="menu-icon">{item.icon}</span>
-                    {!collapsed && <span style={{ fontSize: '12px' }}>{item.label}</span>}
-                  </Link>
-                ))}
-              </nav>
-            </>
+            </div>
           )}
         </div>
 
-        {/* Botones inferiores */}
-        <div style={{
-          padding: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-          borderTop: '1px solid var(--border-color)',
-          background: 'var(--bg-sidebar)',
-          zIndex: 2
+        {/* Scrollable nav area */}
+        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 8 }}>
+          {GROUPS.map(group => (
+            <SidebarGroup
+              key={group.key}
+              groupKey={group.key}
+              label={group.label}
+              items={group.items}
+              alwaysOpen={group.alwaysOpen}
+              schema={schema}
+              location={location}
+              collapsed={collapsed}
+              userRol={userRol}
+            />
+          ))}
+
+          {/* Admin section — only Colaboradores (Roles and Backups hidden for now) */}
+          {isGerente && (
+            <SidebarGroup
+              groupKey="admin"
+              label="Administracion"
+              items={ADMIN_ITEMS}
+              alwaysOpen={false}
+              schema={schema}
+              location={location}
+              collapsed={collapsed}
+              userRol={userRol}
+            />
+          )}
+        </div>
+
+        {/* Sidebar footer */}
+        <div className="sidebar-footer" style={{
+          borderTop: '1px solid var(--bg-table-header)',
+          padding: '10px 12px',
+          display: 'flex', flexDirection: 'column', gap: 4,
         }}>
+
+          {/* User info */}
+          <div className={`sidebar-user-info ${collapsed ? 'sidebar-user-info--collapsed' : ''}`}>
+            <div className="sidebar-user-avatar">
+              <UserOutlined />
+            </div>
+            <div className="sidebar-user-details">
+              <div className="sidebar-user-email" title={userEmail}>{userEmail}</div>
+              <div className="sidebar-user-role" style={{
+                display: 'inline-block', marginTop: 2,
+                background: `${rolColor}22`,
+                color: rolColor,
+                border: `1px solid ${rolColor}44`,
+                borderRadius: 99, padding: '1px 8px',
+                fontSize: 10, fontWeight: 700,
+              }}>{rolLabel}</div>
+            </div>
+          </div>
+
+          {/* Theme toggle */}
           <button
-            className="btn btn-secondary"
             onClick={toggleTheme}
-            title={isDark ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
-            style={{ width: '100%', justifyContent: collapsed ? 'center' : 'flex-start' }}
+            className="menu-item"
+            style={{ border: 'none', cursor: 'pointer', background: 'none', width: '100%' }}
+            title={isDark ? 'Modo claro' : 'Modo oscuro'}
           >
-            <span style={{ display: 'inline-flex', width: '20px', justifyContent: 'center' }}>
+            <span className="menu-icon">
               {isDark ? <BulbFilled style={{ color: '#1b9cfc' }} /> : <BulbOutlined />}
             </span>
-            {!collapsed && (isDark ? ' Modo Claro' : ' Modo Oscuro')}
+            <span className="menu-label">{isDark ? 'Modo claro' : 'Modo oscuro'}</span>
           </button>
 
+          {/* Collapse toggle */}
           <button
-            className="btn btn-secondary collapse-btn-desktop"
-            onClick={() => setCollapsed(!collapsed)}
-            style={{ width: '100%', justifyContent: collapsed ? 'center' : 'flex-start' }}
+            onClick={() => setCollapsed(c => !c)}
+            className="menu-item"
+            style={{ border: 'none', cursor: 'pointer', background: 'none', width: '100%' }}
+            title={collapsed ? 'Expandir sidebar' : 'Contraer sidebar'}
           >
-            <span style={{ display: 'inline-flex', width: '20px', justifyContent: 'center' }}>
+            <span className="menu-icon">
               {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             </span>
-            {!collapsed && ' Colapsar menu'}
+            <span className="menu-label">Contraer</span>
           </button>
 
+          {/* Logout */}
           <button
-            className="btn btn-danger"
             onClick={handleLogoutClick}
-            style={{ width: '100%', justifyContent: collapsed ? 'center' : 'flex-start', marginTop: 'auto' }}
+            className="menu-item"
+            style={{ border: 'none', cursor: 'pointer', background: 'none', width: '100%', color: '#ef4444' }}
+            title="Cerrar sesion"
           >
-            <span style={{ display: 'inline-flex', width: '20px', justifyContent: 'center' }}>
-              <LogoutOutlined />
-            </span>
-            {!collapsed && ' Cerrar Sesion'}
+            <span className="menu-icon"><LogoutOutlined style={{ color: '#ef4444' }} /></span>
+            <span className="menu-label" style={{ color: '#ef4444' }}>Cerrar sesion</span>
           </button>
         </div>
       </aside>
 
+      {/* Main content */}
       <main className={`main-content ${collapsed ? 'collapsed' : ''}`}>
-        <Outlet />
+        <div className="content-area">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
 }
 
 export default Layout;
-

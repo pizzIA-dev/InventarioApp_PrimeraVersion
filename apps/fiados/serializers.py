@@ -5,6 +5,8 @@ from apps.inventario.serializers import ProductoSerializer
 from apps.servicios.serializers import ServicioSerializer
 
 class ClienteFiadoSerializer(serializers.ModelSerializer):
+    """Legacy serializer - ClienteFiado model is kept for backward compat only.
+    New fiados use apps.clientes.Cliente directly."""
     class Meta:
         model = ClienteFiado
         fields = '__all__'
@@ -49,7 +51,18 @@ class HistorialFiadoSerializer(serializers.ModelSerializer):
         return "-"
 
 class FiadoSerializer(serializers.ModelSerializer):
-    cliente_nombre = serializers.CharField(source='cliente.nombre', read_only=True)
+    cliente_nombre = serializers.SerializerMethodField()
+    cliente_documento = serializers.SerializerMethodField()
+
+    def get_cliente_nombre(self, obj):
+        if obj.cliente:
+            return obj.cliente.nombre
+        return ''
+
+    def get_cliente_documento(self, obj):
+        if obj.cliente:
+            return obj.cliente.numero_documento or ''
+        return ''
     detalles_producto = DetalleFiadoProductoSerializer(many=True, read_only=True)
     detalles_servicio = DetalleFiadoServicioSerializer(many=True, read_only=True)
     historial = HistorialFiadoSerializer(many=True, read_only=True)

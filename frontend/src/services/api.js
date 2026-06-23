@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Multi-tenant: construir la URL del API desde el hostname actual del navegador
-// Ej: emprendedor.localhost:5173 Ã¢â€ â€™ emprendedor.localhost:8000/api
+// Ej: emprendedor.localhost:5173 Ã¢â€ ' emprendedor.localhost:8000/api
 const _host    = window.location.hostname;
 const _port    = import.meta.env.VITE_API_PORT || '8000';
 const _apiBase = import.meta.env.VITE_API_URL  || `http://${_host}:${_port}`;
@@ -18,6 +18,13 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  // Tenant-aware: prepend /t/{schema} to baseURL dynamically
+  const schema = localStorage.getItem('tenant_schema');
+  if (schema) {
+    config.baseURL = `${_apiBase}/t/${schema}/api`;
+  } else {
+    config.baseURL = `${_apiBase}/api`;
+  }
   return config;
 }, (error) => {
   return Promise.reject(error);
@@ -29,14 +36,18 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Opcionalmente redirigir al login
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user_data');
-      const schema = localStorage.getItem('tenant_schema');
+      // Redirigir al login cuando el token expira
+      const alreadyOnLogin = window.location.pathname.includes('/login') || window.location.pathname === '/planes';
+      if (!alreadyOnLogin) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('user_data');
+        // Dispatch evento para que AuthContext lo detecte sin forzar recarga:
+        window.dispatchEvent(new Event('auth:logout'));
+        const schema = localStorage.getItem('tenant_schema');
         const loginPath = schema ? `/t/${schema}/login` : '/planes';
-        if (!window.location.pathname.includes('/login')) {
-          window.location.href = loginPath;
-        }
+        // Usar timeout pequeño para que React pueda hacer cleanup antes del redirect:
+        setTimeout(() => { window.location.href = loginPath; }, 100);
+      }
     }
     return Promise.reject(error);
   }
@@ -195,6 +206,14 @@ export const serviciosAPI = {
   exportarHistorialGlobal: (params) => api.get('/servicios/exportar_historial_global/', { params, responseType: 'blob' }),
 };
 
+export const serviciosContratadosAPI = {
+  getAll: (params) => api.get('/servicios/servicios-contratados/', { params }),
+  create: (data) => api.post('/servicios/servicios-contratados/', data),
+  update: (id, data) => api.patch(`/servicios/servicios-contratados/${id}/`, data),
+  delete: (id) => api.delete(`/servicios/servicios-contratados/${id}/`),
+};
+
+
 // Transacciones
 export const transaccionesAPI = {
   getAll: (params) => api.get('/transacciones/', { params }),
@@ -258,22 +277,33 @@ export const usuariosAPI = {
   crear: (data) => api.post('/auth/usuarios/crear/', data),
   toggle: (id) => api.patch(`/auth/usuarios/${id}/toggle/`),
   cambiarPassword: (id, data) => api.put(`/auth/usuarios/${id}/password/`, data),
-  asignarAlmacen: (id, almacenId) => api.patch(`/auth/usuarios/${id}/asignar-almacen/`, { almacen_id: almacenId }),
 };
 
 export const rolesAPI = {
-  listar: () => api.get('/auth/roles/'),
-  crear: (data) => api.post('/auth/roles/', data),
-  actualizar: (id, data) => api.put(`/auth/roles/${id}/`, data),
-  eliminar: (id) => api.delete(`/auth/roles/${id}/`),
+  listar: () => api.get('/core/roles/'),
+  crear: (data) => api.post('/core/roles/', data),
+  actualizar: (id, data) => api.put(`/core/roles/${id}/`, data),
+  eliminar: (id) => api.delete(`/core/roles/${id}/`),
 };
 
 
 export const backupsAPI = {
-  generar: () => api.post('/backups/generar/'),
-  listar: () => api.get('/backups/listar/'),
-  descargar: (filename) => api.get(`/backups/descargar/?filename=${filename}`, { responseType: 'blob' }),
-  restaurar: (data) => api.post('/backups/restaurar/', data),
+  // Configuracion de backups automaticos
+  getConfig:  () => api.get('/core/backup-config/'),
+  saveConfig: (data) => api.post('/core/backup-config/', data),
+  // Lista de backups guardados
+  listar: () => api.get('/core/backups/'),
+  // Restaurar desde un backup existente
+  restaurar: (data) => api.post('/core/backups/restore/', data),
+};
+
+
+// Core / Empresa
+export const coreAPI = {
+  ensureDefaults: () => api.post('/core/ensure-defaults/'),
+  actualizarEmpresa: (data) => api.patch('/core/empresa/update/', data, {
+    headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : {},
+  }),
 };
 
 export default api;

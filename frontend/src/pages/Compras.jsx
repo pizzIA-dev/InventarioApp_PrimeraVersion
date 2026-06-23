@@ -15,7 +15,7 @@ import CompraDetailModal from '../components/compras/CompraDetailModal';
 import LoadingScreen from '../components/LoadingScreen';
 import SearchableSelect from '../components/SearchableSelect';
 
-function Compras() {
+function Compras({ openNew = 0 }) {
   const [loading, setLoading] = useState(true);
   const [compras, setCompras] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -133,6 +133,12 @@ function Compras() {
     fetchData();
   }, []);
 
+  // Open modal when parent triggers (via counter prop):
+  useEffect(() => {
+    if (openNew > 0) openModal('create');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openNew]);
+
   // async-parallel: las 3 peticiones iniciales se ejecutan en paralelo
   const fetchData = async () => {
     try {
@@ -152,6 +158,22 @@ function Compras() {
   };
 
   // Aliases para compatibilidad con callbacks individuales (onSave de modales, etc.)
+  // Genera sugerencia de número de comprobante para compras: C-YYYYMM-NNNNN
+  const generateComprobanteCompra = (existingCompras = []) => {
+    const now = new Date();
+    const prefix = `C-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const month_compras = existingCompras.filter(c =>
+      c.numero_comprobante && c.numero_comprobante.startsWith(prefix)
+    );
+    let maxNum = 0;
+    month_compras.forEach(c => {
+      const parts = c.numero_comprobante.split('-');
+      const num = parseInt(parts[parts.length - 1]);
+      if (!isNaN(num) && num > maxNum) maxNum = num;
+    });
+    return `${prefix}-${String(maxNum + 1).padStart(5, '0')}`;
+  };
+
   const fetchCompras = async () => {
     try {
       const response = await comprasAPI.getAll();
@@ -234,7 +256,7 @@ function Compras() {
         proveedor: '',
         proveedor_nombre: '',
         tipo_compra: 'PROVEEDOR',
-        numero_comprobante: '',
+        numero_comprobante: generateComprobanteCompra(compras),
         tipo_comprobante: '',
         estado: 'CONFIRMADA',
         impuesto: 0,
@@ -670,6 +692,7 @@ function Compras() {
     return <LoadingScreen message="OBTENIENDO COMPRAS..." />;
   }
 
+
   return (
     <>
     <div>
@@ -683,19 +706,7 @@ function Compras() {
         danger={confirmDialog.danger}
       />
 
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h1 className="page-title">Compras</h1>
-          <p className="page-subtitle">Registro de compras a proveedores</p>
-        </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <ExportDropdown onExport={handleExportHistorialGlobal} label="Exportar Historial Global" />
-          <ExportDropdown onExport={handleExportar} label="Exportar Compras" />
-          <button className="btn btn-primary" onClick={() => openModal('create')}>
-            <PlusOutlined /> Nueva Compra
-          </button>
-        </div>
-      </div>
+
 
       <div className="card" style={{ marginBottom: '24px', padding: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
@@ -778,7 +789,6 @@ function Compras() {
                 <th>Proveedor</th>
                 <th style={{ textAlign: 'center' }}>Productos</th>
                 <th style={{ width: '100px', textAlign: 'center' }}>Archivo</th>
-                <th>Almacén</th>
                   <th>Estado</th>
                 <th>Total</th>
                 <th style={{ width: '100px' }}>Acciones</th>
@@ -895,7 +905,7 @@ function Compras() {
               <h3 className="modal-title">
                 {modalMode === 'create' ? 'Nueva Compra' : 'Editar Compra'}
               </h3>
-              <button className="modal-close" onClick={closeModal}>×</button>
+              <button className="modal-close" onClick={closeModal}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
@@ -921,7 +931,7 @@ function Compras() {
                           }
                         }}
                       >
-                        🏪 Proveedor General
+                        Proveedor General
                       </button>
                     </div>
                     <div style={{ position: 'relative' }}>
@@ -943,7 +953,7 @@ function Compras() {
                         }}
                         placeholder="Buscar proveedor..."
                         onActionClick={() => openNestedModal('proveedor')}
-                        actionLabel="➕ Crear Nuevo Proveedor"
+                        actionLabel="Crear Nuevo Proveedor"
                         error={errors.proveedor}
                       />
                       {formData.proveedor && !proveedores.find(p => String(p.id) === String(formData.proveedor))?.activo && (
@@ -980,8 +990,17 @@ function Compras() {
 
                 <div className="grid grid-2">
                   <div className="form-group">
-                    <label className="form-label">Nro Comprobante</label>
-                    <input type="text" name="numero_comprobante" className="form-input" value={formData.numero_comprobante} onChange={handleChange} onFocus={(e) => e.target.select()} />
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      Nro Comprobante
+                      {modalMode === 'create' && <span style={{ fontSize: '10px', background: 'var(--color-primary)', color: '#fff', padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>SUGERIDO</span>}
+                    </label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input type="text" name="numero_comprobante" className="form-input" value={formData.numero_comprobante} onChange={handleChange} onFocus={(e) => e.target.select()} style={{ flex: 1 }} />
+                      {modalMode === 'create' && (
+                        <button type="button" title="Regenerar número" onClick={() => setFormData(p => ({ ...p, numero_comprobante: generateComprobanteCompra(compras) }))}
+                          style={{ padding: '0 10px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', cursor: 'pointer', fontSize: '16px' }}>🔄</button>
+                      )}
+                    </div>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Tipo Comprobante</label>
@@ -1038,7 +1057,7 @@ function Compras() {
                               setNestedModalIndex(index);
                               setProductModalVisible(true);
                             }}
-                            actionLabel="➕ Nuevo Producto"
+                            actionLabel="Nuevo Producto"
                             error={errors[`detalle_${index}`]}
                           />
                         </div>
@@ -1214,7 +1233,7 @@ function Compras() {
         <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
           <div className="modal-header">
             <h3 className="modal-title">Cancelar Compra</h3>
-            <button className="modal-close" onClick={closeCancelModal}>&times;</button>
+            <button className="modal-close" onClick={closeCancelModal}><CloseOutlined /></button>
           </div>
           <div className="modal-body">
             <div className="cancel-reason-options">

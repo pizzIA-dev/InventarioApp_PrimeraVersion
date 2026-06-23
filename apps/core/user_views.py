@@ -235,3 +235,33 @@ def cambiar_password(request, user_id):
     return Response({'detail': 'Contrase├▒a actualizada correctamente.'})
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def ensure_defaults_view(request):
+    """
+    Crea el Cliente General y Proveedor General para la empresa del tenant
+    si no existen todavia. Operacion idempotente y segura de llamar multiples veces.
+    Accesible para cualquier usuario autenticado (operacion inofensiva).
+    """
+    try:
+        # Obtener la empresa del tenant actual (esquema ya activado por middleware)
+        from apps.core.models import Empresa
+        empresa = Empresa.objects.first()
+        if not empresa:
+            return Response(
+                {'status': 'error', 'message': 'No se encontro la empresa del tenant.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        from apps.core.signals import ensure_defaults_for_empresa
+        ensure_defaults_for_empresa(empresa)
+        return Response({'status': 'ok', 'message': 'Cliente y Proveedor General asegurados.'})
+    except Exception as e:
+        logger.warning(f"ensure_defaults_view error: {e}")
+        return Response(
+            {'status': 'error', 'message': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+
+

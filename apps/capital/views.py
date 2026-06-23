@@ -1,3 +1,4 @@
+from apps.core.renderers import PassthroughRenderer
 from rest_framework import viewsets, filters, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
@@ -153,7 +154,7 @@ class CapitalViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             'capital_nombre': capital.nombre,
         })
 
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial(self, request, pk=None):
         """Exporta el historial de un capital individual a Excel"""
         capital = self.get_object()
@@ -187,7 +188,7 @@ class CapitalViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             period_label='Historial Completo',
         )
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exporta el listado de capital a Excel con filtro de período"""
         periodo = request.query_params.get('periodo', 'todo')
@@ -232,7 +233,7 @@ class CapitalViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             period_label=period_label,
         )
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_historial_global(self, request):
         """Exporta el historial global de todos los capitales a Excel"""
         periodo = request.query_params.get('periodo', 'todo')
