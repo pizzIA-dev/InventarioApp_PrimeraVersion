@@ -211,67 +211,6 @@ class ClienteFiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         )
 
 
-def _auto_registrar_venta(fiado):
-    """
-    Crea automáticamente una Venta o VentaServicio cuando un Fiado se liquida.
-    No descuenta stock (ya fue descontado cuando se creó el fiado).
-    """
-    empresa = fiado.empresa
-    cliente = fiado.cliente
-    cliente_nombre = cliente.nombre if cliente else ''
-    notas_auto = f"Venta generada automáticamente al liquidar Fiado #{fiado.id}"
-
-    if fiado.tipo == 'PRODUCTO':
-        # Crear Venta CONFIRMADA
-        venta = Venta.objects.create(
-            empresa=empresa,
-            cliente=cliente,
-            cliente_nombre=cliente_nombre,
-            tipo_comprobante='SIMPLE',
-            estado='CONFIRMADA',
-            subtotal=fiado.subtotal,
-            descuento=fiado.descuento,
-            impuesto=fiado.impuesto,
-            total=fiado.total,
-            notas=notas_auto,
-        )
-        # Crear detalles SIN mover stock (el stock ya salió cuando se creó el fiado)
-        for detalle in fiado.detalles_producto.all():
-            DetalleVenta.objects.create(
-                empresa=empresa,
-                venta=venta,
-                producto=detalle.producto,
-                cantidad=detalle.cantidad,
-                precio_venta=detalle.precio_unidad,
-                descuento=detalle.descuento,
-                subtotal=detalle.subtotal,
-            )
-        # Vincular venta al fiado
-        fiado.venta_ref = venta
-        Fiado.objects.filter(pk=fiado.pk).update(venta_ref=venta)
-
-    elif fiado.tipo == 'SERVICIO':
-        primer_detalle = fiado.detalles_servicio.first()
-        servicio = primer_detalle.servicio if primer_detalle else None
-        servicio_nombre = servicio.nombre if servicio else 'Servicio fiado'
-
-        venta_srv = VentaServicio.objects.create(
-            empresa=empresa,
-            cliente=cliente,
-            cliente_nombre=cliente_nombre,
-            servicio=servicio,
-            servicio_nombre=servicio_nombre,
-            tipo_comprobante='SIMPLE',
-            estado='TERMINADO',
-            precio=fiado.subtotal,
-            descuento=fiado.descuento,
-            impuesto=fiado.impuesto,
-            total=fiado.total,
-            notas=notas_auto,
-        )
-        Fiado.objects.filter(pk=fiado.pk).update(venta_servicio_ref=venta_srv)
-
-
 class FiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     queryset = Fiado.objects.all()
     
@@ -351,14 +290,7 @@ class FiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             notas=notas or f"Abono de S/ {monto:.2f} registrado. Estado: {fiado.get_estado_display()}."
         )
 
-        # Si el fiado queda LIQUIDADO y no tiene venta registrada -> crear automáticamente
-        if fiado.estado == 'LIQUIDADO' and not fiado.venta_ref and not fiado.venta_servicio_ref:
-            try:
-                _auto_registrar_venta(fiado)
-            except Exception as e:
-                # No bloquear la respuesta si falla el registro de venta
-                import logging
-                logging.getLogger(__name__).warning(f"Auto-venta falló para Fiado #{fiado.id}: {e}")
+        # El registro de venta ahora es manual a través del frontend cuando se liquida
         
         return Response(FiadoSerializer(fiado).data)
 
