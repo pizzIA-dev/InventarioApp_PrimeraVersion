@@ -478,6 +478,12 @@ class ClienteViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
                 f"{e.usuario.get_full_name() or e.usuario.username} ({e.usuario.perfil.get_rol_display() if hasattr(e.usuario, 'perfil') else '-'})" if e.usuario else "Sistema"
             ])
 
+        # Preparar ventas_ids para las siguientes hojas
+        ventas_qs = Venta.objects.filter(estado='CONFIRMADA')
+        if d_from: ventas_qs = ventas_qs.filter(creado_en__date__gte=d_from)
+        if d_to: ventas_qs = ventas_qs.filter(creado_en__date__lte=d_to)
+        venta_ids = ventas_qs.values_list('id', flat=True)
+
         # Hoja 2: Detalle de Venta de Productos (Kardex Global)
         detalles = DetalleVenta.objects.filter(venta_id__in=venta_ids).select_related('producto', 'venta', 'venta__cliente').order_by('-venta__creado_en')
         headers_productos = [
