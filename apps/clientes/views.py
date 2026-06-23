@@ -17,7 +17,7 @@ from .serializers import (
     ClienteSerializer, ClienteCreateSerializer, SegmentoClienteSerializer,
     MovimientoEstadoClienteSerializer
 )
-from apps.ventas.models import Venta, DetalleVenta, MovimientoEstadoVenta
+from apps.ventas.models import Venta, DetalleVenta
 
 from apps.ventas.serializers import VentaKardexSerializer
 from apps.core.export_utils import (
@@ -457,30 +457,25 @@ class ClienteViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             d_from = fecha_desde
             d_to = fecha_hasta
 
-        # Hoja 1: Historial de Estados (Ventas confirmadas)
-        ventas_qs = Venta.objects.filter(estado='CONFIRMADA')
-        if d_from: ventas_qs = ventas_qs.filter(creado_en__date__gte=d_from)
-        if d_to: ventas_qs = ventas_qs.filter(creado_en__date__lte=d_to)
-            
-        venta_ids = ventas_qs.values_list('id', flat=True)
-        estados_qs = MovimientoEstadoVenta.objects.filter(venta_id__in=venta_ids).select_related('venta', 'venta__cliente').order_by('-fecha')
+        # Hoja 1: Historial de Estados (Global)
+        estados_qs = MovimientoEstadoCliente.objects.all().select_related('cliente', 'usuario').order_by('-fecha')
+        if d_from: estados_qs = estados_qs.filter(fecha__date__gte=d_from)
+        if d_to: estados_qs = estados_qs.filter(fecha__date__lte=d_to)
         
         headers_estados = [
-            'Fecha', 'Tipo Comprobante Simple', 'Comprobante Simple',
-            'Tipo Comprobante', 'Comprobante', 'Cliente',
-            'Estado Anterior', 'Estado Nuevo', 'Notas', 'Responsable'
+            'Fecha', 'Cliente', 'Tipo de Evento', 'Estado Anterior', 'Estado Nuevo', 'Notas', 'Responsable'
         ]
         rows_estados = []
         for e in estados_qs:
-            v = e.venta
-            comp_cliente = v.cliente_nombre or (v.cliente.nombre if v.cliente else 'Cliente General')
-            t_c = v.tipo_comprobante
-            l_t = t_c if t_c and t_c != 'SIMPLE' else ""
-            l_n = v.numero_comprobante if l_t else ""
+            es_creacion = e.estado_anterior == '—' or not e.estado_anterior
             rows_estados.append([
                 timezone.localtime(e.fecha).strftime("%d/%m/%Y %H:%M:%S"),
-                "COMPROBANTE SIMPLE", v.numero_comprobante_simple or "",
-                l_t, l_n, comp_cliente, e.estado_anterior, e.estado_nuevo, e.notas, f"{e.usuario.get_full_name() or e.usuario.username} ({e.usuario.perfil.get_rol_display() if hasattr(e.usuario, 'perfil') else '-'})" if e.usuario else "Sistema"
+                e.cliente.nombre if e.cliente else "Cliente General",
+                'CREACIÓN' if es_creacion else 'CAMBIO DE ESTADO',
+                'Nuevo cliente' if es_creacion else e.estado_anterior,
+                e.estado_nuevo,
+                e.notas,
+                f"{e.usuario.get_full_name() or e.usuario.username} ({e.usuario.perfil.get_rol_display() if hasattr(e.usuario, 'perfil') else '-'})" if e.usuario else "Sistema"
             ])
 
         # Hoja 2: Detalle de Venta de Productos (Kardex Global)
