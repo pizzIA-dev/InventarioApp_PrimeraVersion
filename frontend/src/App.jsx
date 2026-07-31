@@ -74,20 +74,28 @@ const AppContent = () => {
       <Router>
         <ErrorBoundary><Suspense fallback={<PageLoader />}>
           <Routes>
-            {/* â”€â”€ Rutas Publicas / Landing â”€â”€ */}
+            {/* ── Rutas Publicas / Landing ── */}
             <Route path="/"                  element={<Landing view="planes" />} />
             <Route path="/planes"            element={<Landing view="planes" />} />
             <Route path="/acceder"           element={<Landing view="acceder" />} />
             <Route path="/registro/:planId"  element={<Landing view="registro" />} />
             <Route path="/registro/exitoso"  element={<RegistroExitoso />} />
 
-            {/* â”€â”€ Rutas de Tenant (path-based: /t/:schema/) â”€â”€ */}
+            {/* ── Rutas de Tenant (path-based: /t/:schema/) ── */}
             <Route path="/t/:schema/login"                          element={<Login />} />
             <Route path="/t/:schema/reset-password/:uid/:token"     element={<ResetPassword />} />
 
-            {/* App privada del tenant â€” todas bajo /t/:schema/ */}
+            {/* App privada del tenant — todas bajo /t/:schema/ */}
             <Route path="/t/:schema" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-              <Route index                element={<ProtectedRoute allowedRoles={['GERENTE']}><Dashboard /></ProtectedRoute>} />
+              {/* Ruta raíz: Gerente ve Dashboard, Colaborador es redirigido a Ventas */}
+              <Route index element={
+                <ProtectedRoute
+                  allowedRoles={['GERENTE']}
+                  fallbackForOthers="/ventas"
+                >
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
               <Route path="productos"     element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Productos /></ProtectedRoute>} />
               <Route path="proveedores"   element={<ProtectedRoute allowedRoles={['GERENTE']}><Proveedores /></ProtectedRoute>} />
               <Route path="clientes"      element={<ProtectedRoute allowedRoles={['GERENTE','VENDEDOR','COLABORADOR']}><Clientes /></ProtectedRoute>} />
