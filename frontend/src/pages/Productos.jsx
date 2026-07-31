@@ -10,7 +10,7 @@ import { AuthContext } from '../context/AuthContext';
 import SearchableSelect from '../components/SearchableSelect';
 
 function Productos() {
-  const { isVendedor } = useContext(AuthContext);
+  const { isColaborador } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
@@ -251,15 +251,15 @@ function Productos() {
           <p style={{ margin: '4px 0 0', color: 'var(--text-muted, #94a3b8)' }}>Gestión de productos en stock</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          {!isVendedor && (
+          {!isColaborador && (
             <>
               <ExportDropdown onExport={handleExportDiario} label="Diario de Movimientos" />
               <ExportDropdown onExport={handleExportar} label="Exportar Productos" />
+              <button className="btn btn-primary" onClick={() => openModal('create')}>
+                <PlusOutlined style={{ marginRight: '8px' }} /> Nuevo Producto
+              </button>
             </>
           )}
-          <button className="btn btn-primary" onClick={() => openModal('create')}>
-            <PlusOutlined style={{ marginRight: '8px' }} /> Nuevo Producto
-          </button>
         </div>
       </div>
 
@@ -334,9 +334,9 @@ function Productos() {
                 <th>Nombre</th>
                 <th>Categoría</th>
                 <th>Stock</th>
-                {!isVendedor && <th>P. Compra</th>}
+                {!isColaborador && <th>P. Compra</th>}
                 <th>P. Venta</th>
-                {!isVendedor && <th>Margen</th>}
+                {!isColaborador && <th>Margen</th>}
                 <th>Estado</th>
                 <th>Acciones</th>
               </tr>
@@ -352,9 +352,9 @@ function Productos() {
                       {producto.stock_actual} {producto.unidad_medida}
                     </span>
                   </td>
-                  {!isVendedor && <td>S/. {Number(producto.precio_compra || 0).toFixed(2)}</td>}
+                  {!isColaborador && <td>S/. {Number(producto.precio_compra || 0).toFixed(2)}</td>}
                   <td>S/. {Number(producto.precio_venta || 0).toFixed(2)}</td>
-                  {!isVendedor && <td>{Number(producto.margen_ganancia || 0).toFixed(2)}%</td>}
+                  {!isColaborador && <td>{Number(producto.margen_ganancia || 0).toFixed(2)}%</td>}
                   <td>
                     <span className={`badge ${producto.activo ? 'badge-success' : 'badge-danger'}`}>
                       {producto.activo ? 'Activo' : 'Inactivo'}
@@ -365,13 +365,15 @@ function Productos() {
                     <button className="btn btn-secondary" onClick={() => handleViewHistory(producto)} title="Ver Historial" style={{ marginRight: '8px' }}>
                       <HistoryOutlined />
                     </button>
-                    <button className="btn btn-secondary" onClick={() => openModal('edit', producto)}>
-                      <EditOutlined />
-                    </button>
-                    {!isVendedor && (
-                      <button className="btn btn-danger" onClick={() => handleDeleteClick(producto)}>
-                        <DeleteOutlined />
-                      </button>
+                    {!isColaborador && (
+                      <>
+                        <button className="btn btn-secondary" onClick={() => openModal('edit', producto)}>
+                          <EditOutlined />
+                        </button>
+                        <button className="btn btn-danger" onClick={() => handleDeleteClick(producto)}>
+                          <DeleteOutlined />
+                        </button>
+                      </>
                     )}
                   </td>
                 </tr>
@@ -474,8 +476,8 @@ function Productos() {
                         <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Tipo</th>
                         <th style={{ padding: '8px 10px', textAlign: 'left', fontSize: '11px' }}>Origen</th>
                         <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>Cambio stock</th>
-                        {!isVendedor && <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>P. Compra Ant.</th>}
-                        {!isVendedor && <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>P. Compra Nvo.</th>}
+                        {!isColaborador && <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>P. Compra Ant.</th>}
+                        {!isColaborador && <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>P. Compra Nvo.</th>}
                         <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>P. Venta Ant.</th>
                         <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', whiteSpace: 'nowrap' }}>P. Venta Nvo.</th>
                         <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: '11px', color: '#888', whiteSpace: 'nowrap' }}>Stock Ant.</th>
@@ -504,12 +506,12 @@ function Productos() {
                                 {isEntrada ? '+' : '-'}{Number(mov.cantidad)}
                               </span>
                             </td>
-                            {!isVendedor && (
+                            {!isColaborador && (
                               <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', color: '#888', fontStyle: 'italic', whiteSpace: 'nowrap' }}>
                                 {mov.precio_compra_anterior ? `S/. ${Number(mov.precio_compra_anterior).toFixed(2)}` : '-'}
                               </td>
                             )}
-                            {!isVendedor && (
+                            {!isColaborador && (
                               <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: '11px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
                                 {mov.precio_compra_nuevo ? `S/. ${Number(mov.precio_compra_nuevo).toFixed(2)}` : '-'}
                               </td>
@@ -532,7 +534,7 @@ function Productos() {
                               {(mov.activo_nuevo === null || mov.activo_nuevo === undefined) && '-'}
                             </td>
                             <td style={{ padding: '7px 10px', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                              {isVendedor && mov.notas && (mov.notas.toLowerCase().includes('costo') || mov.notas.toLowerCase().includes('compra')) 
+                              {isColaborador && mov.notas && (mov.notas.toLowerCase().includes('costo') || mov.notas.toLowerCase().includes('compra')) 
                                 ? 'Cambio de precio' 
                                 : mov.notas}
                             </td>

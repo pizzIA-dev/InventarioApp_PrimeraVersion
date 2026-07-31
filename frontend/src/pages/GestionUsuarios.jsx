@@ -8,7 +8,7 @@ import {
   CheckCircleOutlined,
   StopOutlined,
   KeyOutlined,
-  TeamOutlined, CloseOutlined } from '@ant-design/icons';
+  TeamOutlined, CloseOutlined, CopyOutlined } from '@ant-design/icons';
 
 function GestionUsuarios() {
   const { isGerente } = useContext(AuthContext);
@@ -127,6 +127,55 @@ function GestionUsuarios() {
         <button className="btn btn-primary" onClick={() => { setShowCrear(true); setErrCrear(''); }}>
           <PlusOutlined /> Nuevo Vendedor
         </button>
+      </div>
+
+      <div style={{
+        marginBottom: '24px',
+        padding: '16px 20px',
+        background: 'rgba(139, 92, 246, 0.08)',
+        border: '1px solid rgba(139, 92, 246, 0.2)',
+        borderRadius: '12px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '16px'
+      }}>
+        <div>
+          <h3 style={{ margin: '0 0 4px', color: 'var(--text-color)', fontSize: '15px', fontWeight: 600 }}>
+            Código de acceso para tu equipo
+          </h3>
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px' }}>
+            Tus colaboradores necesitan este código único del negocio para iniciar sesión en sus cuentas.
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            background: 'var(--bg-card)',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            border: '1px dashed rgba(139, 92, 246, 0.5)',
+            fontWeight: 'bold',
+            fontSize: '16px',
+            color: '#8b5cf6',
+            letterSpacing: '1px'
+          }}>
+            {localStorage.getItem('tenant_schema') || '---'}
+          </div>
+          <button
+            className="btn btn-secondary"
+            onClick={() => {
+              const code = localStorage.getItem('tenant_schema');
+              if (code) {
+                navigator.clipboard.writeText(code);
+                alert('Código copiado al portapapeles');
+              }
+            }}
+            title="Copiar código"
+          >
+            <CopyOutlined /> Copiar
+          </button>
+        </div>
       </div>
 
       <div className="card">

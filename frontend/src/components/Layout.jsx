@@ -52,8 +52,8 @@ const GROUPS = [
     key: 'inventario',
     label: 'Inventario',
     items: [
-      { path: '/productos',  icon: <ShoppingOutlined />,  label: 'Productos' },
-      { path: '/servicios',  icon: <AppstoreOutlined />,  label: 'Servicios' },
+      { path: '/productos',  icon: <ShoppingOutlined />,  label: 'Productos', readOnlyRoles: ['VENDEDOR', 'COLABORADOR'] },
+      { path: '/servicios',  icon: <AppstoreOutlined />,  label: 'Servicios', readOnlyRoles: ['VENDEDOR', 'COLABORADOR'] },
     ],
   },
   {
@@ -149,6 +149,8 @@ function SidebarGroup({ groupKey, label, items, alwaysOpen, schema, location, co
         {filteredItems.map(item => {
           const fullPath = `/t/${schema}${item.path === '/' ? '' : item.path}`;
           const active = location.pathname === fullPath;
+          const isReadOnly = item.readOnlyRoles && item.readOnlyRoles.includes(userRol);
+          
           return (
             <Link
               key={item.path}
@@ -157,7 +159,16 @@ function SidebarGroup({ groupKey, label, items, alwaysOpen, schema, location, co
               title={item.label}
             >
               <span className="menu-icon">{item.icon}</span>
-              <span className="menu-label">{item.label}</span>
+              <span className="menu-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                {item.label}
+                {isReadOnly && !collapsed && (
+                  <span style={{ 
+                    fontSize: '9px', padding: '1px 4px', borderRadius: '4px',
+                    background: 'rgba(255, 255, 255, 0.1)', color: 'var(--text-muted)',
+                    border: '1px solid var(--border-color)', fontWeight: 600
+                  }}>Solo Lectura</span>
+                )}
+              </span>
             </Link>
           );
         })}
