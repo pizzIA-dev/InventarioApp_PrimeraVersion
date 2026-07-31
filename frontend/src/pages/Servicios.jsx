@@ -71,7 +71,7 @@ const decodeDuration = (totalMinutes) => {
 };
 
 function Servicios() {
-  const { isVendedor } = useContext(AuthContext);
+  const { isColaborador } = useContext(AuthContext);
   const [loading, setLoading] = useState(true);
   const [servicios, setServicios] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -451,15 +451,15 @@ function Servicios() {
           <p className="page-subtitle">Gestión de servicios y ventas de servicios</p>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          {!isVendedor && (
+          {!isColaborador && (
             <>
               <ExportDropdown onExport={handleExportGlobalHistory} label="Diario de Movimientos" />
               <ExportDropdown onExport={handleExportar} />
+              <button className="btn btn-primary" onClick={() => openModal('create')}>
+                <PlusOutlined /> Nuevo Servicio
+              </button>
             </>
           )}
-          <button className="btn btn-primary" onClick={() => openModal('create')}>
-            <PlusOutlined /> Nuevo Servicio
-          </button>
         </div>
       </div>
 
@@ -524,9 +524,9 @@ function Servicios() {
                 <th>Nombre</th>
                 <th>Categoría</th>
                 <th>Descripción</th>
-                <th>Costo de Servicio</th>
+                {!isColaborador && <th>Costo de Servicio</th>}
                 <th>Precio de Servicio</th>
-                <th>Margen</th>
+                {!isColaborador && <th>Margen</th>}
                 <th>Duración</th>
                 <th>Estado</th>
                 <th>Acciones</th>
@@ -538,9 +538,9 @@ function Servicios() {
                   <td>{servicio.nombre}</td>
                   <td>{servicio.categoria_nombre || '-'}</td>
                   <td>{servicio.descripcion || '-'}</td>
-                  <td>S/. {Number(servicio.costo || 0).toFixed(2)}</td>
+                  {!isColaborador && <td>S/. {Number(servicio.costo || 0).toFixed(2)}</td>}
                   <td>S/. {Number(servicio.precio_base || 0).toFixed(2)}</td>
-                  <td>{Number(servicio.margen_ganancia || 0).toFixed(2)}%</td>
+                  {!isColaborador && <td>{Number(servicio.margen_ganancia || 0).toFixed(2)}%</td>}
                   <td>{translateDuration(servicio.duracion_minutos)}</td>
                   <td>
                     <span className={`badge ${servicio.activo ? 'badge-success' : 'badge-danger'}`}>
@@ -551,13 +551,15 @@ function Servicios() {
                     <button className="btn btn-secondary" onClick={() => { setHistoryServicio(servicio); setHistoryModalVisible(true); }} title="Ver Kardex">
                       <HistoryOutlined />
                     </button>
-                    <button className="btn btn-secondary" onClick={() => openModal('edit', servicio)}>
-                      <EditOutlined />
-                    </button>
-                    {!isVendedor && (
-                      <button className="btn btn-danger" onClick={() => handleDeleteClick(servicio)}>
-                        <DeleteOutlined />
-                      </button>
+                    {!isColaborador && (
+                      <>
+                        <button className="btn btn-secondary" onClick={() => openModal('edit', servicio)}>
+                          <EditOutlined />
+                        </button>
+                        <button className="btn btn-danger" onClick={() => handleDeleteClick(servicio)}>
+                          <DeleteOutlined />
+                        </button>
+                      </>
                     )}
                   </td>
                 </tr>
@@ -933,7 +935,7 @@ function Servicios() {
                             >
                               <EditOutlined style={{ fontSize: '14px' }} />
                             </button>
-                            {!isVendedor && (
+                            {!isColaborador && (
                               <button 
                                 type="button"
                                 className="btn btn-danger"

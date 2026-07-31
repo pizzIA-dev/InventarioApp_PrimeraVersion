@@ -6,12 +6,34 @@ from django.db import transaction
 from django.conf import settings as django_settings
 from django_tenants.utils import tenant_context, schema_context
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from apps.clientes_saas.models import Cliente, Domain
 from apps.suscripciones.models import Suscripcion
 from .serializers import RegistroSaaSSerializer
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _verificar_suscripcion(tenant):
+    """
+    Verifica si el tenant tiene suscripción activa.
+    Retorna (ok: bool, mensaje: str)
+    """
+    try:
+        sus = Suscripcion.objects.get(cliente=tenant)
+        if not sus.activa:
+            return False, 'La suscripción de este negocio está inactiva. Contacta al administrador de NegocIA para renovarla.'
+        if sus.fecha_fin and sus.fecha_fin < timezone.now().date():
+            return False, f'La suscripción de este negocio venció el {sus.fecha_fin.strftime("%d/%m/%Y")}. Renueva tu plan para continuar.'
+        return True, None
+    except Suscripcion.DoesNotExist:
+        # Sin suscripción registrada: permitir (puede ser un tenant sandbox/legacy)
+        logger.warning(f'Tenant {tenant.schema_name} no tiene suscripción registrada. Permitiendo acceso.')
+        return True, None
+    except Exception as e:
+        logger.error(f'Error verificando suscripción de {tenant.schema_name}: {e}')
+        return True, None  # En caso de error, no bloquear
 
 
 def _crear_usuario_plataforma(email, password):
@@ -274,10 +296,48 @@ def tenant_token_view(request):
         logger.error(f"tenant_token_view error para schema={schema}: {e}")
         return Response({'error': 'Error interno al acceder al negocio.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def tenant_lookup_view(request):
+    """
+    Endpoint público: recibe un código de negocio (schema_name) y devuelve
+    el nombre del negocio si existe. Permite al frontend mostrar confirmación
+    antes de que el colaborador ingrese sus credenciales.
+    Query param: ?code=pizzia
+    """
+    code = request.query_params.get('code', '').strip().lower()
+    if not code:
+        return Response({'error': 'El código de negocio es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        tenant = Cliente.objects.get(schema_name=code)
+    except Cliente.DoesNotExist:
+        return Response(
+            {'found': False, 'error': 'Código de negocio no encontrado. Verifica que sea correcto.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+
+    # Verificar que la suscripción esté activa
+    ok, mensaje = _verificar_suscripcion(tenant)
+    if not ok:
+        return Response(
+            {'found': True, 'nombre': tenant.nombre, 'suscripcion_activa': False, 'error': mensaje},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    return Response({
+        'found': True,
+        'nombre': tenant.nombre,
+        'schema': tenant.schema_name,
+        'suscripcion_activa': True,
+    })
+
+
 class PlatformLoginAPIView(views.APIView):
     """
     Login de plataforma: autentica contra los schemas de tenant donde existe el usuario.
     No requiere usuario en el schema publico. Devuelve Platform JWT + lista de negocios.
+    Solo accesible para GERENTES (busca por email). Los colaboradores usan login directo al tenant.
     """
     permission_classes = [AllowAny]
 
@@ -285,7 +345,7 @@ class PlatformLoginAPIView(views.APIView):
         email    = request.data.get('email', '').strip().lower()
         password = request.data.get('password', '')
         if not email or not password:
-            return Response({'error': 'Email y contrasena son requeridos.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Email y contraseña son requeridos.'}, status=status.HTTP_400_BAD_REQUEST)
 
         User = get_user_model()
         tenants_encontrados = []
@@ -306,10 +366,16 @@ class PlatformLoginAPIView(views.APIView):
                             rol = tenant_user.perfil.get_rol_display()
                         except Exception:
                             rol = 'Administrador' if tenant_user.is_superuser else 'Colaborador'
+
+                        # Verificar suscripción del negocio
+                        ok, mensaje_sus = _verificar_suscripcion(tenant)
+
                         tenants_encontrados.append({
-                            'nombre': tenant.nombre,
-                            'schema': tenant.schema_name,
-                            'rol':    rol,
+                            'nombre':              tenant.nombre,
+                            'schema':              tenant.schema_name,
+                            'rol':                 rol,
+                            'suscripcion_activa':  ok,
+                            'mensaje_suscripcion': mensaje_sus,
                         })
             except Exception as e:
                 logger.warning(f"PlatformLogin: error en tenant {tenant.schema_name}: {e}")
@@ -321,12 +387,20 @@ class PlatformLoginAPIView(views.APIView):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
+        # Verificar si TODOS los negocios tienen suscripción inactiva
+        negocios_activos = [n for n in tenants_encontrados if n['suscripcion_activa']]
+        if not negocios_activos:
+            primer_mensaje = tenants_encontrados[0].get('mensaje_suscripcion', 'Suscripción inactiva.')
+            return Response(
+                {'error': primer_mensaje, 'suscripcion_inactiva': True},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         # Crear/actualizar usuario en schema publico para el TenantTokenView
         try:
             pub_user = _crear_usuario_plataforma(email, password)
         except Exception as e:
             logger.warning(f"PlatformLogin: no se pudo actualizar usuario publico: {e}")
-            # Crear uno temporal sin guardar JWT de tenant
             pub_user = User.objects.filter(username=email).first()
 
         if not pub_user:
