@@ -18,3 +18,6 @@ data = json.loads(res.read())
 print('Results:', len(data['results']))
 for m in data['results'][:3]:
     print('Campo:', m.get('campo_modificado'), '|', 'Estado:', m.get('estado_categoria'), '|', 'Notas:', m.get('notas'))
+
+
+#====================#
