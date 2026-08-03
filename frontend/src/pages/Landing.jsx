@@ -85,7 +85,7 @@ export default function Landing({ view }) {
 
   const onColabLogin = async (values) => {
     setColabLoading(true); setColabError(null);
-    const res = await colaboradorLogin(colabTenant.schema, values.username, values.password);
+    const res = await colaboradorLogin(colabTenant.schema, values.username, values.password, false, colabTenant.codigo_acceso);
     setColabLoading(false);
     if (res.success) { message.success('Bienvenido'); navigate('/t/' + colabTenant.schema); }
     else setColabError(res.message || 'Usuario o contrase├▒a incorrectos');
