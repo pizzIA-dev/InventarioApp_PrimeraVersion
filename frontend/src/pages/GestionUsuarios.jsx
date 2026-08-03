@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { usuariosAPI } from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 import {
@@ -8,8 +8,7 @@ import {
   CheckCircleOutlined,
   StopOutlined,
   KeyOutlined,
-  TeamOutlined,
-} from '@ant-design/icons';
+  TeamOutlined, CloseOutlined, CopyOutlined } from '@ant-design/icons';
 
 function GestionUsuarios() {
   const { isGerente } = useContext(AuthContext);
@@ -22,7 +21,7 @@ function GestionUsuarios() {
   const [errCrear, setErrCrear] = useState('');
   const [savingCrear, setSavingCrear] = useState(false);
 
-  // Modal cambiar contraseÃ±a
+  // Modal cambiar contrase├▒a
   const [showPassword, setShowPassword] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [newPassword, setNewPassword] = useState('');
@@ -50,11 +49,11 @@ function GestionUsuarios() {
     e.preventDefault();
     setErrCrear('');
     if (!formCrear.username.trim() || !formCrear.password.trim()) {
-      setErrCrear('El usuario y la contraseÃ±a son obligatorios.');
+      setErrCrear('El usuario y la contrase├▒a son obligatorios.');
       return;
     }
     if (formCrear.password.length < 6) {
-      setErrCrear('La contraseÃ±a debe tener al menos 6 caracteres.');
+      setErrCrear('La contrase├▒a debe tener al menos 6 caracteres.');
       return;
     }
     setSavingCrear(true);
@@ -72,7 +71,7 @@ function GestionUsuarios() {
 
   const handleToggle = async (usuario) => {
     const accion = usuario.is_active ? 'desactivar' : 'activar';
-    if (!window.confirm(`Â¿EstÃ¡s seguro de que deseas ${accion} a "${usuario.username}"?`)) return;
+    if (!window.confirm(`┬┐Est├ís seguro de que deseas ${accion} a "${usuario.username}"?`)) return;
     try {
       await usuariosAPI.toggle(usuario.id);
       fetchUsuarios();
@@ -85,11 +84,11 @@ function GestionUsuarios() {
     e.preventDefault();
     setErrPass('');
     if (newPassword.length < 6) {
-      setErrPass('La contraseÃ±a debe tener al menos 6 caracteres.');
+      setErrPass('La contrase├▒a debe tener al menos 6 caracteres.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setErrPass('Las contraseÃ±as no coinciden.');
+      setErrPass('Las contrase├▒as no coinciden.');
       return;
     }
     setSavingPass(true);
@@ -99,9 +98,9 @@ function GestionUsuarios() {
       setNewPassword('');
       setConfirmPassword('');
       setSelectedUser(null);
-      alert(`ContraseÃ±a de "${selectedUser.username}" actualizada correctamente.`);
+      alert(`Contrase├▒a de "${selectedUser.username}" actualizada correctamente.`);
     } catch (err) {
-      setErrPass(err.response?.data?.error || 'Error al cambiar contraseÃ±a.');
+      setErrPass(err.response?.data?.error || 'Error al cambiar contrase├▒a.');
     } finally {
       setSavingPass(false);
     }
@@ -121,13 +120,62 @@ function GestionUsuarios() {
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <TeamOutlined /> GestiÃ³n de Usuarios
+            <TeamOutlined /> Gesti├│n de Usuarios
           </h1>
           <p className="page-subtitle">Administra los accesos de los vendedores al sistema</p>
         </div>
         <button className="btn btn-primary" onClick={() => { setShowCrear(true); setErrCrear(''); }}>
           <PlusOutlined /> Nuevo Vendedor
         </button>
+      </div>
+
+      <div style={{
+        marginBottom: '24px',
+        padding: '16px 20px',
+        background: 'rgba(139, 92, 246, 0.08)',
+        border: '1px solid rgba(139, 92, 246, 0.2)',
+        borderRadius: '12px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '16px'
+      }}>
+        <div>
+          <h3 style={{ margin: '0 0 4px', color: 'var(--text-color)', fontSize: '15px', fontWeight: 600 }}>
+            C├│digo de acceso para tu equipo
+          </h3>
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px' }}>
+            Tus colaboradores necesitan este c├│digo ├║nico del negocio para iniciar sesi├│n en sus cuentas.
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            background: 'var(--bg-card)',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            border: '1px dashed rgba(139, 92, 246, 0.5)',
+            fontWeight: 'bold',
+            fontSize: '16px',
+            color: '#8b5cf6',
+            letterSpacing: '1px'
+          }}>
+            {localStorage.getItem('tenant_codigo_acceso') || '---'}
+          </div>
+          <button
+            className="btn btn-secondary"
+            onClick={() => {
+              const code = localStorage.getItem('tenant_codigo_acceso');
+              if (code) {
+                navigator.clipboard.writeText(code);
+                alert('C├│digo copiado al portapapeles');
+              }
+            }}
+            title="Copiar c├│digo"
+          >
+            <CopyOutlined /> Copiar
+          </button>
+        </div>
       </div>
 
       <div className="card">
@@ -153,7 +201,7 @@ function GestionUsuarios() {
               ) : usuarios.length === 0 ? (
                 <tr>
                   <td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
-                    No hay vendedores registrados aÃºn. Crea el primero con el botÃ³n de arriba.
+                    No hay vendedores registrados a├║n. Crea el primero con el bot├│n de arriba.
                   </td>
                 </tr>
               ) : (
@@ -163,7 +211,7 @@ function GestionUsuarios() {
                       <UserOutlined style={{ marginRight: '6px', color: 'var(--primary-color)' }} />
                       {u.username}
                     </td>
-                    <td>{u.email || <span style={{ color: 'var(--text-muted)' }}>â€”</span>}</td>
+                    <td>{u.email || <span style={{ color: 'var(--text-muted)' }}>"ÔÇØ</span>}</td>
                     <td>
                       <span className="badge badge-info" style={{ fontSize: '11px' }}>{u.rol}</span>
                     </td>
@@ -177,7 +225,7 @@ function GestionUsuarios() {
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button
                           className="btn btn-secondary"
-                          title="Cambiar contraseÃ±a"
+                          title="Cambiar contrase├▒a"
                           onClick={() => { setSelectedUser(u); setNewPassword(''); setConfirmPassword(''); setErrPass(''); setShowPassword(true); }}
                         >
                           <KeyOutlined />
@@ -200,13 +248,13 @@ function GestionUsuarios() {
         </div>
       </div>
 
-      {/* â”€â”€â”€â”€ MODAL: Nuevo Vendedor â”€â”€â”€â”€ */}
+      {/* ├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼ MODAL: Nuevo Vendedor ├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼ */}
       {showCrear && (
         <div className="modal-overlay" onClick={() => setShowCrear(false)} style={{ zIndex: 1000 }}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px', width: '90%' }}>
             <div className="modal-header">
               <h3 className="modal-title"><PlusOutlined /> Crear Nuevo Vendedor</h3>
-              <button className="modal-close" onClick={() => setShowCrear(false)}>Ã—</button>
+              <button className="modal-close" onClick={() => setShowCrear(false)}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleCrear}>
               <div className="modal-body">
@@ -226,12 +274,12 @@ function GestionUsuarios() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">
-                    <LockOutlined style={{ marginRight: '6px' }} />ContraseÃ±a *
+                    <LockOutlined style={{ marginRight: '6px' }} />Contrase├▒a *
                   </label>
                   <input
                     type="password"
                     className="form-input"
-                    placeholder="MÃ­nimo 6 caracteres"
+                    placeholder="M├¡nimo 6 caracteres"
                     value={formCrear.password}
                     onChange={(e) => setFormCrear(prev => ({ ...prev, password: e.target.value }))}
                     disabled={savingCrear}
@@ -254,7 +302,7 @@ function GestionUsuarios() {
                   </div>
                 )}
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                  El nuevo usuario tendrÃ¡ acceso Ãºnicamente a Ventas, Fiados, Clientes, Productos y Servicios.
+                  El nuevo usuario tendr├í acceso ├║nicamente a Ventas, Fiados, Clientes, Productos y Servicios.
                 </p>
               </div>
               <div className="modal-footer">
@@ -268,25 +316,25 @@ function GestionUsuarios() {
         </div>
       )}
 
-      {/* â”€â”€â”€â”€ MODAL: Cambiar ContraseÃ±a â”€â”€â”€â”€ */}
+      {/* ├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼ MODAL: Cambiar Contrase├▒a ├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼ */}
       {showPassword && selectedUser && (
         <div className="modal-overlay" onClick={() => setShowPassword(false)} style={{ zIndex: 1000 }}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', width: '90%' }}>
             <div className="modal-header">
-              <h3 className="modal-title"><KeyOutlined /> Cambiar ContraseÃ±a</h3>
-              <button className="modal-close" onClick={() => setShowPassword(false)}>Ã—</button>
+              <h3 className="modal-title"><KeyOutlined /> Cambiar Contrase├▒a</h3>
+              <button className="modal-close" onClick={() => setShowPassword(false)}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleCambiarPassword}>
               <div className="modal-body">
                 <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>
-                  Actualizando contraseÃ±a para: <strong>{selectedUser.username}</strong>
+                  Actualizando contrase├▒a para: <strong>{selectedUser.username}</strong>
                 </p>
                 <div className="form-group">
-                  <label className="form-label">Nueva ContraseÃ±a *</label>
+                  <label className="form-label">Nueva Contrase├▒a *</label>
                   <input
                     type="password"
                     className="form-input"
-                    placeholder="MÃ­nimo 6 caracteres"
+                    placeholder="M├¡nimo 6 caracteres"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     autoFocus
@@ -294,11 +342,11 @@ function GestionUsuarios() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Confirmar ContraseÃ±a *</label>
+                  <label className="form-label">Confirmar Contrase├▒a *</label>
                   <input
                     type="password"
                     className="form-input"
-                    placeholder="Repite la contraseÃ±a"
+                    placeholder="Repite la contrase├▒a"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     disabled={savingPass}
@@ -313,7 +361,7 @@ function GestionUsuarios() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowPassword(false)} disabled={savingPass}>Cancelar</button>
                 <button type="submit" className="btn btn-primary" disabled={savingPass}>
-                  {savingPass ? 'Guardando...' : 'Actualizar ContraseÃ±a'}
+                  {savingPass ? 'Guardando...' : 'Actualizar Contrase├▒a'}
                 </button>
               </div>
             </form>
