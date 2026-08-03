@@ -333,6 +333,7 @@ def tenant_lookup_view(request):
         'found': True,
         'nombre': tenant.nombre,
         'schema': tenant.schema_name,
+        'codigo_acceso': tenant.codigo_acceso,
         'suscripcion_activa': True,
     })
 
