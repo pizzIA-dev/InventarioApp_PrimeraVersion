@@ -17,22 +17,22 @@ logger = logging.getLogger(__name__)
 
 def _verificar_suscripcion(tenant):
     """
-    Verifica si el tenant tiene suscripción activa.
+    Verifica si el tenant tiene suscripci├│n activa.
     Retorna (ok: bool, mensaje: str)
     """
     try:
         sus = Suscripcion.objects.get(cliente=tenant)
         if not sus.activa:
-            return False, 'La suscripción de este negocio está inactiva. Contacta al administrador de NegocIA para renovarla.'
+            return False, 'La suscripci├│n de este negocio est├í inactiva. Contacta al administrador de NegocIA para renovarla.'
         if sus.fecha_fin and sus.fecha_fin < timezone.now().date():
-            return False, f'La suscripción de este negocio venció el {sus.fecha_fin.strftime("%d/%m/%Y")}. Renueva tu plan para continuar.'
+            return False, f'La suscripci├│n de este negocio venci├│ el {sus.fecha_fin.strftime("%d/%m/%Y")}. Renueva tu plan para continuar.'
         return True, None
     except Suscripcion.DoesNotExist:
-        # Sin suscripción registrada: permitir (puede ser un tenant sandbox/legacy)
-        logger.warning(f'Tenant {tenant.schema_name} no tiene suscripción registrada. Permitiendo acceso.')
+        # Sin suscripci├│n registrada: permitir (puede ser un tenant sandbox/legacy)
+        logger.warning(f'Tenant {tenant.schema_name} no tiene suscripci├│n registrada. Permitiendo acceso.')
         return True, None
     except Exception as e:
-        logger.error(f'Error verificando suscripción de {tenant.schema_name}: {e}')
+        logger.error(f'Error verificando suscripci├│n de {tenant.schema_name}: {e}')
         return True, None  # En caso de error, no bloquear
 
 
@@ -238,7 +238,7 @@ class BuscarTenantPorEmailAPIView(views.APIView):
 @permission_classes([IsAuthenticated])
 def tenant_token_view(request):
     """
-    Emite un JWT de tenant sin pedir contraseÃƒÂ±a nuevamente.
+    Emite un JWT de tenant sin pedir contrase├âãÆ├é┬▒a nuevamente.
     Requiere: Platform JWT (login en schema publico).
     Body: { "schema": "pizzia" }
     Retorna: JWT del tenant + datos del usuario en ese negocio.
@@ -300,24 +300,28 @@ def tenant_token_view(request):
 @permission_classes([AllowAny])
 def tenant_lookup_view(request):
     """
-    Endpoint público: recibe un código de negocio (schema_name) y devuelve
-    el nombre del negocio si existe. Permite al frontend mostrar confirmación
+    Endpoint p├║blico: recibe un c├│digo de negocio (schema_name) y devuelve
+    el nombre del negocio si existe. Permite al frontend mostrar confirmaci├│n
     antes de que el colaborador ingrese sus credenciales.
     Query param: ?code=pizzia
     """
     code = request.query_params.get('code', '').strip().lower()
     if not code:
-        return Response({'error': 'El código de negocio es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'El c├│digo de negocio es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        tenant = Cliente.objects.get(schema_name=code)
+        # Buscar primero por codigo_acceso (nuevo), fallback a schema_name (compatibilidad)
+        try:
+            tenant = Cliente.objects.get(codigo_acceso=code.upper())
+        except Cliente.DoesNotExist:
+            tenant = Cliente.objects.get(schema_name=code.lower())
     except Cliente.DoesNotExist:
         return Response(
-            {'found': False, 'error': 'Código de negocio no encontrado. Verifica que sea correcto.'},
+            {'found': False, 'error': 'C├│digo de negocio no encontrado. Verifica que sea correcto.'},
             status=status.HTTP_404_NOT_FOUND
         )
 
-    # Verificar que la suscripción esté activa
+    # Verificar que la suscripci├│n est├® activa
     ok, mensaje = _verificar_suscripcion(tenant)
     if not ok:
         return Response(
@@ -345,7 +349,7 @@ class PlatformLoginAPIView(views.APIView):
         email    = request.data.get('email', '').strip().lower()
         password = request.data.get('password', '')
         if not email or not password:
-            return Response({'error': 'Email y contraseña son requeridos.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Email y contrase├▒a son requeridos.'}, status=status.HTTP_400_BAD_REQUEST)
 
         User = get_user_model()
         tenants_encontrados = []
@@ -367,7 +371,7 @@ class PlatformLoginAPIView(views.APIView):
                         except Exception:
                             rol = 'Administrador' if tenant_user.is_superuser else 'Colaborador'
 
-                        # Verificar suscripción del negocio
+                        # Verificar suscripci├│n del negocio
                         ok, mensaje_sus = _verificar_suscripcion(tenant)
 
                         tenants_encontrados.append({
@@ -387,10 +391,10 @@ class PlatformLoginAPIView(views.APIView):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        # Verificar si TODOS los negocios tienen suscripción inactiva
+        # Verificar si TODOS los negocios tienen suscripci├│n inactiva
         negocios_activos = [n for n in tenants_encontrados if n['suscripcion_activa']]
         if not negocios_activos:
-            primer_mensaje = tenants_encontrados[0].get('mensaje_suscripcion', 'Suscripción inactiva.')
+            primer_mensaje = tenants_encontrados[0].get('mensaje_suscripcion', 'Suscripci├│n inactiva.')
             return Response(
                 {'error': primer_mensaje, 'suscripcion_inactiva': True},
                 status=status.HTTP_403_FORBIDDEN
