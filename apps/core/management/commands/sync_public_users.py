@@ -28,7 +28,7 @@ class Command(BaseCommand):
         created = updated = skipped = errors = 0
 
         for tenant in tenants:
-            self.stdout.write(f'\n[{tenant.schema_name}] {tenant.name}')
+            self.stdout.write(f'\n[{tenant.schema_name}] {tenant.nombre}')
             try:
                 with schema_context(tenant.schema_name):
                     from django.contrib.auth.models import User as TenantUser
