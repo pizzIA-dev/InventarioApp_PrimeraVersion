@@ -21,7 +21,7 @@ function GestionUsuarios() {
   const [errCrear, setErrCrear] = useState('');
   const [savingCrear, setSavingCrear] = useState(false);
 
-  // Modal cambiar contraseña
+  // Modal cambiar contrase├▒a
   const [showPassword, setShowPassword] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [newPassword, setNewPassword] = useState('');
@@ -49,11 +49,11 @@ function GestionUsuarios() {
     e.preventDefault();
     setErrCrear('');
     if (!formCrear.username.trim() || !formCrear.password.trim()) {
-      setErrCrear('El usuario y la contraseña son obligatorios.');
+      setErrCrear('El usuario y la contrase├▒a son obligatorios.');
       return;
     }
     if (formCrear.password.length < 6) {
-      setErrCrear('La contraseña debe tener al menos 6 caracteres.');
+      setErrCrear('La contrase├▒a debe tener al menos 6 caracteres.');
       return;
     }
     setSavingCrear(true);
@@ -71,7 +71,7 @@ function GestionUsuarios() {
 
   const handleToggle = async (usuario) => {
     const accion = usuario.is_active ? 'desactivar' : 'activar';
-    if (!window.confirm(`¿Estás seguro de que deseas ${accion} a "${usuario.username}"?`)) return;
+    if (!window.confirm(`┬┐Est├ís seguro de que deseas ${accion} a "${usuario.username}"?`)) return;
     try {
       await usuariosAPI.toggle(usuario.id);
       fetchUsuarios();
@@ -84,11 +84,11 @@ function GestionUsuarios() {
     e.preventDefault();
     setErrPass('');
     if (newPassword.length < 6) {
-      setErrPass('La contraseña debe tener al menos 6 caracteres.');
+      setErrPass('La contrase├▒a debe tener al menos 6 caracteres.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      setErrPass('Las contraseñas no coinciden.');
+      setErrPass('Las contrase├▒as no coinciden.');
       return;
     }
     setSavingPass(true);
@@ -98,9 +98,9 @@ function GestionUsuarios() {
       setNewPassword('');
       setConfirmPassword('');
       setSelectedUser(null);
-      alert(`Contraseña de "${selectedUser.username}" actualizada correctamente.`);
+      alert(`Contrase├▒a de "${selectedUser.username}" actualizada correctamente.`);
     } catch (err) {
-      setErrPass(err.response?.data?.error || 'Error al cambiar contraseña.');
+      setErrPass(err.response?.data?.error || 'Error al cambiar contrase├▒a.');
     } finally {
       setSavingPass(false);
     }
@@ -120,7 +120,7 @@ function GestionUsuarios() {
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <TeamOutlined /> Gestión de Usuarios
+            <TeamOutlined /> Gesti├│n de Usuarios
           </h1>
           <p className="page-subtitle">Administra los accesos de los vendedores al sistema</p>
         </div>
@@ -143,10 +143,10 @@ function GestionUsuarios() {
       }}>
         <div>
           <h3 style={{ margin: '0 0 4px', color: 'var(--text-color)', fontSize: '15px', fontWeight: 600 }}>
-            Código de acceso para tu equipo
+            C├│digo de acceso para tu equipo
           </h3>
           <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px' }}>
-            Tus colaboradores necesitan este código único del negocio para iniciar sesión en sus cuentas.
+            Tus colaboradores necesitan este c├│digo ├║nico del negocio para iniciar sesi├│n en sus cuentas.
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -160,18 +160,18 @@ function GestionUsuarios() {
             color: '#8b5cf6',
             letterSpacing: '1px'
           }}>
-            {localStorage.getItem('tenant_schema') || '---'}
+            {localStorage.getItem('tenant_codigo_acceso') || '---'}
           </div>
           <button
             className="btn btn-secondary"
             onClick={() => {
-              const code = localStorage.getItem('tenant_schema');
+              const code = localStorage.getItem('tenant_codigo_acceso');
               if (code) {
                 navigator.clipboard.writeText(code);
-                alert('Código copiado al portapapeles');
+                alert('C├│digo copiado al portapapeles');
               }
             }}
-            title="Copiar código"
+            title="Copiar c├│digo"
           >
             <CopyOutlined /> Copiar
           </button>
@@ -201,7 +201,7 @@ function GestionUsuarios() {
               ) : usuarios.length === 0 ? (
                 <tr>
                   <td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
-                    No hay vendedores registrados aún. Crea el primero con el botón de arriba.
+                    No hay vendedores registrados a├║n. Crea el primero con el bot├│n de arriba.
                   </td>
                 </tr>
               ) : (
@@ -211,7 +211,7 @@ function GestionUsuarios() {
                       <UserOutlined style={{ marginRight: '6px', color: 'var(--primary-color)' }} />
                       {u.username}
                     </td>
-                    <td>{u.email || <span style={{ color: 'var(--text-muted)' }}>"”</span>}</td>
+                    <td>{u.email || <span style={{ color: 'var(--text-muted)' }}>"ÔÇØ</span>}</td>
                     <td>
                       <span className="badge badge-info" style={{ fontSize: '11px' }}>{u.rol}</span>
                     </td>
@@ -225,7 +225,7 @@ function GestionUsuarios() {
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button
                           className="btn btn-secondary"
-                          title="Cambiar contraseña"
+                          title="Cambiar contrase├▒a"
                           onClick={() => { setSelectedUser(u); setNewPassword(''); setConfirmPassword(''); setErrPass(''); setShowPassword(true); }}
                         >
                           <KeyOutlined />
@@ -248,7 +248,7 @@ function GestionUsuarios() {
         </div>
       </div>
 
-      {/* â”€â”€â”€â”€ MODAL: Nuevo Vendedor â”€â”€â”€â”€ */}
+      {/* ├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼ MODAL: Nuevo Vendedor ├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼ */}
       {showCrear && (
         <div className="modal-overlay" onClick={() => setShowCrear(false)} style={{ zIndex: 1000 }}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '440px', width: '90%' }}>
@@ -274,12 +274,12 @@ function GestionUsuarios() {
                 </div>
                 <div className="form-group">
                   <label className="form-label">
-                    <LockOutlined style={{ marginRight: '6px' }} />Contraseña *
+                    <LockOutlined style={{ marginRight: '6px' }} />Contrase├▒a *
                   </label>
                   <input
                     type="password"
                     className="form-input"
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder="M├¡nimo 6 caracteres"
                     value={formCrear.password}
                     onChange={(e) => setFormCrear(prev => ({ ...prev, password: e.target.value }))}
                     disabled={savingCrear}
@@ -302,7 +302,7 @@ function GestionUsuarios() {
                   </div>
                 )}
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                  El nuevo usuario tendrá acceso únicamente a Ventas, Fiados, Clientes, Productos y Servicios.
+                  El nuevo usuario tendr├í acceso ├║nicamente a Ventas, Fiados, Clientes, Productos y Servicios.
                 </p>
               </div>
               <div className="modal-footer">
@@ -316,25 +316,25 @@ function GestionUsuarios() {
         </div>
       )}
 
-      {/* â”€â”€â”€â”€ MODAL: Cambiar Contraseña â”€â”€â”€â”€ */}
+      {/* ├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼ MODAL: Cambiar Contrase├▒a ├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼├óÔÇØÔé¼ */}
       {showPassword && selectedUser && (
         <div className="modal-overlay" onClick={() => setShowPassword(false)} style={{ zIndex: 1000 }}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px', width: '90%' }}>
             <div className="modal-header">
-              <h3 className="modal-title"><KeyOutlined /> Cambiar Contraseña</h3>
+              <h3 className="modal-title"><KeyOutlined /> Cambiar Contrase├▒a</h3>
               <button className="modal-close" onClick={() => setShowPassword(false)}><CloseOutlined /></button>
             </div>
             <form onSubmit={handleCambiarPassword}>
               <div className="modal-body">
                 <p style={{ marginBottom: '16px', color: 'var(--text-secondary)' }}>
-                  Actualizando contraseña para: <strong>{selectedUser.username}</strong>
+                  Actualizando contrase├▒a para: <strong>{selectedUser.username}</strong>
                 </p>
                 <div className="form-group">
-                  <label className="form-label">Nueva Contraseña *</label>
+                  <label className="form-label">Nueva Contrase├▒a *</label>
                   <input
                     type="password"
                     className="form-input"
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder="M├¡nimo 6 caracteres"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     autoFocus
@@ -342,11 +342,11 @@ function GestionUsuarios() {
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Confirmar Contraseña *</label>
+                  <label className="form-label">Confirmar Contrase├▒a *</label>
                   <input
                     type="password"
                     className="form-input"
-                    placeholder="Repite la contraseña"
+                    placeholder="Repite la contrase├▒a"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     disabled={savingPass}
@@ -361,7 +361,7 @@ function GestionUsuarios() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowPassword(false)} disabled={savingPass}>Cancelar</button>
                 <button type="submit" className="btn btn-primary" disabled={savingPass}>
-                  {savingPass ? 'Guardando...' : 'Actualizar Contraseña'}
+                  {savingPass ? 'Guardando...' : 'Actualizar Contrase├▒a'}
                 </button>
               </div>
             </form>
