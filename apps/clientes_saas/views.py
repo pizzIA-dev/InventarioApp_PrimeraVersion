@@ -310,11 +310,7 @@ def tenant_lookup_view(request):
         return Response({'error': 'El c├│digo de negocio es requerido.'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        # Buscar primero por codigo_acceso (nuevo), fallback a schema_name (compatibilidad)
-        try:
-            tenant = Cliente.objects.get(codigo_acceso=code.upper())
-        except Cliente.DoesNotExist:
-            tenant = Cliente.objects.get(schema_name=code.lower())
+        tenant = Cliente.objects.get(codigo_acceso=code.upper())
     except Cliente.DoesNotExist:
         return Response(
             {'found': False, 'error': 'C├│digo de negocio no encontrado. Verifica que sea correcto.'},
