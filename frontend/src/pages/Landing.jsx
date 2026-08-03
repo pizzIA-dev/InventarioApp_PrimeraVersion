@@ -3,7 +3,8 @@ import { Button, Card, Col, Row, Typography, Input, Form, message, Upload, Spin 
 import {
   RocketOutlined, TrophyOutlined, CheckCircleOutlined,
   MailOutlined, PhoneOutlined, UploadOutlined, ArrowRightOutlined,
-  LockOutlined, ShopOutlined, LoginOutlined, LoadingOutlined } from '@ant-design/icons';
+  LockOutlined, ShopOutlined, LoginOutlined, LoadingOutlined,
+  TeamOutlined, CrownOutlined, UserOutlined, KeyOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import NegocIALogo from '../components/NegocIALogo';
 import { AuthContext } from '../context/AuthContext';
@@ -29,10 +30,19 @@ export default function Landing({ view }) {
   const [misNegocios, setMisNegocios]           = useState([]);
   const [accederLoadingId, setAccederLoadingId] = useState(null);
   const [accederForm]                           = Form.useForm();
+  // ── Tabs ──────────────────────────────────────────────────────
+  const [activeTab,        setActiveTab]        = useState('gerente');
+  const [colabCode,        setColabCode]        = useState('');
+  const [colabVerifying,   setColabVerifying]   = useState(false);
+  const [colabTenant,      setColabTenant]      = useState(null);
+  const [colabTenantError, setColabTenantError] = useState(null);
+  const [colabLoading,     setColabLoading]     = useState(false);
+  const [colabError,       setColabError]       = useState(null);
+  const [colabForm]                             = Form.useForm();
 
   const { planId }  = useParams();
   const navigate    = useNavigate();
-  const { platformLogin, accessTenant } = useContext(AuthContext);
+  const { platformLogin, accessTenant, colaboradorLogin, tenantLookup } = useContext(AuthContext);
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   useEffect(() => {
@@ -44,6 +54,8 @@ export default function Landing({ view }) {
   useEffect(() => {
     if (view !== 'acceder') {
       setAccederStep('form'); setPlatformError(''); setMisNegocios([]); accederForm.resetFields();
+      setActiveTab('gerente'); setColabCode(''); setColabTenant(null);
+      setColabTenantError(null); setColabError(null); colabForm.resetFields();
     }
   }, [view]);
 
@@ -60,6 +72,23 @@ export default function Landing({ view }) {
       setPlatformError('No encontramos negocios con ese correo.');
       setAccederStep('form');
     }
+  };
+
+  const onColabVerify = async () => {
+    if (!colabCode.trim()) return;
+    setColabVerifying(true); setColabTenantError(null);
+    const res = await tenantLookup(colabCode.trim());
+    setColabVerifying(false);
+    if (res.success) setColabTenant(res);
+    else setColabTenantError(res.message || 'Código de negocio no encontrado');
+  };
+
+  const onColabLogin = async (values) => {
+    setColabLoading(true); setColabError(null);
+    const res = await colaboradorLogin(colabTenant.schema, values.username, values.password);
+    setColabLoading(false);
+    if (res.success) { message.success('Bienvenido'); navigate('/t/' + colabTenant.schema); }
+    else setColabError(res.message || 'Usuario o contraseña incorrectos');
   };
 
   const onAccessTenant = async (schema) => {
