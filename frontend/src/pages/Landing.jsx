@@ -30,7 +30,7 @@ export default function Landing({ view }) {
   const [misNegocios, setMisNegocios]           = useState([]);
   const [accederLoadingId, setAccederLoadingId] = useState(null);
   const [accederForm]                           = Form.useForm();
-  // ── Tabs ──────────────────────────────────────────────────────
+  // ÔöÇÔöÇ Tabs ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   const [activeTab,        setActiveTab]        = useState('gerente');
   const [colabCode,        setColabCode]        = useState('');
   const [colabVerifying,   setColabVerifying]   = useState(false);
@@ -80,7 +80,7 @@ export default function Landing({ view }) {
     const res = await tenantLookup(colabCode.trim());
     setColabVerifying(false);
     if (res.success) setColabTenant(res);
-    else setColabTenantError(res.message || 'Código de negocio no encontrado');
+    else setColabTenantError(res.message || 'C├│digo de negocio no encontrado');
   };
 
   const onColabLogin = async (values) => {
@@ -88,7 +88,7 @@ export default function Landing({ view }) {
     const res = await colaboradorLogin(colabTenant.schema, values.username, values.password);
     setColabLoading(false);
     if (res.success) { message.success('Bienvenido'); navigate('/t/' + colabTenant.schema); }
-    else setColabError(res.message || 'Usuario o contraseña incorrectos');
+    else setColabError(res.message || 'Usuario o contrase├▒a incorrectos');
   };
 
   const onAccessTenant = async (schema) => {
@@ -232,7 +232,7 @@ export default function Landing({ view }) {
             </Title>
             <Paragraph style={{ color: '#a0c0e0', fontSize: '1.1rem', maxWidth: '600px',
               margin: '0 auto 56px', lineHeight: 1.7 }}>
-              Inventario, ventas, cajas y mas ÔÇö sin castigarte por crecer.
+              Inventario, ventas, cajas y mas ├ö├ç├Â sin castigarte por crecer.
               Afilia tantos vendedores como necesites sin cambiar tu tarifa.
             </Paragraph>
 
@@ -349,7 +349,7 @@ export default function Landing({ view }) {
                       <LoginOutlined style={{ fontSize: 28, color: '#000' }} />
                     </div>
                     <Title level={2} style={{ color: '#fff', margin: '0 0 6px' }}>Accede a tu negocio</Title>
-                    <Text style={{ color: '#8b949e', fontSize: 14 }}>Selecciona cómo quieres ingresar</Text>
+                    <Text style={{ color: '#8b949e', fontSize: 14 }}>Selecciona c├│mo quieres ingresar</Text>
                   </div>
 
                   {/* Selector Gerente / Colaborador */}
@@ -381,16 +381,16 @@ export default function Landing({ view }) {
                     {/* TAB GERENTE */}
                     {activeTab === 'gerente' && (
                       <Form form={accederForm} layout="vertical" onFinish={onPlatformLogin} size="large">
-                        <Form.Item name="email" label={<span style={{ color: '#c9d1d9' }}>Correo electrónico</span>}
+                        <Form.Item name="email" label={<span style={{ color: '#c9d1d9' }}>Correo electr├│nico</span>}
                           rules={[{ required: true, message: 'Ingresa tu correo' }, { type: 'email' }]}>
                           <Input prefix={<MailOutlined style={{ color: neonCyan }} />}
                             placeholder="gerente@empresa.com" type="email"
                             style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.25)', color: '#fff', borderRadius: 8 }} />
                         </Form.Item>
-                        <Form.Item name="password" label={<span style={{ color: '#c9d1d9' }}>Contraseña</span>}
-                          rules={[{ required: true, message: 'Ingresa tu contraseña' }]}>
+                        <Form.Item name="password" label={<span style={{ color: '#c9d1d9' }}>Contrase├▒a</span>}
+                          rules={[{ required: true, message: 'Ingresa tu contrase├▒a' }]}>
                           <Input.Password prefix={<LockOutlined style={{ color: neonCyan }} />}
-                            placeholder="Tu contraseña"
+                            placeholder="Tu contrase├▒a"
                             style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.25)', color: '#fff', borderRadius: 8 }} />
                         </Form.Item>
                         {platformError && (
@@ -414,12 +414,12 @@ export default function Landing({ view }) {
                         {!colabTenant && (
                           <div>
                             <div style={{ marginBottom: 14, color: '#8b949e', fontSize: 13, textAlign: 'center' }}>
-                              Ingresa el código de negocio que te dio tu gerente
+                              Ingresa el c├│digo de negocio que te dio tu gerente
                             </div>
                             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                               <Input
                                 prefix={<KeyOutlined style={{ color: neonCyan }} />}
-                                placeholder="Ej: pizzia"
+                                placeholder="Ej: PZ7K2M4R"
                                 value={colabCode}
                                 onChange={e => { setColabCode(e.target.value.toLowerCase()); setColabTenantError(null); }}
                                 onPressEnter={onColabVerify}
@@ -449,7 +449,7 @@ export default function Landing({ view }) {
                               <ShopOutlined style={{ color: neonCyan, fontSize: 18 }} />
                               <div>
                                 <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{colabTenant.nombre}</div>
-                                <div style={{ color: '#8b949e', fontSize: 12 }}>Negocio verificado ✓</div>
+                                <div style={{ color: '#8b949e', fontSize: 12 }}>Negocio verificado Ô£ô</div>
                               </div>
                               <button onClick={() => { setColabTenant(null); setColabCode(''); colabForm.resetFields(); }}
                                 style={{ marginLeft: 'auto', background: 'none', border: 'none',
@@ -464,10 +464,10 @@ export default function Landing({ view }) {
                                   placeholder="tu.usuario"
                                   style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.25)', color: '#fff', borderRadius: 8 }} />
                               </Form.Item>
-                              <Form.Item name="password" label={<span style={{ color: '#c9d1d9' }}>Contraseña</span>}
-                                rules={[{ required: true, message: 'Ingresa tu contraseña' }]}>
+                              <Form.Item name="password" label={<span style={{ color: '#c9d1d9' }}>Contrase├▒a</span>}
+                                rules={[{ required: true, message: 'Ingresa tu contrase├▒a' }]}>
                                 <Input.Password prefix={<LockOutlined style={{ color: neonCyan }} />}
-                                  placeholder="Tu contraseña"
+                                  placeholder="Tu contrase├▒a"
                                   style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.25)', color: '#fff', borderRadius: 8 }} />
                               </Form.Item>
                               {colabError && (
@@ -489,7 +489,7 @@ export default function Landing({ view }) {
                     )}
 
                     <div style={{ marginTop: 18, textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
-                      <Text style={{ color: '#6b7280', fontSize: 13 }}>¿No tienes negocio aún? </Text>
+                      <Text style={{ color: '#6b7280', fontSize: 13 }}>┬┐No tienes negocio a├║n? </Text>
                       <button onClick={() => navigate('/planes')}
                         style={{ background: 'none', border: 'none', cursor: 'pointer',
                           color: neonCyan, fontWeight: 700, fontSize: 13, padding: '0 4px' }}>
@@ -514,7 +514,7 @@ export default function Landing({ view }) {
                     Tus <span style={{ color: neonCyan }}>Negocios</span>
                   </Title>
                   <Text style={{ color: '#8b949e', fontSize: 14 }}>
-                    Haz clic para acceder ÔÇö sin volver a ingresar tu contrasena
+                    Haz clic para acceder ├ö├ç├Â sin volver a ingresar tu contrasena
                   </Text>
                 </div>
                 <Row gutter={[24, 24]} justify="center">
@@ -565,8 +565,8 @@ export default function Landing({ view }) {
           <div style={{ maxWidth: 460, margin: '0 auto', animation: 'fadeIn 0.5s' }}>
             {(() => {
               const planes = {
-                '1': { nombre: 'Emprendedor', precio: currency === 'PEN' ? 'S/ 39 / mes' : '$ 12 / mes', icon: '­ƒÜÇ' },
-                '2': { nombre: 'Empresario',  precio: 'A Medida', icon: '­ƒÅå' },
+                '1': { nombre: 'Emprendedor', precio: currency === 'PEN' ? 'S/ 39 / mes' : '$ 12 / mes', icon: '┬¡ãÆ├£├ç' },
+                '2': { nombre: 'Empresario',  precio: 'A Medida', icon: '┬¡ãÆ├à├Ñ' },
               };
               const plan = planes[planId] || planes['1'];
               return (
@@ -676,11 +676,11 @@ export default function Landing({ view }) {
           <span>Producto por</span>
           <a href="https://pizzia.org" target="_blank" rel="noopener noreferrer"
             style={{ color: neonCyan, fontWeight: 700, textDecoration: 'none' }}>PizzIA</a>
-          <span>┬À</span>
+          <span>Ôö¼├Ç</span>
           <a href="https://pizzia.org" target="_blank" rel="noopener noreferrer"
             style={{ color: '#6b7280', textDecoration: 'underline' }}>pizzia.org</a>
         </div>
-        <div style={{ fontSize: 12, color: '#374151' }}>┬® {new Date().getFullYear()} PizzIA ÔÇô Todos los derechos reservados</div>
+        <div style={{ fontSize: 12, color: '#374151' }}>Ôö¼┬« {new Date().getFullYear()} PizzIA ├ö├ç├┤ Todos los derechos reservados</div>
       </footer>
 
       <style>{`

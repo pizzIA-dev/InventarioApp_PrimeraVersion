@@ -1,3 +1,4 @@
+from apps.core.renderers import PassthroughRenderer
 from django.http import HttpResponse
 from django.db.models import Sum
 from apps.core.export_utils import (
@@ -11,7 +12,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.core.exceptions import ValidationError
 
 # Importar Permisos RBAC
-from apps.core.permissions import HasRBACScope, IsGerente
+from apps.core.permissions import HasRBACScope, IsGerente, IsVendedorPlus
 
 from .models import Categoria, Producto, MovimientoStock
 from .serializers import (
@@ -39,6 +40,13 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     # Proteger este ViewSet con el motor de roles Customizados
     permission_classes = [HasRBACScope]
     required_scope = 'inventario:escribir'
+
+    def get_permissions(self):
+        """Lectura: COLABORADOR/VENDEDOR/GERENTE. Escritura: requiere scope."""
+        if self.request.method in ('GET', 'HEAD', 'OPTIONS'):
+            return [IsVendedorPlus()]
+        return [HasRBACScope()]
+
     queryset = Producto.objects.all()
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
     search_fields = ['codigo', 'nombre', 'descripcion']
@@ -52,24 +60,31 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         return ProductoSerializer
     
     def perform_create(self, serializer):
-        # Save the product
+        # Save the product (stock_actual = stock_inicial from serializer)
         instance = serializer.save()
         
-        # Create the initial movement
-        MovimientoStock.objects.create(
-            producto=instance,
-            tipo='ENTRADA',
-            origen='AJUSTE',
-            cantidad=instance.stock_actual,
-            stock_anterior=0,
-            stock_nuevo=instance.stock_actual,
-            precio_compra_anterior=0,
-            precio_compra_nuevo=instance.precio_compra,
-            precio_venta_anterior=0,
-            precio_venta_nuevo=instance.precio_venta,
-            activo_nuevo=instance.activo,
-            notas="Registro inicial del producto"
-        )
+        # Only register initial stock movement if stock > 0
+        # NOTE: MovimientoStock.save() atomically sets stock via DB update.
+        # To avoid double-counting, we temporarily reset stock to 0 so the 
+        # movement sets it to stock_inicial correctly.
+        if instance.stock_actual and instance.stock_actual > 0:
+            stock_inicial = instance.stock_actual
+            # Reset to 0 so MovimientoStock.save() can set it correctly via ENTRADA
+            from apps.inventario.models import Producto as _Prod
+            _Prod.objects.filter(pk=instance.pk).update(stock_actual=0)
+            MovimientoStock.objects.create(
+                empresa=instance.empresa,
+                producto=instance,
+                tipo='ENTRADA',
+                origen='AJUSTE',
+                cantidad=stock_inicial,
+                precio_compra_anterior=0,
+                precio_compra_nuevo=instance.precio_compra,
+                precio_venta_anterior=0,
+                precio_venta_nuevo=instance.precio_venta,
+                activo_nuevo=instance.activo,
+                notas="Registro inicial del producto"
+            )
 
     def perform_destroy(self, instance):
         instance.activo = False
@@ -124,7 +139,7 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     
     @action(detail=True, methods=['get'])
     def movimientos(self, request, pk=None):
-        """Obtiene movimientos de un producto con filtros opcionales de fecha y paginación"""
+        """Obtiene movimientos de un producto con filtros opcionales de fecha y paginaci├│n"""
         producto = self.get_object()
         qs = producto.movimientos.all().order_by('-fecha')
 
@@ -160,7 +175,7 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             'results': serializer.data
         })
         
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar_movimientos(self, request, pk=None):
         """Exportar el historial de movimientos de un producto a Excel"""
         from apps.core.export_utils import create_excel_response
@@ -168,7 +183,7 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         producto = self.get_object()
         movimientos = producto.movimientos.all().order_by('-fecha')
         
-        headers = ['Fecha', 'Almacén', 'Tipo', 'Origen', 'P. Unitario (S/.)', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Referencia', 'Notas', 'Responsable']
+        headers = ['Fecha', 'Almac├®n', 'Tipo', 'Origen', 'P. Unitario (S/.)', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Referencia', 'Notas', 'Responsable']
         rows = []
         for mov in movimientos:
             fecha_str = mov.fecha.strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
@@ -216,12 +231,12 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def ajustar_stock(self, request, pk=None):
         """
-        Ajuste de inventario (Merma, Extravío, Caducidad, etc.).
+        Ajuste de inventario (Merma, Extrav├¡o, Caducidad, etc.).
         """
         producto = self.get_object()
         user_perfil = request.user.perfil
         
-        # Parámetros
+        # Par├ímetros
         cantidad_ajuste = request.data.get('cantidad_ajuste')
         tipo = request.data.get('tipo', 'SALIDA')  # ENTRADA o SALIDA
         origen = request.data.get('origen')        # MERMA, CADUCIDAD, EXTRAVIO, ROTURA, etc.
@@ -232,31 +247,31 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             return Response({'error': 'La cantidad de ajuste debe ser mayor a 0.'}, status=status.HTTP_400_BAD_REQUEST)
         
         if origen not in dict(MovimientoStock.ORIGEN_MOVIMIENTO_CHOICES).keys():
-            return Response({'error': 'Motivo de ajuste inválido.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Motivo de ajuste inv├ílido.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validación de almacén basada en rol
+        # Validaci├│n de almac├®n basada en rol
         almacen_obj = None
         if user_perfil.rol == 'GERENTE':
-            # El Gerente debe mandar explicitamente a qué almacén ajusta
+            # El Gerente debe mandar explicitamente a qu├® almac├®n ajusta
             if almacen_id:
                 try:
                     almacen_obj = Almacen.objects.get(id=almacen_id, empresa=user_perfil.empresa)
                 except Almacen.DoesNotExist:
-                    return Response({'error': 'Almacén seleccionado es inválido o no te pertenece.'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'error': 'Almac├®n seleccionado es inv├ílido o no te pertenece.'}, status=status.HTTP_400_BAD_REQUEST)
             else:
-                return Response({'error': 'Debes especificar el almacén a afectar.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Debes especificar el almac├®n a afectar.'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            # Si es Colaborador, el ajuste SOLO afecta al subalmacén donde está asignado
+            # Si es Colaborador, el ajuste SOLO afecta al subalmac├®n donde est├í asignado
             if not user_perfil.almacen:
-                # Fallback al almacén general
+                # Fallback al almac├®n general
                 almacen_obj = Almacen.objects.filter(empresa=user_perfil.empresa, es_general=True).first()
             else:
                 almacen_obj = user_perfil.almacen
                 
             if not almacen_obj:
-                return Response({'error': 'No tienes un almacén asignado para ajustar.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'No tienes un almac├®n asignado para ajustar.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validación que no deje saldo negativo el sub-almacén si es salida
+        # Validaci├│n que no deje saldo negativo el sub-almac├®n si es salida
         if tipo == 'SALIDA':
             sa = StockAlmacen.objects.filter(almacen=almacen_obj, producto=producto).first()
             disp = sa.cantidad if sa else 0
@@ -265,7 +280,7 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
                     'error': f"Stock insuficiente en {almacen_obj.nombre}. Necesitas descontar {cantidad_ajuste} pero solo hay {disp} disponibles."
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Ejecutar Creación (MovimientoStock.save() se encarga de re-calcular todo atómicamente)
+        # Ejecutar Creaci├│n (MovimientoStock.save() se encarga de re-calcular todo at├│micamente)
         MovimientoStock.objects.create(
             empresa=producto.empresa,
             producto=producto,
@@ -290,9 +305,9 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         serializer = self.get_serializer(productos_stock_bajo, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
-        """Exportar productos a Excel con filtro de período"""
+        """Exportar productos a Excel con filtro de periodo"""
         periodo = request.query_params.get('periodo', 'todo')
         anio = request.query_params.get('anio')
         anio = int(anio) if anio else None
@@ -304,29 +319,19 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
 
-        headers = ['ID', 'Código', 'Nombre', 'Categoría', 'Stock Actual', 'Precio Compra (S/.)', 'Precio Venta (S/.)', 'Activo', 'Fecha Creación', 'Última Modificación', 'Responsable']
+        headers = ['ID', 'Codigo', 'Nombre', 'Categoria', 'Stock Actual', 'Precio Compra (S/.)', 'Precio Venta (S/.)', 'Activo', 'Fecha Creacion', 'Ultima Modificacion', 'Responsable']
         rows = []
         for obj in queryset:
-            categoria_nombre = obj.categoria.nombre if obj.categoria else 'Sin Categoría'
+            categoria_nombre = obj.categoria.nombre if obj.categoria else 'Sin Categoria'
             fecha_creacion = obj.creado_en.strftime('%d/%m/%Y %H:%M') if obj.creado_en else ''
             fecha_modificacion = obj.actualizado_en.strftime('%d/%m/%Y %H:%M') if obj.actualizado_en else ''
-            
-            # Get latest movement to find the responsible user
             last_mov = obj.movimientos.order_by('-fecha').first()
-            usuario_str = f"{last_mov.usuario.get_full_name() or last_mov.usuario.username} ({last_mov.usuario.perfil.get_rol_display() if hasattr(last_mov.usuario, 'perfil') else '-'})" if last_mov and last_mov.usuario else "Sistema"
-
+            usuario_str = f"{last_mov.usuario.get_full_name() or last_mov.usuario.username}" if last_mov and last_mov.usuario else 'Sistema'
             rows.append([
-                obj.id,
-                obj.codigo,
-                obj.nombre,
-                categoria_nombre,
-                obj.stock_actual,
-                float(obj.precio_compra),
-                float(obj.precio_venta),
-                'Sí' if obj.activo else 'No',
-                fecha_creacion,
-                fecha_modificacion,
-                usuario_str
+                obj.id, obj.codigo, obj.nombre, categoria_nombre,
+                float(obj.stock_actual), float(obj.precio_compra), float(obj.precio_venta),
+                'Si' if obj.activo else 'No',
+                fecha_creacion, fecha_modificacion, usuario_str
             ])
 
         period_label = get_period_label(periodo, anio)
@@ -371,7 +376,7 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
         headers = self.get_success_headers(serializer.data)
         return Response(output_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
     def exportar(self, request):
         """Exportar reporte de diario de movimientos a Excel"""
         from apps.core.export_utils import get_period_range, get_period_label, create_excel_response
@@ -387,7 +392,7 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(fecha__date__gte=date_from, fecha__date__lte=date_to)
 
-        headers = ['Fecha', 'Almacén', 'Código', 'Producto', 'Tipo', 'Origen', 'P. Unitario (S/.)', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Notas', 'Responsable']
+        headers = ['Fecha', 'Almac├®n', 'C├│digo', 'Producto', 'Tipo', 'Origen', 'P. Unitario (S/.)', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Notas', 'Responsable']
         rows = []
         for mov in queryset:
             fecha_str = mov.fecha.strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
@@ -435,6 +440,6 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
         )
 
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
 #  ALMACENES / CAJAS
-# ═══════════════════════════════════════════════════════════════════════════════
+# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
