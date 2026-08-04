@@ -3,7 +3,8 @@ import { Button, Card, Col, Row, Typography, Input, Form, message, Upload, Spin 
 import {
   RocketOutlined, TrophyOutlined, CheckCircleOutlined,
   MailOutlined, PhoneOutlined, UploadOutlined, ArrowRightOutlined,
-  LockOutlined, ShopOutlined, LoginOutlined, LoadingOutlined } from '@ant-design/icons';
+  LockOutlined, ShopOutlined, LoginOutlined, LoadingOutlined,
+  TeamOutlined, CrownOutlined, UserOutlined, KeyOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import NegocIALogo from '../components/NegocIALogo';
 import { AuthContext } from '../context/AuthContext';
@@ -29,10 +30,19 @@ export default function Landing({ view }) {
   const [misNegocios, setMisNegocios]           = useState([]);
   const [accederLoadingId, setAccederLoadingId] = useState(null);
   const [accederForm]                           = Form.useForm();
+  // ÔöÇÔöÇ Tabs ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  const [activeTab,        setActiveTab]        = useState('gerente');
+  const [colabCode,        setColabCode]        = useState('');
+  const [colabVerifying,   setColabVerifying]   = useState(false);
+  const [colabTenant,      setColabTenant]      = useState(null);
+  const [colabTenantError, setColabTenantError] = useState(null);
+  const [colabLoading,     setColabLoading]     = useState(false);
+  const [colabError,       setColabError]       = useState(null);
+  const [colabForm]                             = Form.useForm();
 
   const { planId }  = useParams();
   const navigate    = useNavigate();
-  const { platformLogin, accessTenant } = useContext(AuthContext);
+  const { platformLogin, accessTenant, colaboradorLogin, tenantLookup } = useContext(AuthContext);
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
   useEffect(() => {
@@ -44,6 +54,8 @@ export default function Landing({ view }) {
   useEffect(() => {
     if (view !== 'acceder') {
       setAccederStep('form'); setPlatformError(''); setMisNegocios([]); accederForm.resetFields();
+      setActiveTab('gerente'); setColabCode(''); setColabTenant(null);
+      setColabTenantError(null); setColabError(null); colabForm.resetFields();
     }
   }, [view]);
 
@@ -60,6 +72,23 @@ export default function Landing({ view }) {
       setPlatformError('No encontramos negocios con ese correo.');
       setAccederStep('form');
     }
+  };
+
+  const onColabVerify = async () => {
+    if (!colabCode.trim()) return;
+    setColabVerifying(true); setColabTenantError(null);
+    const res = await tenantLookup(colabCode.trim());
+    setColabVerifying(false);
+    if (res.success) setColabTenant(res);
+    else setColabTenantError(res.message || 'C├│digo de negocio no encontrado');
+  };
+
+  const onColabLogin = async (values) => {
+    setColabLoading(true); setColabError(null);
+    const res = await colaboradorLogin(colabTenant.schema, values.username, values.password, false, colabTenant.codigo_acceso);
+    setColabLoading(false);
+    if (res.success) { message.success('Bienvenido'); navigate('/t/' + colabTenant.schema); }
+    else setColabError(res.message || 'Usuario o contrase├▒a incorrectos');
   };
 
   const onAccessTenant = async (schema) => {
@@ -203,7 +232,7 @@ export default function Landing({ view }) {
             </Title>
             <Paragraph style={{ color: '#a0c0e0', fontSize: '1.1rem', maxWidth: '600px',
               margin: '0 auto 56px', lineHeight: 1.7 }}>
-              Inventario, ventas, cajas y mas — sin castigarte por crecer.
+              Inventario, ventas, cajas y mas ├ö├ç├Â sin castigarte por crecer.
               Afilia tantos vendedores como necesites sin cambiar tu tarifa.
             </Paragraph>
 
@@ -310,57 +339,165 @@ export default function Landing({ view }) {
         {view === 'acceder' && (
           <div style={{ animation: 'fadeIn 0.5s' }}>
             {accederStep === 'form' && (
-              <div style={{ maxWidth: 420, margin: '0 auto' }}>
-                <div style={{ textAlign: 'center', marginBottom: 32 }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    width: 64, height: 64, borderRadius: 16,
-                    background: 'linear-gradient(135deg, ' + neonCyan + ', #0088cc)',
-                    marginBottom: 20, boxShadow: '0 4px 24px rgba(0,210,255,0.45)' }}>
-                    <LoginOutlined style={{ fontSize: 28, color: '#000' }} />
+                <div style={{ maxWidth: 460, margin: '0 auto', animation: 'fadeIn 0.5s' }}>
+                  {/* Header */}
+                  <div style={{ textAlign: 'center', marginBottom: 28 }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      width: 64, height: 64, borderRadius: 16,
+                      background: 'linear-gradient(135deg, ' + neonCyan + ', #0088cc)',
+                      marginBottom: 20, boxShadow: '0 4px 24px rgba(0,210,255,0.45)' }}>
+                      <LoginOutlined style={{ fontSize: 28, color: '#000' }} />
+                    </div>
+                    <Title level={2} style={{ color: '#fff', margin: '0 0 6px' }}>Accede a tu negocio</Title>
+                    <Text style={{ color: '#8b949e', fontSize: 14 }}>Selecciona c├│mo quieres ingresar</Text>
                   </div>
-                  <Title level={2} style={{ color: '#fff', margin: '0 0 6px' }}>Accede a tus negocios</Title>
-                  <Text style={{ color: '#8b949e', fontSize: 14 }}>
-                    Usa el correo y contrasena con los que creaste tu negocio
-                  </Text>
-                </div>
-                <Card style={{ background: cardBg, border: '1px solid rgba(0,210,255,0.35)',
-                  borderRadius: 14, boxShadow: neonGlow }}>
-                  <Form form={accederForm} layout="vertical" onFinish={onPlatformLogin} size="large">
-                    <Form.Item name="email" label={<span style={{ color: '#c9d1d9' }}>Correo electronico</span>}
-                      rules={[{ required: true, message: 'Ingresa tu correo' }, { type: 'email' }]}>
-                      <Input prefix={<MailOutlined style={{ color: neonCyan }} />}
-                        placeholder="tu@correo.com" type="email"
-                        style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.25)', color: '#fff', borderRadius: 8 }} />
-                    </Form.Item>
-                    <Form.Item name="password" label={<span style={{ color: '#c9d1d9' }}>Contrasena</span>}
-                      rules={[{ required: true, message: 'Ingresa tu contrasena' }]}>
-                      <Input.Password prefix={<LockOutlined style={{ color: neonCyan }} />}
-                        placeholder="Tu contrasena"
-                        style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.25)', color: '#fff', borderRadius: 8 }} />
-                    </Form.Item>
-                    {platformError && (
-                      <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.35)',
-                        borderRadius: 8, padding: '10px 14px', marginBottom: 14, color: '#ff6b6b', fontSize: 13 }}>
-                        {platformError}
+
+                  {/* Selector Gerente / Colaborador */}
+                  <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+                    {[
+                      { key: 'gerente',     label: 'Gerente',     Icon: CrownOutlined },
+                      { key: 'colaborador', label: 'Colaborador', Icon: TeamOutlined  },
+                    ].map(({ key, label, Icon }) => (
+                      <button key={key}
+                        onClick={() => { setActiveTab(key); setPlatformError(''); setColabError(null); }}
+                        style={{
+                          flex: 1, padding: '14px 0', borderRadius: 12, cursor: 'pointer', fontWeight: 700,
+                          fontSize: 15, transition: 'all 0.2s', display: 'flex', flexDirection: 'column',
+                          alignItems: 'center', gap: 6,
+                          background: activeTab === key ? 'rgba(0,210,255,0.12)' : 'rgba(255,255,255,0.03)',
+                          border: activeTab === key ? '2px solid ' + neonCyan : '2px solid rgba(255,255,255,0.08)',
+                          color: activeTab === key ? neonCyan : '#6b7280',
+                          boxShadow: activeTab === key ? '0 0 16px rgba(0,210,255,0.2)' : 'none',
+                        }}>
+                        <Icon style={{ fontSize: 22 }} />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <Card style={{ background: cardBg, border: '1px solid rgba(0,210,255,0.35)',
+                    borderRadius: 14, boxShadow: neonGlow }}>
+
+                    {/* TAB GERENTE */}
+                    {activeTab === 'gerente' && (
+                      <Form form={accederForm} layout="vertical" onFinish={onPlatformLogin} size="large">
+                        <Form.Item name="email" label={<span style={{ color: '#c9d1d9' }}>Correo electr├│nico</span>}
+                          rules={[{ required: true, message: 'Ingresa tu correo' }, { type: 'email' }]}>
+                          <Input prefix={<MailOutlined style={{ color: neonCyan }} />}
+                            placeholder="gerente@empresa.com" type="email"
+                            style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.25)', color: '#fff', borderRadius: 8 }} />
+                        </Form.Item>
+                        <Form.Item name="password" label={<span style={{ color: '#c9d1d9' }}>Contrase├▒a</span>}
+                          rules={[{ required: true, message: 'Ingresa tu contrase├▒a' }]}>
+                          <Input.Password prefix={<LockOutlined style={{ color: neonCyan }} />}
+                            placeholder="Tu contrase├▒a"
+                            style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.25)', color: '#fff', borderRadius: 8 }} />
+                        </Form.Item>
+                        {platformError && (
+                          <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.35)',
+                            borderRadius: 8, padding: '10px 14px', marginBottom: 14, color: '#ff6b6b', fontSize: 13 }}>
+                            {platformError}
+                          </div>
+                        )}
+                        <Button type="primary" htmlType="submit" block style={{
+                          height: 46, background: 'linear-gradient(135deg, ' + neonCyan + ', #0088cc)',
+                          color: '#000', border: 'none', fontWeight: 800, fontSize: 15,
+                          boxShadow: neonGlow, borderRadius: 10 }}>
+                          Acceder como Gerente
+                        </Button>
+                      </Form>
+                    )}
+
+                    {/* TAB COLABORADOR */}
+                    {activeTab === 'colaborador' && (
+                      <div>
+                        {!colabTenant && (
+                          <div>
+                            <div style={{ marginBottom: 14, color: '#8b949e', fontSize: 13, textAlign: 'center' }}>
+                              Ingresa el c├│digo de negocio que te dio tu gerente
+                            </div>
+                            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                              <Input
+                                prefix={<KeyOutlined style={{ color: neonCyan }} />}
+                                placeholder="Ej: PZ7K2M4R"
+                                value={colabCode}
+                                onChange={e => { setColabCode(e.target.value.toLowerCase()); setColabTenantError(null); }}
+                                onPressEnter={onColabVerify}
+                                style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.25)', color: '#fff', borderRadius: 8 }}
+                                size="large"
+                              />
+                              <Button type="primary" onClick={onColabVerify} loading={colabVerifying}
+                                style={{ background: 'linear-gradient(135deg, ' + neonCyan + ', #0088cc)',
+                                  border: 'none', color: '#000', fontWeight: 700, borderRadius: 8, height: 40, minWidth: 90 }}>
+                                Verificar
+                              </Button>
+                            </div>
+                            {colabTenantError && (
+                              <div style={{ marginTop: 10, background: 'rgba(255,59,48,0.1)',
+                                border: '1px solid rgba(255,59,48,0.35)', borderRadius: 8,
+                                padding: '8px 12px', color: '#ff6b6b', fontSize: 13 }}>
+                                {colabTenantError}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {colabTenant && (
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20,
+                              background: 'rgba(0,210,255,0.06)', border: '1px solid rgba(0,210,255,0.2)',
+                              borderRadius: 10, padding: '10px 14px' }}>
+                              <ShopOutlined style={{ color: neonCyan, fontSize: 18 }} />
+                              <div>
+                                <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{colabTenant.nombre}</div>
+                                <div style={{ color: '#8b949e', fontSize: 12 }}>Negocio verificado Ô£ô</div>
+                              </div>
+                              <button onClick={() => { setColabTenant(null); setColabCode(''); colabForm.resetFields(); }}
+                                style={{ marginLeft: 'auto', background: 'none', border: 'none',
+                                  cursor: 'pointer', color: '#6b7280', fontSize: 12 }}>
+                                Cambiar
+                              </button>
+                            </div>
+                            <Form form={colabForm} layout="vertical" onFinish={onColabLogin} size="large">
+                              <Form.Item name="username" label={<span style={{ color: '#c9d1d9' }}>Usuario</span>}
+                                rules={[{ required: true, message: 'Ingresa tu usuario' }]}>
+                                <Input prefix={<UserOutlined style={{ color: neonCyan }} />}
+                                  placeholder="tu.usuario"
+                                  style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.25)', color: '#fff', borderRadius: 8 }} />
+                              </Form.Item>
+                              <Form.Item name="password" label={<span style={{ color: '#c9d1d9' }}>Contrase├▒a</span>}
+                                rules={[{ required: true, message: 'Ingresa tu contrase├▒a' }]}>
+                                <Input.Password prefix={<LockOutlined style={{ color: neonCyan }} />}
+                                  placeholder="Tu contrase├▒a"
+                                  style={{ background: darkBg, borderColor: 'rgba(0,210,255,0.25)', color: '#fff', borderRadius: 8 }} />
+                              </Form.Item>
+                              {colabError && (
+                                <div style={{ background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.35)',
+                                  borderRadius: 8, padding: '10px 14px', marginBottom: 14, color: '#ff6b6b', fontSize: 13 }}>
+                                  {colabError}
+                                </div>
+                              )}
+                              <Button type="primary" htmlType="submit" block loading={colabLoading} style={{
+                                height: 46, background: 'linear-gradient(135deg, ' + neonCyan + ', #0088cc)',
+                                color: '#000', border: 'none', fontWeight: 800, fontSize: 15,
+                                boxShadow: neonGlow, borderRadius: 10 }}>
+                                Acceder como Colaborador
+                              </Button>
+                            </Form>
+                          </div>
+                        )}
                       </div>
                     )}
-                    <Button type="primary" htmlType="submit" block style={{
-                      height: 46, background: 'linear-gradient(135deg, ' + neonCyan + ', #0088cc)',
-                      color: '#000', border: 'none', fontWeight: 800, fontSize: 15,
-                      boxShadow: neonGlow, borderRadius: 10 }}>
-                      Entrar
-                    </Button>
-                  </Form>
-                  <div style={{ marginTop: 18, textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
-                    <Text style={{ color: '#6b7280', fontSize: 13 }}>No tienes negocio aun? </Text>
-                    <button onClick={() => navigate('/planes')}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer',
-                        color: neonCyan, fontWeight: 700, fontSize: 13, padding: '0 4px' }}>
-                      Crear uno gratis
-                    </button>
-                  </div>
-                </Card>
-              </div>
+
+                    <div style={{ marginTop: 18, textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 16 }}>
+                      <Text style={{ color: '#6b7280', fontSize: 13 }}>┬┐No tienes negocio a├║n? </Text>
+                      <button onClick={() => navigate('/planes')}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer',
+                          color: neonCyan, fontWeight: 700, fontSize: 13, padding: '0 4px' }}>
+                        Crear uno gratis
+                      </button>
+                    </div>
+                  </Card>
+                </div>
             )}
 
             {accederStep === 'loading' && (
@@ -377,7 +514,7 @@ export default function Landing({ view }) {
                     Tus <span style={{ color: neonCyan }}>Negocios</span>
                   </Title>
                   <Text style={{ color: '#8b949e', fontSize: 14 }}>
-                    Haz clic para acceder — sin volver a ingresar tu contrasena
+                    Haz clic para acceder ├ö├ç├Â sin volver a ingresar tu contrasena
                   </Text>
                 </div>
                 <Row gutter={[24, 24]} justify="center">
@@ -428,8 +565,8 @@ export default function Landing({ view }) {
           <div style={{ maxWidth: 460, margin: '0 auto', animation: 'fadeIn 0.5s' }}>
             {(() => {
               const planes = {
-                '1': { nombre: 'Emprendedor', precio: currency === 'PEN' ? 'S/ 39 / mes' : '$ 12 / mes', icon: '🚀' },
-                '2': { nombre: 'Empresario',  precio: 'A Medida', icon: '🏆' },
+                '1': { nombre: 'Emprendedor', precio: currency === 'PEN' ? 'S/ 39 / mes' : '$ 12 / mes', icon: '┬¡ãÆ├£├ç' },
+                '2': { nombre: 'Empresario',  precio: 'A Medida', icon: '┬¡ãÆ├à├Ñ' },
               };
               const plan = planes[planId] || planes['1'];
               return (
@@ -539,11 +676,11 @@ export default function Landing({ view }) {
           <span>Producto por</span>
           <a href="https://pizzia.org" target="_blank" rel="noopener noreferrer"
             style={{ color: neonCyan, fontWeight: 700, textDecoration: 'none' }}>PizzIA</a>
-          <span>·</span>
+          <span>Ôö¼├Ç</span>
           <a href="https://pizzia.org" target="_blank" rel="noopener noreferrer"
             style={{ color: '#6b7280', textDecoration: 'underline' }}>pizzia.org</a>
         </div>
-        <div style={{ fontSize: 12, color: '#374151' }}>© {new Date().getFullYear()} PizzIA – Todos los derechos reservados</div>
+        <div style={{ fontSize: 12, color: '#374151' }}>Ôö¼┬« {new Date().getFullYear()} PizzIA ├ö├ç├┤ Todos los derechos reservados</div>
       </footer>
 
       <style>{`
