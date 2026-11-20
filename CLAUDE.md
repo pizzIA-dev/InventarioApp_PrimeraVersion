@@ -132,8 +132,8 @@ frontend/              # React + Vite + AntD (src/pages, src/components, src/ser
    - `apps/inventario/serializers.py` → `MovimientoStockCreateSerializer.Meta.fields` incluye `'almacen'`
    - `apps/core/backup_views.py` → `restore_backup` referencia `TrasladoStock`
 4. **`ClienteFiado` ya no existe** (migración `fiados.0009`): los fiados usan `apps.clientes.Cliente`.
-5. **Backups**: toda la lógica está en `apps/core/backup_service.py` (respaldo completo de `BACKUP_APPS`, restauración atómica con respaldo de seguridad previo). `run_backups` recorre todos los tenants y debe programarse cada hora. `AjusteStockModal.jsx` está incompleto y se conserva con los almacenes.
+5. **Backups**: toda la lógica está en `apps/core/backup_service.py` (respaldo completo de `BACKUP_APPS`, restauración atómica con respaldo de seguridad previo). Los ZIP se guardan en la BD (`RegistroBackup.contenido`) porque el servicio cron y el web de Railway no comparten disco. `run_backups` (cron cada hora, `railway.backups.toml`) recorre todos los tenants, crea la configuración por defecto (diario 03:00) y usa un advisory lock contra ejecuciones simultáneas. `AjusteStockModal.jsx` está incompleto y se conserva con los almacenes.
 9. **Entorno local**: hay PostgreSQL portátil y un venv; ver la sección "Entorno local" de `ESTADO_PROYECTO.md`. Los tests del panel están en `apps/panel/tests/`.
 6. **Roles**: el colaborador accede por **código de acceso**, no por subdominio. El login de Gerente usa `platform-login` (email) + `tenant-token`.
-7. **Deploy**: backend en **Railway** (`railway.toml`, gunicorn), frontend en **Vercel** (`vercel.json`).
+7. **Deploy**: backend en **Railway** (`railway.toml`, gunicorn; servicio cron de respaldos con `railway.backups.toml`), frontend en **Vercel** (`vercel.json`).
 8. Los `admin.py` están vacíos (no hay registros en el admin de Django).

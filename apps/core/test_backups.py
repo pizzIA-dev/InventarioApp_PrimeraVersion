@@ -134,3 +134,59 @@ class BackupsTests(TestCase):
         self.assertTrue(toca_respaldo(cfg, ahora))
         cfg.hora_ejecucion = time(5, 0)
         self.assertFalse(toca_respaldo(cfg, ahora))
+
+
+class RunBackupsCommandTests(TestCase):
+    """El comando del cron: configuración por defecto, sin duplicados y aislamiento por negocio."""
+
+    @classmethod
+    def setUpTestData(cls):
+        Tenant(schema_name='testcron', nombre='Negocio Cron', owner_email='cron@test.pe').save()
+        from apps.core.models import Empresa
+        with schema_context('testcron'):
+            cls.empresa = Empresa.objects.create(nombre='Negocio Cron')
+
+    def _correr(self, *args):
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        call_command('run_backups', '--schema', 'testcron', *args, stdout=out, stderr=out)
+        return out.getvalue()
+
+    def test_crea_configuracion_por_defecto_y_no_duplica(self):
+        from datetime import time
+        from apps.core.models import ConfiguracionBackup, RegistroBackup
+        # Hora 00:00 → siempre "ya pasó la hora" en el test
+        with schema_context('testcron'):
+            self.assertFalse(ConfiguracionBackup.objects.exists())
+        self._correr('--dry-run')
+        with schema_context('testcron'):
+            cfg = ConfiguracionBackup.objects.get()
+            self.assertTrue(cfg.activo)
+            self.assertEqual(cfg.frecuencia, 'DIARIO')
+            ConfiguracionBackup.objects.update(hora_ejecucion=time(0, 0))
+            self.assertFalse(RegistroBackup.objects.exists())  # dry-run no genera
+
+        salida = self._correr()
+        self.assertIn('1 generados', salida)
+        with schema_context('testcron'):
+            r = RegistroBackup.objects.get()
+            self.assertEqual(r.origen, 'AUTOMATICO')
+            self.assertGreater(r.tamano_bytes, 0)
+            self.assertIsNotNone(ConfiguracionBackup.objects.get().ultimo_respaldo)
+
+        self.assertIn('0 generados', self._correr())  # mismo día: no duplica
+        with schema_context('testcron'):
+            self.assertEqual(RegistroBackup.objects.count(), 1)
+
+    def test_retencion_conserva_siete(self):
+        from apps.core.models import RegistroBackup
+        for _ in range(9):
+            self._correr('--forzar')
+        with schema_context('testcron'):
+            self.assertEqual(RegistroBackup.objects.count(), 7)
+
+    def test_schema_inexistente_falla(self):
+        from django.core.management import CommandError, call_command
+        with self.assertRaises(CommandError):
+            call_command('run_backups', '--schema', 'noexiste')

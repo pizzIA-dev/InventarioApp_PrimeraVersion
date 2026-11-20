@@ -272,3 +272,24 @@ class CuentaStaffProtegidaTests(TestCase):
         _crear_usuario_plataforma('jefe@negocia.pe', 'Atacante-456')
         admin.refresh_from_db()
         self.assertTrue(admin.check_password('Original-123'))
+
+
+class PanelRespaldosTests(TestCase):
+    def test_detalle_incluye_estado_de_respaldos(self):
+        Tenant = Cliente
+        t = Tenant(schema_name='testpnlbk', nombre='Negocio Respaldo', owner_email='r@test.pe')
+        t.save()
+        from apps.core import backup_service
+        from apps.core.models import Empresa
+        with schema_context('testpnlbk'):
+            empresa = Empresa.objects.create(nombre='Negocio Respaldo')
+            backup_service.generar_backup(empresa, origen='AUTOMATICO')
+        admin = User.objects.create_user('adm_bk', 'adm@bk.pe', 'Clave-admin-123', is_staff=True)
+        c = APIClient()
+        c.credentials(HTTP_AUTHORIZATION=f'Bearer {tokens_panel(admin).access_token}')
+        r = c.get(f'/api/panel/empresas/{t.pk}/')
+        self.assertEqual(r.status_code, 200)
+        resp = r.data['respaldos']
+        self.assertEqual(resp['dias_sin_respaldo'], 0)
+        self.assertEqual(resp['recientes'][0]['origen'], 'AUTOMATICO')
+        self.assertNotIn('contenido', resp['recientes'][0])

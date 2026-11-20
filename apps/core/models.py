@@ -100,12 +100,26 @@ class ConfiguracionBackup(models.Model):
         verbose_name_plural = "Configuraciones de Backup"
 
 class RegistroBackup(models.Model):
+    ORIGEN_CHOICES = [
+        ("MANUAL", "Manual"),
+        ("AUTOMATICO", "Automático"),
+        ("PRE_RESTAURACION", "Seguridad (antes de restaurar)"),
+    ]
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name="registro_backups")
-    # Storage propio: Cloudinary "raw" (o carpeta privada local). Se descarga solo vía API.
+    # El ZIP se guarda en la propia base (comprimido): así lo ven tanto el servicio web
+    # como el cron de respaldos, que en Railway no comparten disco.
+    contenido = models.BinaryField(null=True, blank=True, editable=False)
+    tamano_bytes = models.PositiveIntegerField(default=0)
+    origen = models.CharField(max_length=20, choices=ORIGEN_CHOICES, default="MANUAL")
+    # Legacy: respaldos anteriores guardados como archivo (solo lectura/descarga).
     archivo = models.FileField(upload_to="backups/tenants/", storage=storage_respaldos, blank=True, null=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     estado = models.CharField(max_length=20, choices=[("EXITO", "Éxito"), ("ERROR", "Error")])
     notas = models.TextField(blank=True, null=True)
+
+    @property
+    def descargable(self):
+        return bool(self.tamano_bytes) or bool(self.archivo)
 
     class Meta:
         db_table = "core_registro_backup"

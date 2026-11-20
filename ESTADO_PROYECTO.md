@@ -34,7 +34,7 @@ Se pasó de una **v1 monolítica (SQLite, sin multi-tenant)** a una **v2 SaaS mu
 | Fiados (créditos) | `fiados` | ✅ Funcional (abonos, liquidación → venta automática, cancelación/reactivación) |
 | Registro SaaS + planes + pago | `clientes_saas` + `suscripciones` | ✅ Funcional (registro, Culqi, planes Emprendedor/Empresario) |
 | Auth + roles + usuarios | `core` | ✅ Funcional (JWT, GERENTE/COLABORADOR, RBAC plan Empresario, código de acceso) |
-| Backups | `core` | ✅ Rehecho (2026-11-19): respaldo completo de las 9 apps de negocio, manual y automático (`run_backups` recorre todos los negocios), descarga autenticada y restauración atómica con respaldo de seguridad previo. ⚠️ El automático requiere un Cron Service en Railway |
+| Backups | `core` | ✅ Rehecho (2026-11-19): respaldo completo de las 9 apps de negocio, manual y automático (`run_backups` recorre todos los negocios), descarga autenticada y restauración atómica con respaldo de seguridad previo. El automático requiere crear el servicio cron (ver "Respaldos automáticos en Railway") |
 | **Panel de Control (back-office)** | `panel` + `frontend/src/panel` | ✅ Nuevo (2026-11-19): empresas, activación/extensión/suspensión manual, pagos, gastos, métricas (MRR/ARPU) y auditoría. Ver `ESPECIFICACION-Panel-de-Control.md` §0 |
 
 ## Historial reciente (destacado)
@@ -78,7 +78,8 @@ Se pasó de una **v1 monolítica (SQLite, sin multi-tenant)** a una **v2 SaaS mu
 
 - [ ] ~~Eliminar referencias a `Almacen`/`StockAlmacen`/`TrasladoStock`~~ → **decisión 2026-11-19: se conservan** por si se implementan los almacenes en el futuro.
 - [x] Implementar `backupsAPI.generar()` y el endpoint de respaldo manual (más descarga y restauración seguras).
-- [ ] **Programar `python manage.py run_backups` cada hora** (Cron Service en Railway); sin eso no hay respaldos automáticos.
+- [x] Código del cron de respaldos listo (`railway.backups.toml`, ZIP en BD, configuración por defecto, candado y aislamiento por negocio).
+- [ ] **Crear el servicio cron en Railway** (pasos en "Respaldos automáticos en Railway").
 - [x] Corregir `Login.jsx` (argumentos de `.trim()` y paso de `codigo_acceso`).
 - [x] Eliminar componentes extraídos sin uso (`AjusteStockModal.jsx` se conserva con los almacenes).
 - [ ] Conectar boletas/facturas con **SUNAT** (pendiente desde v1; hoy son comprobantes internos).
@@ -87,6 +88,26 @@ Se pasó de una **v1 monolítica (SQLite, sin multi-tenant)** a una **v2 SaaS mu
 - [x] Normalizar el encoding (frontend y backend).
 - [ ] Panel v2: webhook de Culqi, tasa de cambio PEN/USD, recordatorios de vencimiento y varios admins con roles.
 - [ ] Deriva de migración preexistente: `clientes_saas.Cliente.owner_email.help_text` difiere de la migración 0002 (solo una tilde; `makemigrations` la detecta).
+
+## Respaldos automáticos en Railway (configuración única)
+
+El código ya está listo; falta crear **un segundo servicio** en el proyecto de Railway que ejecute `run_backups` cada hora. Usa `railway.backups.toml`.
+
+1. En el proyecto de Railway: **New → GitHub Repo →** el mismo repositorio. Elige **la misma rama** que despliega el servicio web.
+2. En el nuevo servicio (por ejemplo, `respaldos`): **Settings → Config-as-code → Railway Config File** = `/railway.backups.toml`. Así toma el cron `0 * * * *`, el comando `python manage.py run_backups` y **no** ejecuta migraciones.
+3. **Variables** (como referencias, para no copiar secretos):
+   - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (usa el nombre real de tu servicio de base de datos)
+   - `SECRET_KEY` = `${{<servicio-web>.SECRET_KEY}}`
+   - `DEBUG` = `False`
+   No necesita dominio público, CORS ni Cloudinary: los ZIP se guardan en la propia base de datos.
+4. Despliega. Para probar sin esperar a la hora: botón **Run now** del cron, o cambia temporalmente el comando a `python manage.py run_backups --forzar`.
+5. Revisa el log: termina con `run_backups: N generados, M sin respaldo pendiente, 0 con error.` Si algún negocio falla, la ejecución sale con error y Railway la marca en rojo.
+6. En el Panel de Control, el detalle de cada empresa muestra la tarjeta **Respaldos** (último correcto, fallos y si el Gerente los desactivó).
+
+Notas:
+- Railway ejecuta el cron en UTC; el comando decide por la hora de Lima de cada negocio (por defecto, 03:00 diario). Los negocios sin configuración reciben la configuración por defecto.
+- Se conservan 7 respaldos por negocio (unos KB cada uno).
+- Estos respaldos protegen frente a errores de los usuarios (restaurar el negocio a un día anterior). Ante la **pérdida de la base completa** protegen los backups nativos de Railway Postgres: actívalos en el servicio de la base (pestaña Backups).
 
 ## Entorno local (Windows, 2026-11-19)
 

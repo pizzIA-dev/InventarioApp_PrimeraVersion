@@ -1,0 +1,19 @@
+# railway.backups.toml — Servicio CRON de respaldos automáticos de NegocIA
+#
+# Es un SEGUNDO servicio de Railway, creado desde el mismo repositorio.
+# En ese servicio: Settings > Config-as-code > "Railway Config File" = /railway.backups.toml
+#
+# - Se ejecuta cada hora (en UTC), genera los respaldos que correspondan y termina.
+#   La hora de cada negocio (por defecto 03:00 de Lima) la decide el propio comando.
+# - NO ejecuta migraciones (eso lo hace solo el servicio web con railway.toml).
+# - Si la ejecución anterior sigue corriendo, Railway omite la siguiente.
+# Docs: https://docs.railway.com/reference/cron-jobs
+
+[build]
+builder = "NIXPACKS"
+buildCommand = "pip install -r requirements.txt"
+
+[deploy]
+startCommand = "python manage.py run_backups"
+cronSchedule = "0 * * * *"
+restartPolicyType = "NEVER"

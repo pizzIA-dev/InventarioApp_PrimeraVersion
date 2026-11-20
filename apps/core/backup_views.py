@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.core import backup_service
-from apps.core.models import ConfiguracionBackup, RegistroBackup
+from apps.core.models import RegistroBackup
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ def manage_backup_config(request):
     empresa = _empresa_si_gerente(request)
     if empresa is None:
         return _no_autorizado()
-    config, _ = ConfiguracionBackup.objects.get_or_create(empresa=empresa)
+    config = backup_service.config_de(empresa)
 
     if request.method == 'POST':
         frecuencia = request.data.get('frecuencia', config.frecuencia)
@@ -69,8 +69,10 @@ def list_backups(request):
         'fecha_creacion': b.fecha_creacion,
         'estado': b.estado,
         'notas': b.notas,
-        'descargable': bool(b.archivo),
-    } for b in RegistroBackup.objects.filter(empresa=empresa).order_by('-fecha_creacion')]
+        'origen': b.origen,
+        'tamano_bytes': b.tamano_bytes,
+        'descargable': b.descargable,
+    } for b in RegistroBackup.objects.filter(empresa=empresa).defer('contenido').order_by('-fecha_creacion')]
     return Response(data)
 
 
@@ -98,11 +100,13 @@ def descargar_backup(request, backup_id):
     if empresa is None:
         return _no_autorizado()
     registro = RegistroBackup.objects.filter(id=backup_id, empresa=empresa).first()
-    if registro is None or not registro.archivo:
+    if registro is None or not registro.descargable:
         return Response({'error': 'Respaldo no disponible.'}, status=status.HTTP_404_NOT_FOUND)
-    with registro.archivo.open('rb') as f:
-        contenido = f.read()
-    nombre = registro.archivo.name.rsplit('/', 1)[-1]
+    try:
+        contenido = backup_service.bytes_zip(registro)
+    except backup_service.BackupError as exc:
+        return Response({'error': str(exc)}, status=status.HTTP_404_NOT_FOUND)
+    nombre = f'respaldo_{registro.fecha_creacion:%Y%m%d_%H%M}.zip'
     response = HttpResponse(contenido, content_type='application/zip')
     response['Content-Disposition'] = f'attachment; filename="{nombre}"'
     return response

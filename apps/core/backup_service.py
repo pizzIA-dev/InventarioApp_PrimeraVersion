@@ -20,7 +20,6 @@ from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import serializers
-from django.core.files.base import ContentFile
 from django.core.management.color import no_style
 from django.db import connection, transaction
 from django.utils import timezone
@@ -84,17 +83,17 @@ def generar_backup(empresa, *, origen='MANUAL', usuario=None):
         with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
             zf.writestr(JSON_NOMBRE, json.dumps(contenido, ensure_ascii=False, default=str))
 
-        etiqueta = {'MANUAL': 'Manual', 'AUTOMATICO': 'Automático',
-                    'PRE_RESTAURACION': 'Seguridad (antes de restaurar)'}.get(origen, origen)
+        etiqueta = dict(RegistroBackup.ORIGEN_CHOICES).get(origen, origen)
         quien = f' por {usuario.username}' if getattr(usuario, 'username', None) else ''
+        datos = buffer.getvalue()
         registro = RegistroBackup.objects.create(
-            empresa=empresa, estado='EXITO',
+            empresa=empresa, estado='EXITO', origen=origen,
+            contenido=datos, tamano_bytes=len(datos),
             notas=f'{etiqueta}{quien}. {len(objetos)} registros de {len(conteo)} tablas.',
         )
-        nombre = f'backup_{connection.schema_name}_{ahora:%Y%m%d_%H%M%S}.zip'
-        registro.archivo.save(nombre, ContentFile(buffer.getvalue()), save=True)
     except Exception as exc:
-        RegistroBackup.objects.create(empresa=empresa, estado='ERROR', notas=f'Error al generar: {exc}')
+        RegistroBackup.objects.create(empresa=empresa, estado='ERROR', origen=origen,
+                                      notas=f'Error al generar: {exc}')
         raise BackupError(f'No se pudo generar el respaldo: {exc}') from exc
 
     ConfiguracionBackup.objects.filter(empresa=empresa).update(ultimo_respaldo=ahora)
@@ -102,9 +101,21 @@ def generar_backup(empresa, *, origen='MANUAL', usuario=None):
     return registro
 
 
+def config_de(empresa):
+    """Configuración de respaldos del negocio (por defecto: diario a las 03:00, activo)."""
+    from apps.core.models import ConfiguracionBackup
+    config, creado = ConfiguracionBackup.objects.get_or_create(empresa=empresa)
+    if creado:
+        # El default del modelo es el texto "03:00": recargar para tener un datetime.time real.
+        config.refresh_from_db()
+    return config
+
+
 def aplicar_retencion(empresa):
     from apps.core.models import RegistroBackup
-    for viejo in RegistroBackup.objects.filter(empresa=empresa).order_by('-fecha_creacion')[RETENCION:]:
+    viejos = (RegistroBackup.objects.filter(empresa=empresa).defer('contenido')
+              .order_by('-fecha_creacion')[RETENCION:])
+    for viejo in viejos:
         if viejo.archivo:
             try:
                 viejo.archivo.delete(save=False)
@@ -115,17 +126,27 @@ def aplicar_retencion(empresa):
 
 # ─── Lectura ─────────────────────────────────────────────────────────────────
 
+def bytes_zip(registro):
+    """Bytes del ZIP: desde la base (actual) o desde el archivo (respaldos antiguos)."""
+    if registro.contenido:
+        return bytes(registro.contenido)
+    if registro.archivo:
+        with registro.archivo.open('rb') as f:
+            return f.read()
+    raise BackupError('El contenido de este respaldo ya no está disponible.')
+
+
 def leer_backup(registro):
     """Devuelve el contenido (dict) de un respaldo, validando su formato."""
-    if not registro.archivo:
-        raise BackupError('El archivo de este respaldo ya no está disponible.')
-    with registro.archivo.open('rb') as f:
-        with zipfile.ZipFile(io.BytesIO(f.read())) as zf:
-            nombres = zf.namelist()
-            if JSON_NOMBRE not in nombres:
-                raise BackupError('Este respaldo es de un formato antiguo e incompleto: no se puede '
-                                  'restaurar automáticamente. Puedes descargarlo para revisarlo.')
-            contenido = json.loads(zf.read(JSON_NOMBRE).decode('utf-8'))
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(bytes_zip(registro)))
+    except zipfile.BadZipFile:
+        raise BackupError('El archivo del respaldo está dañado.')
+    with zf:
+        if JSON_NOMBRE not in zf.namelist():
+            raise BackupError('Este respaldo es de un formato antiguo e incompleto: no se puede '
+                              'restaurar automáticamente. Puedes descargarlo para revisarlo.')
+        contenido = json.loads(zf.read(JSON_NOMBRE).decode('utf-8'))
     if contenido.get('version') != FORMATO_VERSION:
         raise BackupError('Versión de respaldo no soportada.')
     if contenido.get('schema') != connection.schema_name:
@@ -204,9 +225,8 @@ def toca_respaldo(config, ahora=None):
 
 def storage_respaldos():
     """
-    Almacenamiento de los ZIP: Cloudinary "raw" en producción (no es una imagen)
-    y una carpeta privada local cuando Cloudinary no está configurado.
-    Los archivos se descargan siempre a través de la API (con login), nunca por URL directa.
+    Storage del campo legacy `archivo` (respaldos generados antes de guardarlos en la BD).
+    Cloudinary "raw" si está configurado; si no, una carpeta privada local.
     """
     api_key = getattr(settings, 'CLOUDINARY_STORAGE', {}).get('API_KEY')
     if api_key and api_key != 'placeholder':

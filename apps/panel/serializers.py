@@ -153,9 +153,37 @@ class EmpresaDetalleSerializer(EmpresaListSerializer):
     pagos = serializers.SerializerMethodField()
     movimientos = serializers.SerializerMethodField()
     total_pagado = serializers.SerializerMethodField()
+    respaldos = serializers.SerializerMethodField()
 
     class Meta(EmpresaListSerializer.Meta):
-        fields = EmpresaListSerializer.Meta.fields + ['pagos', 'movimientos', 'total_pagado']
+        fields = EmpresaListSerializer.Meta.fields + ['pagos', 'movimientos', 'total_pagado', 'respaldos']
+
+    def get_respaldos(self, obj):
+        """Estado de los respaldos del negocio (solo metadatos; se lee en su schema)."""
+        from django.utils import timezone
+        from django_tenants.utils import tenant_context
+        try:
+            with tenant_context(obj):
+                from apps.core.models import ConfiguracionBackup, RegistroBackup
+                config = ConfiguracionBackup.objects.first()
+                ultimos = list(RegistroBackup.objects.defer('contenido').order_by('-fecha_creacion')[:5])
+                ultimo_ok = next((r for r in ultimos if r.estado == 'EXITO'), None)
+                dias = ((timezone.now() - ultimo_ok.fecha_creacion).days if ultimo_ok else None)
+                return {
+                    'configurado': config is not None,
+                    'activo': config.activo if config else True,
+                    'frecuencia': config.frecuencia if config else 'DIARIO',
+                    'hora': config.hora_ejecucion.strftime('%H:%M') if config else '03:00',
+                    'ultimo_exito': ultimo_ok.fecha_creacion if ultimo_ok else None,
+                    'dias_sin_respaldo': dias,
+                    'ultimo_fallo': bool(ultimos) and ultimos[0].estado == 'ERROR',
+                    'recientes': [{
+                        'fecha': r.fecha_creacion, 'estado': r.estado, 'origen': r.origen,
+                        'tamano_bytes': r.tamano_bytes, 'notas': r.notas,
+                    } for r in ultimos],
+                }
+        except Exception as exc:  # p. ej. schema sin migrar
+            return {'error': str(exc)}
 
     def get_pagos(self, obj):
         qs = obj.pagos_plataforma.select_related('plan', 'registrado_por')[:50]

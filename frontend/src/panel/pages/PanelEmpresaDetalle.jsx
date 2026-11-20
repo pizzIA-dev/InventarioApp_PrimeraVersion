@@ -10,6 +10,52 @@ import { ACCIONES, COLOR_ACCION, diasTexto, fecha, fechaHora, money } from '../u
 import EstadoTag from '../components/EstadoTag';
 import { ActivarModal, CambiarPlanModal, ExtenderModal, NotaModal } from '../components/SuscripcionModals';
 
+const ORIGEN = { MANUAL: 'Manual', AUTOMATICO: 'Automático', PRE_RESTAURACION: 'Antes de restaurar' };
+
+function RespaldosCard({ r }) {
+  if (!r) return null;
+  if (r.error) {
+    return (
+      <div className="pnl-card">
+        <div className="pnl-card-title">Respaldos</div>
+        <Alert type="error" showIcon message="No se pudo leer el estado de respaldos" description={r.error} />
+      </div>
+    );
+  }
+  const atrasado = r.activo && (r.dias_sin_respaldo === null || r.dias_sin_respaldo > 2);
+  let aviso = null;
+  if (!r.activo) aviso = <Alert type="warning" showIcon message="El Gerente desactivó los respaldos automáticos." />;
+  else if (r.ultimo_fallo) aviso = <Alert type="error" showIcon message="El último respaldo falló." />;
+  else if (atrasado) {
+    aviso = <Alert type="warning" showIcon message={r.ultimo_exito
+      ? `Sin respaldos hace ${r.dias_sin_respaldo} días.` : 'Todavía no tiene ningún respaldo.'} />;
+  }
+  return (
+    <div className="pnl-card">
+      <div className="pnl-card-title">Respaldos</div>
+      {aviso && <div style={{ marginBottom: 12 }}>{aviso}</div>}
+      <dl className="pnl-kv">
+        <dt>Automático</dt>
+        <dd>{r.activo ? `${r.frecuencia === 'DIARIO' ? 'Diario' : r.frecuencia === 'SEMANAL' ? 'Semanal' : 'Mensual'} · ${r.hora}` : 'Desactivado'}</dd>
+        <dt>Último correcto</dt><dd className="num">{r.ultimo_exito ? fechaHora(r.ultimo_exito) : '—'}</dd>
+      </dl>
+      {r.recientes.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          {r.recientes.map((b) => (
+            <div key={b.fecha} className="pnl-alert-row" style={{ padding: '7px 0' }}>
+              <span className="num" style={{ fontSize: 12.5 }}>{fechaHora(b.fecha)}</span>
+              <span style={{ fontSize: 12.5, color: '#6b7280' }}>
+                {ORIGEN[b.origen] || b.origen}{b.tamano_bytes ? ` · ${(b.tamano_bytes / 1024).toFixed(1)} KB` : ''}
+              </span>
+              <Tag color={b.estado === 'EXITO' ? 'green' : 'red'} style={{ marginInlineEnd: 0 }}>{b.estado}</Tag>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PanelEmpresaDetalle() {
   const { id } = useParams();
   const [empresa, setEmpresa] = useState(null);
@@ -141,6 +187,7 @@ export default function PanelEmpresaDetalle() {
               <dt>Asientos</dt><dd className="num">{sus?.asientos_contratados ?? '—'}</dd>
             </dl>
           </div>
+          <RespaldosCard r={empresa.respaldos} />
           <div className="pnl-card">
             <div className="pnl-card-title">Total pagado</div>
             <div className="num" style={{ fontSize: 22, fontWeight: 600 }}>{money(empresa.total_pagado?.PEN || 0)}</div>
