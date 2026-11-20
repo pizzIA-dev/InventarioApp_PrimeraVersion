@@ -16,20 +16,20 @@ import axios from 'axios';
 
 const { Title, Text } = Typography;
 
-// ÔöÇÔöÇ Colores para los tabs ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── Colores para los tabs ────────────────────────────────────────────
 const TAB_GERENTE     = 'gerente';
 const TAB_COLABORADOR = 'colaborador';
 
 const Login = () => {
   const [activeTab, setActiveTab]         = useState(TAB_GERENTE);
 
-  // ÔöÇÔöÇ Estado Gerente ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  // ── Estado Gerente ─────────────────────────────────────────────────
   const [gerenteLoading, setGerenteLoading] = useState(false);
   const [gerenteError, setGerenteError]     = useState(null);
   const [gerenteNegocios, setGerenteNegocios] = useState(null); // lista si tiene varios negocios
   const [gerenteSelecLoading, setGerenteSelecLoading] = useState(false);
 
-  // ÔöÇÔöÇ Estado Colaborador ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  // ── Estado Colaborador ─────────────────────────────────────────────
   const [colabLoading, setColabLoading]         = useState(false);
   const [colabError, setColabError]             = useState(null);
   const [colabCode, setColabCode]               = useState('');
@@ -38,7 +38,7 @@ const Login = () => {
   const [colabTenantError, setColabTenantError] = useState(null);
   const [colabForm]                             = Form.useForm();
 
-  // ÔöÇÔöÇ Forgot Password ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  // ── Forgot Password ────────────────────────────────────────────────
   const [forgotOpen, setForgotOpen]       = useState(false);
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotSuccess, setForgotSuccess] = useState(null);
@@ -53,15 +53,15 @@ const Login = () => {
   const { isDark }  = useTheme();
   const from        = location.state?.from?.pathname || '/';
 
-  // ÔöÇÔöÇ Colores adaptativos ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  // ── Colores adaptativos ────────────────────────────────────────────
   const cardBg     = isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.92)';
   const cardBorder = isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)';
   const mutedColor = isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)';
   const textColor  = isDark ? '#fff' : '#141414';
 
-  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+  // ════════════════════════════════════════════════════════════════════
   // FLUJO GERENTE
-  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+  // ════════════════════════════════════════════════════════════════════
   const onGerenteFinish = async (values) => {
     setGerenteLoading(true);
     setGerenteError(null);
@@ -70,7 +70,7 @@ const Login = () => {
     const result = await platformLogin(values.email.trim().toLowerCase(), values.password);
 
     if (!result.success) {
-      // Si la suscripci├│n est├í inactiva, mensaje espec├¡fico
+      // Si la suscripción está inactiva, mensaje específico
       if (result.suscripcion_inactiva) {
         setGerenteError({
           type: 'subscription',
@@ -123,13 +123,13 @@ const Login = () => {
     setGerenteSelecLoading(false);
   };
 
-  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
-  // FLUJO COLABORADOR: verificar c├│digo de negocio
-  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+  // ════════════════════════════════════════════════════════════════════
+  // FLUJO COLABORADOR: verificar código de negocio
+  // ════════════════════════════════════════════════════════════════════
   const handleVerificarCodigo = async () => {
     const code = colabCode.trim();
     if (!code) {
-      setColabTenantError('Ingresa el c├│digo de negocio primero.');
+      setColabTenantError('Ingresa el código de negocio primero.');
       return;
     }
     setColabVerifying(true);
@@ -142,7 +142,7 @@ const Login = () => {
       setColabTenant({ nombre: res.nombre, schema: res.schema });
     } else {
       if (res.found && res.suscripcion_activa === false) {
-        setColabTenantError(`ÔÜá´©Å ${res.message}`);
+        setColabTenantError(`⚠️ ${res.message}`);
       } else {
         setColabTenantError(res.message);
       }
@@ -152,7 +152,7 @@ const Login = () => {
 
   const onColabFinish = async (values) => {
     if (!colabTenant) {
-      setColabError('Primero verifica el c├│digo de negocio.');
+      setColabError('Primero verifica el código de negocio.');
       return;
     }
     setColabLoading(true);
@@ -176,9 +176,9 @@ const Login = () => {
     setColabLoading(false);
   };
 
-  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+  // ════════════════════════════════════════════════════════════════════
   // FORGOT PASSWORD
-  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+  // ════════════════════════════════════════════════════════════════════
   const onForgotSubmit = async (values) => {
     setForgotLoading(true);
     setForgotError(null);
@@ -190,14 +190,14 @@ const Login = () => {
       if (res.data.reset_url) msg += `\n\n[DEV] Link: ${res.data.reset_url}`;
       setForgotSuccess(msg);
     } catch (err) {
-      setForgotError(err.response?.data?.error || 'Error al enviar. Intenta m├ís tarde.');
+      setForgotError(err.response?.data?.error || 'Error al enviar. Intenta más tarde.');
     }
     setForgotLoading(false);
   };
 
-  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+  // ════════════════════════════════════════════════════════════════════
   // RENDER
-  // ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+  // ════════════════════════════════════════════════════════════════════
   return (
     <Layout style={{
       minHeight: '100vh',
@@ -224,7 +224,7 @@ const Login = () => {
         }}
         bordered={false}
       >
-        {/* Logo / T├¡tulo */}
+        {/* Logo / Título */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -239,11 +239,11 @@ const Login = () => {
             Bienvenido a NegocIA
           </Title>
           <Text style={{ color: mutedColor, fontSize: 13 }}>
-            Selecciona c├│mo deseas ingresar
+            Selecciona cómo deseas ingresar
           </Text>
         </div>
 
-        {/* ÔöÇÔöÇ SELECTOR DE TAB ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ */}
+        {/* ── SELECTOR DE TAB ──────────────────────────────────────── */}
         <div style={{
           display: 'grid', gridTemplateColumns: '1fr 1fr',
           gap: 8, marginBottom: 24,
@@ -285,15 +285,15 @@ const Login = () => {
           ))}
         </div>
 
-        {/* ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+        {/* ════════════════════════════════════════════════════════════
             TAB: GERENTE
-        ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ */}
+        ════════════════════════════════════════════════════════════ */}
         {activeTab === TAB_GERENTE && (
           <>
-            {/* Error de suscripci├│n */}
+            {/* Error de suscripción */}
             {gerenteError?.type === 'subscription' && (
               <Alert
-                message="Suscripci├│n inactiva"
+                message="Suscripción inactiva"
                 description={gerenteError.message}
                 type="warning"
                 showIcon
@@ -363,12 +363,12 @@ const Login = () => {
 
                 <Form.Item name="email"
                   rules={[
-                    { required: true, message: 'Ingresa tu correo electr├│nico' },
-                    { type: 'email', message: 'Ingresa un correo v├ílido' },
+                    { required: true, message: 'Ingresa tu correo electrónico' },
+                    { type: 'email', message: 'Ingresa un correo válido' },
                   ]}>
                   <Input
                     prefix={<MailOutlined style={{ color: '#1677ff' }} />}
-                    placeholder="Correo electr├│nico"
+                    placeholder="Correo electrónico"
                     type="email"
                     autoComplete="email"
                     style={{ borderRadius: 10, height: 46 }}
@@ -376,10 +376,10 @@ const Login = () => {
                 </Form.Item>
 
                 <Form.Item name="password"
-                  rules={[{ required: true, message: 'Ingresa tu contrase├▒a' }]}>
+                  rules={[{ required: true, message: 'Ingresa tu contraseña' }]}>
                   <Input.Password
                     prefix={<LockOutlined style={{ color: '#1677ff' }} />}
-                    placeholder="Contrase├▒a"
+                    placeholder="Contraseña"
                     autoComplete="current-password"
                     style={{ borderRadius: 10, height: 46 }}
                   />
@@ -389,14 +389,14 @@ const Login = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Form.Item name="remember" valuePropName="checked" noStyle>
                       <Checkbox style={{ color: isDark ? 'rgba(255,255,255,0.65)' : undefined }}>
-                        Mantener sesi├│n
+                        Mantener sesión
                       </Checkbox>
                     </Form.Item>
                     <span
                       onClick={() => { setForgotOpen(true); setForgotSuccess(null); setForgotError(null); forgotForm.resetFields(); }}
                       style={{ fontSize: 13, color: '#1677ff', cursor: 'pointer', userSelect: 'none' }}
                     >
-                      ┬┐Olvidaste tu contrase├▒a?
+                      ¿Olvidaste tu contraseña?
                     </span>
                   </div>
                 </Form.Item>
@@ -421,9 +421,9 @@ const Login = () => {
           </>
         )}
 
-        {/* ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+        {/* ════════════════════════════════════════════════════════════
             TAB: COLABORADOR
-        ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ */}
+        ════════════════════════════════════════════════════════════ */}
         {activeTab === TAB_COLABORADOR && (
           <>
             {colabError && (
@@ -441,13 +441,13 @@ const Login = () => {
             <Form name="colab_form" form={colabForm} initialValues={{ remember: false }}
               onFinish={onColabFinish} size="large" layout="vertical">
 
-              {/* Campo: C├│digo de negocio */}
+              {/* Campo: Código de negocio */}
               <div style={{ marginBottom: 16 }}>
                 <label style={{
                   fontSize: 12, fontWeight: 600, color: mutedColor,
                   display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em',
                 }}>
-                  C├│digo de negocio
+                  Código de negocio
                 </label>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Input
@@ -477,7 +477,7 @@ const Login = () => {
                   </Button>
                 </div>
 
-                {/* Resultado de verificaci├│n */}
+                {/* Resultado de verificación */}
                 {colabTenant && (
                   <div style={{
                     marginTop: 10, padding: '10px 14px', borderRadius: 10,
@@ -520,12 +520,12 @@ const Login = () => {
                 />
               </Form.Item>
 
-              {/* Campo: Contrase├▒a */}
+              {/* Campo: Contraseña */}
               <Form.Item name="password"
-                rules={[{ required: true, message: 'Ingresa tu contrase├▒a' }]}>
+                rules={[{ required: true, message: 'Ingresa tu contraseña' }]}>
                 <Input.Password
                   prefix={<LockOutlined style={{ color: '#8b5cf6' }} />}
-                  placeholder="Contrase├▒a"
+                  placeholder="Contraseña"
                   autoComplete="current-password"
                   style={{ borderRadius: 10, height: 46 }}
                 />
@@ -534,7 +534,7 @@ const Login = () => {
               <Form.Item style={{ marginBottom: 20 }}>
                 <Form.Item name="remember" valuePropName="checked" noStyle>
                   <Checkbox style={{ color: isDark ? 'rgba(255,255,255,0.65)' : undefined }}>
-                    Mantener sesi├│n
+                    Mantener sesión
                   </Checkbox>
                 </Form.Item>
               </Form.Item>
@@ -563,11 +563,11 @@ const Login = () => {
 
         <Divider style={{ margin: '22px 0 12px', opacity: 0.2 }} />
         <Text style={{ fontSize: 12, display: 'block', textAlign: 'center', color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)' }}>
-          NegocIA SaaS ┬À Acceso seguro
+          NegocIA SaaS · Acceso seguro
         </Text>
       </Card>
 
-      {/* ÔöÇÔöÇ Modal: Olvid├® mi contrase├▒a ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ */}
+      {/* ── Modal: Olvidé mi contraseña ──────────────────────────────── */}
       <Modal
         open={forgotOpen}
         onCancel={() => setForgotOpen(false)}
@@ -575,14 +575,14 @@ const Login = () => {
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <KeyOutlined style={{ color: '#1677ff' }} />
-            Restablecer contrase├▒a
+            Restablecer contraseña
           </div>
         }
         centered
         destroyOnClose
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
-          Ingresa el email del Gerente. Recibir├ís un enlace para restablecer tu contrase├▒a.
+          Ingresa el email del Gerente. Recibirás un enlace para restablecer tu contraseña.
         </Text>
 
         {forgotSuccess && (
@@ -610,7 +610,7 @@ const Login = () => {
               name="email"
               rules={[
                 { required: true, message: 'Ingresa tu email' },
-                { type: 'email', message: 'Ingresa un email v├ílido' },
+                { type: 'email', message: 'Ingresa un email válido' },
               ]}
             >
               <Input

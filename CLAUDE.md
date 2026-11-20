@@ -131,8 +131,8 @@ frontend/              # React + Vite + AntD (src/pages, src/components, src/ser
    - `apps/inventario/views.py` → `ProductoViewSet.ajustar_stock`
    - `apps/inventario/serializers.py` → `MovimientoStockCreateSerializer.Meta.fields` incluye `'almacen'`
    - `apps/core/backup_views.py` → `restore_backup` referencia `TrasladoStock`
-4. **`ClienteFiado` es legacy**: los fiados nuevos usan `apps.clientes.Cliente`.
-5. **Frontend**: `backupsAPI` no define el método `generar` (pero `Backups.jsx` lo llama). `AjusteStockModal.jsx` está incompleto/no usado.
+4. **`ClienteFiado` ya no existe** (migración `fiados.0009`): los fiados usan `apps.clientes.Cliente`.
+5. **Backups**: toda la lógica está en `apps/core/backup_service.py` (respaldo completo de `BACKUP_APPS`, restauración atómica con respaldo de seguridad previo). `run_backups` recorre todos los tenants y debe programarse cada hora. `AjusteStockModal.jsx` está incompleto y se conserva con los almacenes.
 9. **Entorno local**: hay PostgreSQL portátil y un venv; ver la sección "Entorno local" de `ESTADO_PROYECTO.md`. Los tests del panel están en `apps/panel/tests/`.
 6. **Roles**: el colaborador accede por **código de acceso**, no por subdominio. El login de Gerente usa `platform-login` (email) + `tenant-token`.
 7. **Deploy**: backend en **Railway** (`railway.toml`, gunicorn), frontend en **Vercel** (`vercel.json`).

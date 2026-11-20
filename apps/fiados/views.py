@@ -7,209 +7,11 @@ from rest_framework import viewsets, status
 from apps.core.export_utils import create_excel_response, get_period_range, get_period_label
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import ClienteFiado, Fiado, HistorialFiado
-from .serializers import ClienteFiadoSerializer, FiadoSerializer, FiadoCreateSerializer
+from .models import Fiado, HistorialFiado
+from .serializers import FiadoSerializer, FiadoCreateSerializer
 from apps.ventas.models import Venta, DetalleVenta
 from apps.servicios.models import VentaServicio
 from apps.core.mixins import SoloGerenteDestroyMixin
-
-class ClienteFiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
-    queryset = ClienteFiado.objects.all()
-    serializer_class = ClienteFiadoSerializer
-
-    def get_queryset(self):
-        queryset = self.queryset
-        empresa_id = self.request.query_params.get('empresa')
-        if empresa_id:
-            queryset = queryset.filter(empresa_id=empresa_id)
-        return queryset
-
-    def perform_create(self, serializer):
-        # Si viene empresa en la data, usarla, si no usar la de los params
-        empresa_id = self.request.data.get('empresa') or self.request.query_params.get('empresa')
-        if empresa_id:
-            instance = serializer.save(empresa_id=empresa_id)
-        else:
-            instance = serializer.save()
-            
-        # Registro inicial en historial
-        HistorialFiado.objects.create(
-            cliente=instance,
-            notas="Cliente registrado en el sistema",
-            estado_nuevo="ACTIVO",
-            total_deuda=0,
-            abono=0,
-            saldo_restante=0
-        )
-
-    def perform_update(self, serializer):
-        instance = serializer.save()
-        # Registro de edición en historial
-        HistorialFiado.objects.create(
-            cliente=instance,
-            notas="Información del cliente actualizada",
-            estado_nuevo="ACTIVO",
-            total_deuda=0,
-            abono=0,
-            saldo_restante=0
-        )
-
-    def list(self, request, *args, **kwargs):
-        """Listado de clientes del módulo Fiados"""
-        queryset = self.get_queryset()
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
-    def exportar(self, request):
-        """Exportar lista de clientes del módulo Fiados (ClienteFiado)"""
-        periodo = request.query_params.get('periodo', 'todo')
-        anio    = request.query_params.get('anio')
-        anio    = int(anio) if anio else None
-
-        queryset = self.get_queryset()
-
-        # Filtro de periodo basado en creado_en del cliente
-        period_range = get_period_range(periodo, anio)
-        if period_range:
-            date_from, date_to = period_range
-            queryset = queryset.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
-
-        headers = [
-            'ID', 'Nombre', 'Documento', 'Teléfono', 'Dirección',
-            'Notas', 'Estado', 'Fecha Registro'
-        ]
-
-        rows = []
-        for obj in queryset:
-            rows.append([
-                str(obj.id).zfill(6),
-                obj.nombre,
-                obj.documento or '-',
-                obj.telefono or '-',
-                obj.direccion or '-',
-                obj.notas or '-',
-                'Activo' if obj.activo else 'Inactivo',
-                obj.creado_en.strftime('%d/%m/%Y') if obj.creado_en else '-',
-            ])
-
-        period_label = get_period_label(periodo, anio)
-        return create_excel_response(
-            filename='reporte_clientes_fiados.xlsx',
-            sheet_name='Clientes Fiados',
-            headers=headers,
-            rows=rows,
-            title='Reporte de Clientes Fiados',
-            period_label=period_label
-        )
-
-    # Soft delete
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        # Verificar si tiene fiados pendientes
-        if instance.fiados.filter(estado__in=['PENDIENTE', 'PAGADO_PARCIAL']).exists():
-            return Response(
-                {"error": "No se puede eliminar un cliente con fiados pendientes."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        # Si tiene operaciones antiguas, solo desactivar
-        if instance.fiados.exists():
-            instance.activo = False
-            instance.save()
-            return Response(status=status.HTTP_204_NO_CONTENT)
-            
-        instance.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @action(detail=True, methods=['get'])
-    def historial(self, request, pk=None):
-        """Retorna todo el historial de movimientos de todos los fiados y registros administrativos del cliente"""
-        from django.db.models import Q
-        cliente = self.get_object()
-        # Incluir tanto historial vinculado a sus fiados como el vinculado directamente al cliente
-        historial = HistorialFiado.objects.filter(
-            Q(fiado__cliente=cliente) | Q(cliente=cliente)
-        ).order_by('-fecha')
-        
-        # Filtros de fecha
-        fecha_desde = request.query_params.get('fecha_desde')
-        fecha_hasta = request.query_params.get('fecha_hasta')
-        if fecha_desde:
-            historial = historial.filter(fecha__date__gte=fecha_desde)
-        if fecha_hasta:
-            historial = historial.filter(fecha__date__lte=fecha_hasta)
-
-        # Paginación manual simple
-        page = int(request.query_params.get('page', 1))
-        page_size = int(request.query_params.get('page_size', 15))
-        total_count = historial.count()
-        
-        start = (page - 1) * page_size
-        end = start + page_size
-        paged_historial = historial[start:end]
-        
-        data = []
-        for h in paged_historial:
-            data.append({
-                "id": h.id,
-                "fiado_id": h.fiado.id if h.fiado else None,
-                "fiado_tipo": h.fiado.tipo if h.fiado else 'ADMIN',
-                "fecha": h.fecha.isoformat(),
-                "total_deuda": str(h.total_deuda),
-                "abono": str(h.abono),
-                "saldo_restante": str(h.saldo_restante) if h.saldo_restante is not None else None,
-                "fecha_limite": h.fiado.fecha_limite.isoformat() if h.fiado and h.fiado.fecha_limite else None,
-                "estado_nuevo": h.estado_nuevo,
-                "notas": h.notas
-            })
-            
-        return Response({
-            "count": total_count,
-            "results": data,
-            "page": page,
-            "page_size": page_size
-        })
-
-    @action(detail=True, methods=['get'], renderer_classes=[PassthroughRenderer])
-    def exportar_historial(self, request, pk=None):
-        """Exporta el historial de movimientos de un cliente a Excel usando el formato estándar"""
-        cliente = self.get_object()
-        historial = HistorialFiado.objects.filter(fiado__cliente=cliente).order_by('-fecha')
-
-        headers = [
-            'ID Fiado', 'Tipo Operación', 'Fecha Movimiento', 'Fecha Límite',
-            'Total Deuda (S/.)', 'Abono Realizado (S/.)', 'Saldo Pendiente (S/.)', 
-            'Estado', 'Notas', 'Responsable'
-        ]
-        
-        rows = []
-        for h in historial:
-            rows.append([
-                f"#{h.fiado.id}",
-                h.fiado.get_tipo_display(),
-                h.fecha.strftime("%d/%m/%Y %H:%M:%S") if h.fecha else '',
-                h.fiado.fecha_limite.strftime("%d/%m/%Y") if h.fiado.fecha_limite else '-',
-                float(h.total_deuda),
-                float(h.abono),
-                float(h.saldo_restante),
-                h.estado_nuevo,
-                h.notes or '',
-                f"{h.usuario.get_full_name() or h.usuario.username} ({h.usuario.perfil.get_rol_display() if hasattr(h.usuario, 'perfil') else '-'})" if hasattr(h, 'usuario') and h.usuario else "Sistema"
-            ])
-
-        return create_excel_response(
-            filename=f"kardex_cliente_{cliente.documento or cliente.id}.xlsx",
-            sheet_name="Kardex Global",
-            headers=headers,
-            rows=rows,
-            title=f"Kardex Global de Cliente: {cliente.nombre} (DNI: {cliente.documento or 'S/D'})",
-            period_label="Historial Completo"
-        )
-
 
 class FiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     queryset = Fiado.objects.all()
@@ -245,17 +47,66 @@ class FiadoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             # Buscar la empresa del cliente seleccionado
             cliente_id = self.request.data.get('cliente')
             if cliente_id:
-                try:
-                    cliente = ClienteFiado.objects.get(id=cliente_id)
+                from apps.clientes.models import Cliente
+                cliente = Cliente.objects.filter(id=cliente_id).first()
+                if cliente:
                     empresa_id = cliente.empresa_id
-                except ClienteFiado.DoesNotExist:
-                    pass
         
         if empresa_id:
             serializer.save(empresa_id=empresa_id)
         else:
             serializer.save()
         
+    @action(detail=False, methods=['get'], renderer_classes=[PassthroughRenderer])
+    def exportar_clientes(self, request):
+        """Exporta los clientes (clientes.Cliente) que tienen fiados, con su deuda."""
+        from django.db.models import Count, Max, Q, Sum
+        from apps.clientes.models import Cliente
+
+        periodo = request.query_params.get('periodo', 'todo')
+        anio = request.query_params.get('anio')
+        anio = int(anio) if anio else None
+
+        fiados = Fiado.objects.all()
+        period_range = get_period_range(periodo, anio)
+        if period_range:
+            date_from, date_to = period_range
+            fiados = fiados.filter(creado_en__date__gte=date_from, creado_en__date__lte=date_to)
+
+        abiertos = Q(fiados__estado__in=['PENDIENTE', 'PAGADO_PARCIAL'])
+        clientes = (
+            Cliente.objects.filter(fiados__in=fiados).distinct()
+            .annotate(
+                n_fiados=Count('fiados', filter=Q(fiados__in=fiados), distinct=True),
+                total_fiado=Sum('fiados__total', filter=Q(fiados__in=fiados) & ~Q(fiados__estado='CANCELADO')),
+                saldo=Sum('fiados__saldo_pendiente', filter=Q(fiados__in=fiados) & abiertos),
+                ultima=Max('fiados__creado_en', filter=Q(fiados__in=fiados)),
+            )
+            .order_by('-saldo', 'nombre')
+        )
+
+        headers = ['Cliente', 'Documento', 'Teléfono', 'N° Fiados', 'Total Fiado (S/.)',
+                   'Saldo Pendiente (S/.)', 'Última Operación', 'Estado']
+        rows = [[
+            c.nombre,
+            f'{c.tipo_documento} {c.numero_documento}',
+            c.telefono or '-',
+            c.n_fiados,
+            float(c.total_fiado or 0),
+            float(c.saldo or 0),
+            timezone.localtime(c.ultima).strftime('%d/%m/%Y') if c.ultima else '-',
+            'Activo' if c.activo else 'Inactivo',
+        ] for c in clientes]
+
+        return create_excel_response(
+            filename='reporte_clientes_fiados.xlsx',
+            sheet_name='Clientes con Fiados',
+            headers=headers,
+            rows=rows,
+            title='Reporte de Clientes con Fiados',
+            period_label=get_period_label(periodo, anio),
+        )
+
     @action(detail=True, methods=['post'])
     def abonar(self, request, pk=None):
         """Registra un pago parcial o total en el fiado"""

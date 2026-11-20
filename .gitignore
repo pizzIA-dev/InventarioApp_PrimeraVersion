@@ -86,7 +86,7 @@ walkthrough.md
 *.bak
 
 # Archivos de prueba
-test_*.py
+/test_*.py
 test_*.xlsx
 
 # Docker (no necesario para dev)
@@ -96,3 +96,6 @@ docker-compose.yml
 
 # Variables de entorno del frontend
 frontend/.env
+
+# Respaldos locales (cuando Cloudinary no está configurado)
+private_media/

@@ -15,7 +15,7 @@ from apps.core.constants import ROLES_COLABORADOR
 def my_profile(request):
     """
     Ruta para la carga inicial de React.
-    Devuelve los datos de la cuenta logueada, la metadata del Tenant y el almac├®n asignado.
+    Devuelve los datos de la cuenta logueada, la metadata del Tenant y el almacén asignado.
     """
     try:
         perfil = request.user.perfil
@@ -86,7 +86,7 @@ def actualizar_empresa(request):
 class RolPersonalizadoViewSet(viewsets.ModelViewSet):
     """
     CRUD completo para los roles.
-    Solamente disponible para Gerentes, y bloqueado de ra├¡z si no es Plan Empresario (Upsell Wall).
+    Solamente disponible para Gerentes, y bloqueado de raíz si no es Plan Empresario (Upsell Wall).
     """
     queryset = RolPersonalizado.objects.all()
     serializer_class = RolPersonalizadoSerializer
@@ -97,7 +97,7 @@ class RolPersonalizadoViewSet(viewsets.ModelViewSet):
 @permission_classes([IsGerente])
 def listar_usuarios(request):
     """
-    Lista todos los colaboradores del tenant con su almac├®n asignado.
+    Lista todos los colaboradores del tenant con su almacén asignado.
     Solo accesible por GERENTE.
     """
     perfiles = (
@@ -126,7 +126,7 @@ def listar_usuarios(request):
 @permission_classes([IsGerente])
 def crear_usuario(request):
     """
-    Crea un nuevo colaborador y le asocia opcionalmente un Rol Personalizado y un Almac├®n.
+    Crea un nuevo colaborador y le asocia opcionalmente un Rol Personalizado y un Almacén.
     """
     username = request.data.get('username', '').strip()
     password = request.data.get('password', '').strip()
@@ -135,13 +135,13 @@ def crear_usuario(request):
 
     if not username or not password:
         return Response(
-            {'error': 'El nombre de usuario y la contrase├▒a son obligatorios.'},
+            {'error': 'El nombre de usuario y la contraseña son obligatorios.'},
             status=status.HTTP_400_BAD_REQUEST
         )
 
     if len(password) < 6:
         return Response(
-            {'error': 'La contrase├▒a debe tener al menos 6 caracteres.'},
+            {'error': 'La contraseña debe tener al menos 6 caracteres.'},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -215,7 +215,7 @@ def toggle_usuario(request, user_id):
 @permission_classes([IsGerente])
 def cambiar_password(request, user_id):
     """
-    Permite al Gerente resetear la contrase├▒a de un Colaborador.
+    Permite al Gerente resetear la contraseña de un Colaborador.
     Body: { new_password }
     """
     try:
@@ -226,13 +226,13 @@ def cambiar_password(request, user_id):
     new_password = request.data.get('new_password', '').strip()
     if len(new_password) < 6:
         return Response(
-            {'error': 'La nueva contrase├▒a debe tener al menos 6 caracteres.'},
+            {'error': 'La nueva contraseña debe tener al menos 6 caracteres.'},
             status=status.HTTP_400_BAD_REQUEST
         )
 
     user.set_password(new_password)
     user.save()
-    return Response({'detail': 'Contrase├▒a actualizada correctamente.'})
+    return Response({'detail': 'Contraseña actualizada correctamente.'})
 
 
 @api_view(['POST'])

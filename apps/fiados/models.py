@@ -7,26 +7,6 @@ from apps.servicios.models import Servicio
 from apps.ventas.models import Venta
 from apps.servicios.models import VentaServicio
 
-class ClienteFiado(models.Model):
-    """Cliente especializado para el módulo de Fiados"""
-    empresa = models.ForeignKey('core.Empresa', on_delete=models.CASCADE, related_name='clientes_fiados', null=True)
-    nombre = models.CharField(max_length=200)
-    documento = models.CharField(max_length=50, blank=True, null=True, help_text="DNI, RUC u otro")
-    telefono = models.CharField(max_length=50, blank=True, null=True)
-    direccion = models.TextField(blank=True, null=True)
-    notas = models.TextField(blank=True, null=True)
-    activo = models.BooleanField(default=True)
-    creado_en = models.DateTimeField(auto_now_add=True)
-    actualizado_en = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['nombre']
-        verbose_name_plural = "Clientes Fiados"
-
-    def __str__(self):
-        return f"{self.nombre} (Fiado)"
-
-
 class Fiado(models.Model):
     """Operación de Fiado de productos o servicios"""
     TIPO_CHOICES = [

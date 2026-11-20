@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Multi-tenant: construir la URL del API desde el hostname actual del navegador
-// Ej: emprendedor.localhost:5173 Ã¢â€ ' emprendedor.localhost:8000/api
+// Ej: emprendedor.localhost:5173 → emprendedor.localhost:8000/api
 const _host    = window.location.hostname;
 const _port    = import.meta.env.VITE_API_PORT || '8000';
 const _apiBase = import.meta.env.VITE_API_URL  || `http://${_host}:${_port}`;
@@ -255,17 +255,10 @@ export const reportesAPI = {
   exportarReporteMensualDetalle: (params) => api.get('/reportes/reporte-mensual/exportar/', { params, responseType: 'blob' }),
 };
 
-// Fiados (CrÃƒÂ©ditos)
+// Fiados (Créditos)
 export const fiadosAPI = {
   // Clientes Fiados
-  getClientes: (params) => api.get('/fiados/clientes-fiados/', { params }),
-  getClienteById: (id) => api.get(`/fiados/clientes-fiados/${id}/`),
-  createCliente: (data) => api.post('/fiados/clientes-fiados/', data),
-  updateCliente: (id, data) => api.patch(`/fiados/clientes-fiados/${id}/`, data),
-  deleteCliente: (id) => api.delete(`/fiados/clientes-fiados/${id}/`),
-  getHistorialCliente: (id, params) => api.get(`/fiados/clientes-fiados/${id}/historial/`, { params }),
-  exportarHistorialCliente: (id) => api.get(`/fiados/clientes-fiados/${id}/exportar_historial/`, { responseType: 'blob' }),
-  exportarClientes: (params) => api.get('/fiados/clientes-fiados/exportar/', { params, responseType: 'blob' }),
+  exportarClientes: (params) => api.get('/fiados/fiados/exportar_clientes/', { params, responseType: 'blob' }),
   
   // Operaciones Fiado
   getFiados: (params) => api.get('/fiados/fiados/', { params }),
@@ -283,7 +276,7 @@ export const fiadosAPI = {
 };
 
 
-// GestiÃƒÂ³n de Usuarios (solo Gerente)
+// Gestión de Usuarios (solo Gerente)
 export const usuariosAPI = {
   listar: () => api.get('/auth/usuarios/'),
   crear: (data) => api.post('/auth/usuarios/crear/', data),
@@ -307,6 +300,10 @@ export const backupsAPI = {
   listar: () => api.get('/core/backups/'),
   // Restaurar desde un backup existente
   restaurar: (data) => api.post('/core/backups/restore/', data),
+  // Generar un respaldo manual inmediato
+  generar: () => api.post('/core/backups/generar/'),
+  // Descargar el ZIP (autenticado; no hay URL pública)
+  descargar: (id) => api.get(`/core/backups/${id}/descargar/`, { responseType: 'blob' }),
 };
 
 

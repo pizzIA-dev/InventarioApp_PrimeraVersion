@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { backupsAPI } from '../services/api';
-import { CloudServerOutlined, ReloadOutlined, SettingOutlined, WarningOutlined } from '@ant-design/icons';
+import { CloudServerOutlined, DownloadOutlined, ReloadOutlined, SettingOutlined, WarningOutlined } from '@ant-design/icons';
 import ConfirmDialog from '../components/ConfirmDialog';
 import LoadingScreen from '../components/LoadingScreen';
 
@@ -64,6 +64,22 @@ function Backups() {
     }
   };
 
+  const handleDescargar = async (b) => {
+    try {
+      const res = await backupsAPI.descargar(b.id);
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/zip' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `respaldo_${new Date(b.fecha_creacion).toISOString().slice(0, 16).replace(/[:T]/g, '-')}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('No se pudo descargar el respaldo.');
+    }
+  };
+
   const handleRestoreClick = (id) => {
     setSelectedBackupId(id);
     setConfirmVisible(true);
@@ -74,7 +90,7 @@ function Backups() {
       setConfirmVisible(false);
       setRestoring(true);
       const res = await backupsAPI.restaurar({ backup_id: selectedBackupId });
-      alert(res.data.message || 'restauración completada con éxito.');
+      alert(res.data.message || 'Restauración completada con éxito.');
       window.location.reload(); // Reload to refresh all application state
     } catch (error) {
       console.error(error);
@@ -88,12 +104,12 @@ function Backups() {
 
   return (
     <div>
-      {restoring && <LoadingScreen message="âš️ RESTAURANDO BASE DE DATOS... NO CIERRE ESTA PÁGINA âš️" />}
+      {restoring && <LoadingScreen message="⚠️ RESTAURANDO BASE DE DATOS... NO CIERRE ESTA PÁGINA ⚠️" />}
       
       <ConfirmDialog
         visible={confirmVisible}
-        title="âš️ ADVERTENCIA CRÍTICA: restauración de Backup"
-        message="Estás a punto de restaurar la base de datos a un estado anterior. ¡ESTO BORRARÁ TODOS LOS DATOS ACTUALES DE TU EMPRESA DE FORMA IRREVERSIBLE! Todas las ventas, clientes y cambios realizados después de este backup se perderán para siempre. ¿Estás absolutamente seguro?"
+        title="⚠️ ADVERTENCIA CRÍTICA: restauración de respaldo"
+        message="Vas a reemplazar todos los datos actuales de tu negocio (productos, ventas, compras, clientes, fiados, servicios, capital y transacciones) por los de este respaldo. Lo hecho después de esa fecha dejará de verse. Antes de restaurar se guardará automáticamente un respaldo de seguridad del estado actual. Los usuarios y sus contraseñas no cambian. ¿Continuar?"
         onConfirm={processRestore}
         onCancel={() => setConfirmVisible(false)}
         confirmText="SÍ, DESTRUIR DATOS ACTUALES Y RESTAURAR"
@@ -185,10 +201,10 @@ function Backups() {
                     <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{b.notas}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        {b.url && (
-                          <a href={b.url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" title="Descargar ZIP">
-                            ⬇️ Descargar
-                          </a>
+                        {b.descargable && (
+                          <button className="btn btn-secondary btn-sm" onClick={() => handleDescargar(b)} title="Descargar ZIP">
+                            <DownloadOutlined /> Descargar
+                          </button>
                         )}
                         {b.estado === 'EXITO' && (
                           <button className="btn btn-danger btn-sm" onClick={() => handleRestoreClick(b.id)} title="Restaurar este backup">
@@ -212,7 +228,7 @@ function Backups() {
           <div style={{ marginTop: '16px', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid #ef4444', borderRadius: '4px' }}>
             <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-primary)' }}>
               <WarningOutlined style={{ color: '#ef4444', marginRight: '8px' }} />
-              <strong>Atención:</strong> La restauración sobreescribirá los datos actuales de tu negocio. Si necesitas recuperar solo un registro (ej. una factura borrada), es mejor descargar el ZIP y buscarlo manualmente en el archivo JSON.
+              <strong>Atención:</strong> La restauración reemplaza los datos actuales de tu negocio (antes se guarda un respaldo de seguridad del estado actual). Si necesitas recuperar solo un registro (ej. una factura borrada), es mejor descargar el ZIP y buscarlo en el archivo JSON.
             </p>
           </div>
         </div>

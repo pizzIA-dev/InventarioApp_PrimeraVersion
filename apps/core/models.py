@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 from django.conf import settings
 from apps.core.constants import ROL_CHOICES
+from apps.core.backup_service import storage_respaldos
 
 def tenant_logo_path(instance, filename):
     from django.db import connection
@@ -29,8 +30,8 @@ class Empresa(models.Model):
 
 class RolPersonalizado(models.Model):
     """
-    Motor RBAC para Plan Empresario. Permite crear roles dinÃ¡micos con
-    scopes de acceso especÃ­ficos guardados en JSON.
+    Motor RBAC para Plan Empresario. Permite crear roles dinámicos con
+    scopes de acceso específicos guardados en JSON.
     Ej: permisos = ["inventario:read", "ventas:write"]
     """
     nombre = models.CharField(max_length=100)
@@ -63,7 +64,7 @@ class PerfilUsuario(models.Model):
         blank=True,
         related_name='perfiles_asignados'
     )
-    # AlmacÃ©n asignado --- Solo Gerente puede reasignar
+    # Almacén asignado --- Solo Gerente puede reasignar
     class Meta:
         db_table = 'core_perfilusuario'
         verbose_name_plural = 'Perfiles de Usuario'
@@ -100,7 +101,8 @@ class ConfiguracionBackup(models.Model):
 
 class RegistroBackup(models.Model):
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name="registro_backups")
-    archivo = models.FileField(upload_to="backups/tenants/", blank=True, null=True)
+    # Storage propio: Cloudinary "raw" (o carpeta privada local). Se descarga solo vía API.
+    archivo = models.FileField(upload_to="backups/tenants/", storage=storage_respaldos, blank=True, null=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     estado = models.CharField(max_length=20, choices=[("EXITO", "Éxito"), ("ERROR", "Error")])
     notas = models.TextField(blank=True, null=True)

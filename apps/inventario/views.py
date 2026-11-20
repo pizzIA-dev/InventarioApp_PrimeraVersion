@@ -139,7 +139,7 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     
     @action(detail=True, methods=['get'])
     def movimientos(self, request, pk=None):
-        """Obtiene movimientos de un producto con filtros opcionales de fecha y paginaci├│n"""
+        """Obtiene movimientos de un producto con filtros opcionales de fecha y paginación"""
         producto = self.get_object()
         qs = producto.movimientos.all().order_by('-fecha')
 
@@ -183,7 +183,7 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
         producto = self.get_object()
         movimientos = producto.movimientos.all().order_by('-fecha')
         
-        headers = ['Fecha', 'Almac├®n', 'Tipo', 'Origen', 'P. Unitario (S/.)', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Referencia', 'Notas', 'Responsable']
+        headers = ['Fecha', 'Almacén', 'Tipo', 'Origen', 'P. Unitario (S/.)', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Referencia', 'Notas', 'Responsable']
         rows = []
         for mov in movimientos:
             fecha_str = mov.fecha.strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
@@ -231,12 +231,12 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def ajustar_stock(self, request, pk=None):
         """
-        Ajuste de inventario (Merma, Extrav├¡o, Caducidad, etc.).
+        Ajuste de inventario (Merma, Extravío, Caducidad, etc.).
         """
         producto = self.get_object()
         user_perfil = request.user.perfil
         
-        # Par├ímetros
+        # Parámetros
         cantidad_ajuste = request.data.get('cantidad_ajuste')
         tipo = request.data.get('tipo', 'SALIDA')  # ENTRADA o SALIDA
         origen = request.data.get('origen')        # MERMA, CADUCIDAD, EXTRAVIO, ROTURA, etc.
@@ -247,31 +247,31 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
             return Response({'error': 'La cantidad de ajuste debe ser mayor a 0.'}, status=status.HTTP_400_BAD_REQUEST)
         
         if origen not in dict(MovimientoStock.ORIGEN_MOVIMIENTO_CHOICES).keys():
-            return Response({'error': 'Motivo de ajuste inv├ílido.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Motivo de ajuste inválido.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validaci├│n de almac├®n basada en rol
+        # Validación de almacén basada en rol
         almacen_obj = None
         if user_perfil.rol == 'GERENTE':
-            # El Gerente debe mandar explicitamente a qu├® almac├®n ajusta
+            # El Gerente debe mandar explicitamente a qué almacén ajusta
             if almacen_id:
                 try:
                     almacen_obj = Almacen.objects.get(id=almacen_id, empresa=user_perfil.empresa)
                 except Almacen.DoesNotExist:
-                    return Response({'error': 'Almac├®n seleccionado es inv├ílido o no te pertenece.'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'error': 'Almacén seleccionado es inválido o no te pertenece.'}, status=status.HTTP_400_BAD_REQUEST)
             else:
-                return Response({'error': 'Debes especificar el almac├®n a afectar.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'Debes especificar el almacén a afectar.'}, status=status.HTTP_400_BAD_REQUEST)
         else:
-            # Si es Colaborador, el ajuste SOLO afecta al subalmac├®n donde est├í asignado
+            # Si es Colaborador, el ajuste SOLO afecta al subalmacén donde está asignado
             if not user_perfil.almacen:
-                # Fallback al almac├®n general
+                # Fallback al almacén general
                 almacen_obj = Almacen.objects.filter(empresa=user_perfil.empresa, es_general=True).first()
             else:
                 almacen_obj = user_perfil.almacen
                 
             if not almacen_obj:
-                return Response({'error': 'No tienes un almac├®n asignado para ajustar.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error': 'No tienes un almacén asignado para ajustar.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validaci├│n que no deje saldo negativo el sub-almac├®n si es salida
+        # Validación que no deje saldo negativo el sub-almacén si es salida
         if tipo == 'SALIDA':
             sa = StockAlmacen.objects.filter(almacen=almacen_obj, producto=producto).first()
             disp = sa.cantidad if sa else 0
@@ -280,7 +280,7 @@ class ProductoViewSet(SoloGerenteDestroyMixin, viewsets.ModelViewSet):
                     'error': f"Stock insuficiente en {almacen_obj.nombre}. Necesitas descontar {cantidad_ajuste} pero solo hay {disp} disponibles."
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Ejecutar Creaci├│n (MovimientoStock.save() se encarga de re-calcular todo at├│micamente)
+        # Ejecutar Creación (MovimientoStock.save() se encarga de re-calcular todo atómicamente)
         MovimientoStock.objects.create(
             empresa=producto.empresa,
             producto=producto,
@@ -392,7 +392,7 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
             date_from, date_to = period_range
             queryset = queryset.filter(fecha__date__gte=date_from, fecha__date__lte=date_to)
 
-        headers = ['Fecha', 'Almac├®n', 'C├│digo', 'Producto', 'Tipo', 'Origen', 'P. Unitario (S/.)', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Notas', 'Responsable']
+        headers = ['Fecha', 'Almacén', 'Código', 'Producto', 'Tipo', 'Origen', 'P. Unitario (S/.)', 'Cantidad', 'P. Compra Ant. (S/.)', 'P. Compra Nvo. (S/.)', 'P. Venta Ant. (S/.)', 'P. Venta Nvo. (S/.)', 'Stock Anterior', 'Stock Nuevo', 'Estado', 'Notas', 'Responsable']
         rows = []
         for mov in queryset:
             fecha_str = mov.fecha.strftime('%d/%m/%Y %H:%M:%S') if mov.fecha else ''
@@ -440,6 +440,6 @@ class MovimientoStockViewSet(viewsets.ModelViewSet):
         )
 
 
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════
 #  ALMACENES / CAJAS
-# ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+# ═══════════════════════════════════════════════════════════════════════════════

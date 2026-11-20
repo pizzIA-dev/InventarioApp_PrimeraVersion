@@ -16,7 +16,9 @@ from apps.core.user_views import (
     cambiar_password, RolPersonalizadoViewSet,
     my_profile, actualizar_empresa, ensure_defaults_view,
 )
-from apps.core.backup_views import manage_backup_config, list_backups, restore_backup
+from apps.core.backup_views import (
+    manage_backup_config, list_backups, restore_backup, generar_backup, descargar_backup,
+)
 
 router = DefaultRouter()
 router.register(r'roles', RolPersonalizadoViewSet, basename='roles_custom')
@@ -43,6 +45,8 @@ urlpatterns = [
     path('core/backup-config/',   manage_backup_config, name='t_backup_config'),
     path('core/backups/',         list_backups,         name='t_backups'),
     path('core/backups/restore/', restore_backup,       name='t_restore'),
+    path('core/backups/generar/', generar_backup,       name='t_backup_generar'),
+    path('core/backups/<int:backup_id>/descargar/', descargar_backup, name='t_backup_descargar'),
 
     # Apps del negocio
     path('productos/',     include('apps.inventario.urls')),

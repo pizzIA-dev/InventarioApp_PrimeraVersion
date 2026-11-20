@@ -34,7 +34,7 @@ Se pasó de una **v1 monolítica (SQLite, sin multi-tenant)** a una **v2 SaaS mu
 | Fiados (créditos) | `fiados` | ✅ Funcional (abonos, liquidación → venta automática, cancelación/reactivación) |
 | Registro SaaS + planes + pago | `clientes_saas` + `suscripciones` | ✅ Funcional (registro, Culqi, planes Emprendedor/Empresario) |
 | Auth + roles + usuarios | `core` | ✅ Funcional (JWT, GERENTE/COLABORADOR, RBAC plan Empresario, código de acceso) |
-| Backups | `core` | ⚠️ Config/listado OK; restauración y generación manual con incidencias (ver abajo) |
+| Backups | `core` | ✅ Rehecho (2026-11-19): respaldo completo de las 9 apps de negocio, manual y automático (`run_backups` recorre todos los negocios), descarga autenticada y restauración atómica con respaldo de seguridad previo. ⚠️ El automático requiere un Cron Service en Railway |
 | **Panel de Control (back-office)** | `panel` + `frontend/src/panel` | ✅ Nuevo (2026-11-19): empresas, activación/extensión/suspensión manual, pagos, gastos, métricas (MRR/ARPU) y auditoría. Ver `ESPECIFICACION-Panel-de-Control.md` §0 |
 
 ## Historial reciente (destacado)
@@ -49,6 +49,11 @@ Se pasó de una **v1 monolítica (SQLite, sin multi-tenant)** a una **v2 SaaS mu
   - **Bloqueo inmediato:** una suscripción suspendida o vencida corta el acceso en la siguiente petición (402 `SUSCRIPCION_INACTIVA` desde `TenantFromPathMiddleware`).
   - Las cuentas staff del schema public ya no pueden ser sobrescritas por un registro con el mismo username.
   - Corregido el error de sintaxis de `Login.jsx` (`.trim(...)`): impedía compilar el frontend.
+- **2026-11-19 (2)**: resolución de deuda técnica:
+  - **Backups** rehechos (`apps/core/backup_service.py`): antes no existía `generar`, el automático nunca corría (se ejecutaba en public), el respaldo omitía tablas (detalles de venta y compra, fiados, servicios…) y restaurar fallaba o perdía datos. Los ZIP se guardan como archivos "raw" (o en `private_media/` en local) y se descargan solo vía API.
+  - **`ClienteFiado` eliminado**: la migración `fiados.0009` copia sus filas huérfanas a `clientes.Cliente` (sin duplicar) y borra la tabla. "Exportar clientes" de Fiados ahora exporta los clientes reales con su deuda.
+  - Eliminados 8 componentes sin uso (`VentaTable`, `VentaFilters`, `CompraFormModal`, `CompraFilters`, `CompraTable`, `Movimiento*`) y `ClienteFiadoHistorialModal`.
+  - **Encoding reparado** en 9 archivos (~1.200 caracteres mal codificados, incluidos mensajes visibles como "contraseña" y "suscripción").
 
 ## Incidencias / deuda técnica conocida
 
@@ -58,27 +63,28 @@ Se pasó de una **v1 monolítica (SQLite, sin multi-tenant)** a una **v2 SaaS mu
    - `apps/inventario/serializers.py` → `MovimientoStockCreateSerializer.Meta.fields` incluye `'almacen'`.
    - `apps/core/backup_views.py` → `restore_backup` referencia `TrasladoStock` (NameError).
 2. **`Transaccion` sin campo `usuario` propio**: los exports de transacciones muestran "−" como responsable (la auditoría va por `HistorialTransaccion`/`MovimientoCategoria`).
-3. **`ClienteFiado` es legacy**: los fiados nuevos usan `apps.clientes.Cliente`; `ClienteFiado` se mantiene por retrocompatibilidad.
+3. ~~**`ClienteFiado` es legacy**~~ → **eliminado 2026-11-19** (datos migrados a `clientes.Cliente`).
 4. **Reversión de compras por `referencia`** (menos robusta que la de ventas, que genera movimiento inverso).
 5. `admin.py` vacíos en todas las apps (sin registros en el admin de Django).
 
 ### Frontend
-6. **`AjusteStockModal.jsx`** está incompleto/legacy (referencias a `setAlmacenes`/`almacenes` no definidas, JSX roto); no se importa en `Productos.jsx`.
-7. **`Backups.jsx`** llama a `backupsAPI.generar()`, pero `api.js` **no define** el método `generar`.
+6. **`AjusteStockModal.jsx`** está incompleto (depende de almacenes); **se conserva a propósito** junto con el resto del código de almacenes. No se importa, así que no afecta al build.
+7. ~~**`Backups.jsx`** llama a `backupsAPI.generar()` inexistente~~ → **resuelto 2026-11-19** (ver historial).
 8. ~~**`Login.jsx`** (línea ~163): argumentos incorrectos a `.trim()`~~ → **corregido 2026-11-19** (era un error de sintaxis que rompía el build).
-9. Componentes extraídos (`VentaTable`, `VentaFilters`, `CompraFormModal`, `CompraFilters`, `CompraTable`, `MovimientoTable`, `MovimientoFormModal`, `MovimientoFilters`) no siempre referenciados por las páginas actuales (posibles legacy).
-10. Detalles cosméticos: encoding corrupto en comentarios (`ÔöÇ` por `──`), y strings sin tildes en algunos `.jsx`.
+9. ~~Componentes extraídos sin uso~~ → **eliminados 2026-11-19**.
+10. ~~Encoding corrupto~~ → **reparado 2026-11-19**. Quedan algunos strings escritos sin tildes a mano (no es corrupción).
 
 ## Próximos pasos sugeridos (roadmap)
 
 - [ ] ~~Eliminar referencias a `Almacen`/`StockAlmacen`/`TrasladoStock`~~ → **decisión 2026-11-19: se conservan** por si se implementan los almacenes en el futuro.
-- [ ] Implementar o corregir `backupsAPI.generar()` en el frontend y el endpoint de generación manual de backup.
+- [x] Implementar `backupsAPI.generar()` y el endpoint de respaldo manual (más descarga y restauración seguras).
+- [ ] **Programar `python manage.py run_backups` cada hora** (Cron Service en Railway); sin eso no hay respaldos automáticos.
 - [x] Corregir `Login.jsx` (argumentos de `.trim()` y paso de `codigo_acceso`).
-- [ ] Limpiar `AjusteStockModal.jsx` (completar o eliminar) y componentes extraídos sin uso.
+- [x] Eliminar componentes extraídos sin uso (`AjusteStockModal.jsx` se conserva con los almacenes).
 - [ ] Conectar boletas/facturas con **SUNAT** (pendiente desde v1; hoy son comprobantes internos).
-- [ ] Consolidar `ClienteFiado` legacy → `clientes.Cliente` y eliminar el modelo legacy.
+- [x] Consolidar `ClienteFiado` legacy → `clientes.Cliente` y eliminar el modelo legacy.
 - [ ] (Opcional) `Transaccion.usuario` para auditoría directa en exports.
-- [ ] Normalizar encoding/comentarios en el frontend (también hay mojibake en strings de `apps/clientes_saas/views.py` y `Landing.jsx`).
+- [x] Normalizar el encoding (frontend y backend).
 - [ ] Panel v2: webhook de Culqi, tasa de cambio PEN/USD, recordatorios de vencimiento y varios admins con roles.
 - [ ] Deriva de migración preexistente: `clientes_saas.Cliente.owner_email.help_text` difiere de la migración 0002 (solo una tilde; `makemigrations` la detecta).
 
@@ -89,5 +95,5 @@ Se pasó de una **v1 monolítica (SQLite, sin multi-tenant)** a una **v2 SaaS mu
   - Iniciar: `D:\PROYECTOPROGRAMACION\_tools\pgsql\bin\pg_ctl.exe -D D:\PROYECTOPROGRAMACION\_tools\pgdata -l D:\PROYECTOPROGRAMACION\_tools\pg.log start`
   - Detener: la misma ruta con `stop`.
 - BD `inventario_saas` con dos negocios de prueba en sandbox (`bodegademo`, `ferrenorte`) y un admin del panel. Las credenciales están comentadas en `.env` (no versionado).
-- Tests del panel: `venv\Scripts\python manage.py test apps.panel`
+- Tests: `venv\Scripts\python manage.py test apps` (panel + respaldos).
 - `.claude/launch.json` define `backend` (runserver :8000) y `frontend` (vite :5173).

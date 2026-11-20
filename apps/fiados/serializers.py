@@ -1,16 +1,8 @@
 from decimal import Decimal
 from rest_framework import serializers
-from .models import ClienteFiado, Fiado, DetalleFiadoProducto, DetalleFiadoServicio, HistorialFiado
+from .models import Fiado, DetalleFiadoProducto, DetalleFiadoServicio, HistorialFiado
 from apps.inventario.serializers import ProductoSerializer
 from apps.servicios.serializers import ServicioSerializer
-
-class ClienteFiadoSerializer(serializers.ModelSerializer):
-    """Legacy serializer - ClienteFiado model is kept for backward compat only.
-    New fiados use apps.clientes.Cliente directly."""
-    class Meta:
-        model = ClienteFiado
-        fields = '__all__'
-
 
 class DetalleFiadoProductoSerializer(serializers.ModelSerializer):
     producto_nombre = serializers.CharField(source='producto.nombre', read_only=True)

@@ -17,7 +17,9 @@ from apps.core.user_views import (
     listar_usuarios, crear_usuario, toggle_usuario,
     cambiar_password, RolPersonalizadoViewSet, my_profile, actualizar_empresa
 )
-from apps.core.backup_views import manage_backup_config, list_backups, restore_backup
+from apps.core.backup_views import (
+    manage_backup_config, list_backups, restore_backup, generar_backup, descargar_backup,
+)
 from django.conf.urls.static import static
 
 router = DefaultRouter()
@@ -52,6 +54,8 @@ urlpatterns = [
     path('api/core/backup-config/', manage_backup_config, name='backup_config'),
     path('api/core/backups/', list_backups, name='list_backups'),
     path('api/core/backups/restore/', restore_backup, name='restore_backup'),
+    path('api/core/backups/generar/', generar_backup, name='backup_generar'),
+    path('api/core/backups/<int:backup_id>/descargar/', descargar_backup, name='backup_descargar'),
 ]
 
 if settings.DEBUG:
