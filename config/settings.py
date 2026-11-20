@@ -22,6 +22,7 @@ SHARED_APPS = [
     'django_tenants',
     'apps.clientes_saas',  # Nuestra app pública/compartida de tenants
     'apps.suscripciones',  # Planes y Facturación
+    'apps.panel',          # Panel de Control (back-office de propietarios) — solo schema public
 
     'cloudinary_storage',  # Cloudinary Storage
     'django.contrib.admin',
@@ -177,7 +178,8 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # JWT atado al schema que lo emitió (ver apps/core/jwt.py)
+        'apps.core.jwt.SchemaBoundJWTAuthentication',
     ],
     'DEFAULT_RENDERER_CLASSES': (
         ['rest_framework.renderers.JSONRenderer',

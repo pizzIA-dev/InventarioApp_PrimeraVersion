@@ -9,7 +9,7 @@ def health_check(request):
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
-from rest_framework_simplejwt.views import TokenRefreshView
+from apps.core.auth_views import SchemaBoundTokenRefreshView
 from rest_framework.routers import DefaultRouter
 
 from apps.core.auth_views import CustomTokenObtainPairView, logout_view, forgot_password, reset_password_confirm
@@ -32,8 +32,11 @@ urlpatterns = [
     re_path(r'^t/[^/]+/api/', include('config.tenant_urls')),
     path('api/public/', include('apps.clientes_saas.urls')),
     path('api/public/', include('apps.suscripciones.urls')),
+    # Panel de Control (back-office de los dueños del SaaS) — solo schema public.
+    # NUNCA registrar estas rutas en config/tenant_urls.py.
+    path('api/panel/', include('apps.panel.urls')),
     path('api/auth/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/auth/refresh/', SchemaBoundTokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/logout/', logout_view, name='logout'),
     path('api/auth/forgot-password/', forgot_password, name='forgot_password'),
     path('api/auth/reset-password/<str:uid>/<str:token>/', reset_password_confirm, name='reset_password_confirm'),

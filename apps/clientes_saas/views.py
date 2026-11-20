@@ -20,19 +20,17 @@ def _verificar_suscripcion(tenant):
     Verifica si el tenant tiene suscripciÔö£Ôöén activa.
     Retorna (ok: bool, mensaje: str)
     """
+    from apps.suscripciones import estado as estado_sus
     try:
-        sus = Suscripcion.objects.get(cliente=tenant)
-        if not sus.activa:
-            return False, 'La suscripciÔö£Ôöén de este negocio estÔö£├¡ inactiva. Contacta al administrador de NegocIA para renovarla.'
-        if sus.fecha_fin and sus.fecha_fin < timezone.now().date():
-            return False, f'La suscripciÔö£Ôöén de este negocio venciÔö£Ôöé el {sus.fecha_fin.strftime("%d/%m/%Y")}. Renueva tu plan para continuar.'
-        return True, None
-    except Suscripcion.DoesNotExist:
-        # Sin suscripciÔö£Ôöén registrada: permitir (puede ser un tenant sandbox/legacy)
-        logger.warning(f'Tenant {tenant.schema_name} no tiene suscripciÔö£Ôöén registrada. Permitiendo acceso.')
-        return True, None
+        sus = Suscripcion.objects.filter(cliente=tenant).first()
+        if sus is None:
+            # Sin suscripción registrada: permitir (puede ser un tenant sandbox/legacy)
+            logger.warning(f'Tenant {tenant.schema_name} no tiene suscripción registrada. Permitiendo acceso.')
+        if estado_sus.tiene_acceso(sus):
+            return True, None
+        return False, estado_sus.mensaje_sin_acceso(sus)
     except Exception as e:
-        logger.error(f'Error verificando suscripciÔö£Ôöén de {tenant.schema_name}: {e}')
+        logger.error(f'Error verificando suscripción de {tenant.schema_name}: {e}')
         return True, None  # En caso de error, no bloquear
 
 
@@ -47,6 +45,12 @@ def _crear_usuario_plataforma(email, password):
         username=email,
         defaults={'email': email}
     )
+    if pub_user.is_staff or pub_user.is_superuser:
+        # Nunca tocar cuentas de administradores del Panel de Control: si alguien
+        # registra un negocio con el mismo username/email, no debe poder
+        # reemplazar su contraseña.
+        logger.warning(f"Usuario plataforma {email} es staff: no se modifica su contraseña.")
+        return pub_user
     pub_user.email = email
     pub_user.set_password(password)
     pub_user.save()
@@ -268,8 +272,15 @@ def tenant_token_view(request):
                 return Response({'error': 'Usuario inactivo en este negocio.'}, status=status.HTTP_403_FORBIDDEN)
 
             # Generar JWT del tenant
-            from rest_framework_simplejwt.tokens import RefreshToken
-            refresh = RefreshToken.for_user(tenant_user)
+            sus_ok, sus_mensaje = _verificar_suscripcion(tenant)
+            if not sus_ok:
+                return Response(
+                    {'error': sus_mensaje, 'suscripcion_inactiva': True},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            from apps.core.jwt import refresh_para_usuario
+            refresh = refresh_para_usuario(tenant_user, schema=schema)
 
             # Datos del perfil en el tenant
             rol = 'GERENTE'
@@ -409,8 +420,8 @@ class PlatformLoginAPIView(views.APIView):
             return Response({'error': 'Error interno al crear sesion.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         # Generar Platform JWT
-        from rest_framework_simplejwt.tokens import RefreshToken
-        refresh = RefreshToken.for_user(pub_user)
+        from apps.core.jwt import refresh_para_usuario
+        refresh = refresh_para_usuario(pub_user, schema='public')
 
         return Response({
             'access':   str(refresh.access_token),

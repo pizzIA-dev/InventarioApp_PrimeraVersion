@@ -1,5 +1,7 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.exceptions import InvalidToken
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -18,7 +20,16 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     - Revocación via is_active=False en el usuario (simplejwt la chequea siempre)
     - El JWT incluye datos del perfil/empresa para evitar round-trips extra
     - Compatible 100% con schemas aislados de django-tenants
+    - El token lleva el claim `schema` (ver apps/core/jwt.py): solo sirve en el
+      schema que lo emitió.
     """
+    @classmethod
+    def get_token(cls, user):
+        from apps.core.jwt import SCHEMA_CLAIM, schema_actual
+        token = super().get_token(user)
+        token[SCHEMA_CLAIM] = schema_actual()
+        return token
+
     def validate(self, attrs):
         data = super().validate(attrs)
 
@@ -44,6 +55,21 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+
+class SchemaBoundTokenRefreshSerializer(TokenRefreshSerializer):
+    """No permite refrescar en un schema distinto al que emitió el refresh token."""
+
+    def validate(self, attrs):
+        from apps.core.jwt import MENSAJE_SCHEMA, SCHEMA_CLAIM, schema_actual
+        refresh = self.token_class(attrs['refresh'])
+        if refresh.get(SCHEMA_CLAIM) != schema_actual():
+            raise InvalidToken(MENSAJE_SCHEMA)
+        return super().validate(attrs)
+
+
+class SchemaBoundTokenRefreshView(TokenRefreshView):
+    serializer_class = SchemaBoundTokenRefreshSerializer
+
 
 
 @api_view(['POST'])

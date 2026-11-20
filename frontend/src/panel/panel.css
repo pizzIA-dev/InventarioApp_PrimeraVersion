@@ -1,0 +1,195 @@
+/* ──────────────────────────────────────────────────────────────────────────
+   Panel de Control — "libro mayor": tinta oscura, papel cálido, cifras en mono.
+   Todo va bajo .pnl para no afectar a la app de los negocios.
+   ────────────────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap');
+
+.pnl {
+  --pnl-ink: #12161c;
+  --pnl-ink-2: #1b2129;
+  --pnl-ink-line: #2a323d;
+  --pnl-paper: #f4f2ec;
+  --pnl-card: #fffefb;
+  --pnl-line: #e4e0d5;
+  --pnl-text: #1d232b;
+  --pnl-muted: #6b7280;
+  --pnl-copper: #b4532a;
+  --pnl-copper-soft: #f6e6dc;
+  --pnl-teal: #0f766e;
+  --pnl-teal-soft: #dcefeb;
+  --pnl-red: #b42318;
+  --pnl-red-soft: #fbe4e1;
+  --pnl-amber: #b7791f;
+  --pnl-amber-soft: #fbf0d9;
+  --pnl-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --pnl-display: 'Fraunces', Georgia, serif;
+
+  min-height: 100vh;
+  display: flex;
+  background: var(--pnl-paper);
+  color: var(--pnl-text);
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+.pnl .num { font-family: var(--pnl-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; white-space: nowrap; }
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+.pnl-side {
+  width: 236px;
+  flex-shrink: 0;
+  background: var(--pnl-ink);
+  color: #c9ced6;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  border-right: 1px solid var(--pnl-ink-line);
+}
+.pnl-brand { padding: 26px 22px 22px; border-bottom: 1px solid var(--pnl-ink-line); }
+.pnl-brand-name { font-family: var(--pnl-display); font-size: 22px; color: #fff; line-height: 1; }
+.pnl-brand-name em { font-style: normal; color: var(--pnl-copper); }
+.pnl-brand-sub {
+  margin-top: 8px; font-family: var(--pnl-mono); font-size: 10.5px;
+  letter-spacing: 0.14em; text-transform: uppercase; color: #7d8794;
+}
+.pnl-nav { padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.pnl-nav a {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 8px;
+  color: #aeb5bf; text-decoration: none; font-size: 14.5px;
+  border-left: 2px solid transparent;
+  transition: background .15s, color .15s;
+}
+.pnl-nav a:hover { background: var(--pnl-ink-2); color: #fff; }
+.pnl-nav a.active { background: var(--pnl-ink-2); color: #fff; border-left-color: var(--pnl-copper); }
+.pnl-nav a .anticon { font-size: 16px; }
+.pnl-side-foot { padding: 16px 18px 20px; border-top: 1px solid var(--pnl-ink-line); font-size: 13px; }
+.pnl-side-foot .who { color: #fff; font-weight: 500; }
+.pnl-side-foot .role { color: #7d8794; font-family: var(--pnl-mono); font-size: 11px; }
+.pnl-side-foot button {
+  margin-top: 12px; width: 100%; background: transparent; color: #c9ced6;
+  border: 1px solid var(--pnl-ink-line); border-radius: 8px; padding: 7px 0; cursor: pointer;
+}
+.pnl-side-foot button:hover { border-color: var(--pnl-copper); color: #fff; }
+
+/* ── Contenido ───────────────────────────────────────────────────────────── */
+.pnl-main { flex: 1; min-width: 0; padding: 34px 40px 60px; }
+.pnl-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 26px; flex-wrap: wrap; }
+.pnl-eyebrow { font-family: var(--pnl-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--pnl-copper); }
+.pnl-title { font-family: var(--pnl-display); font-size: 30px; font-weight: 600; margin: 4px 0 0; line-height: 1.1; color: var(--pnl-text); }
+.pnl-sub { color: var(--pnl-muted); margin-top: 6px; font-size: 14px; }
+
+.pnl-card {
+  background: var(--pnl-card);
+  border: 1px solid var(--pnl-line);
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+.pnl-card-title { font-size: 13px; font-weight: 600; letter-spacing: .02em; color: var(--pnl-muted); text-transform: uppercase; margin-bottom: 14px; }
+
+/* KPIs: una franja tipo "libro mayor" con divisiones finas */
+.pnl-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--pnl-card); border: 1px solid var(--pnl-line); border-radius: 14px; overflow: hidden; }
+.pnl-kpi { padding: 20px 22px; border-right: 1px solid var(--pnl-line); position: relative; animation: pnl-rise .5s ease both; }
+.pnl-kpi:last-child { border-right: none; }
+.pnl-kpi:nth-child(2) { animation-delay: .05s; } .pnl-kpi:nth-child(3) { animation-delay: .1s; } .pnl-kpi:nth-child(4) { animation-delay: .15s; }
+.pnl-kpi-label { font-size: 12.5px; color: var(--pnl-muted); display: flex; align-items: center; gap: 6px; }
+.pnl-kpi-value { font-family: var(--pnl-mono); font-size: 26px; font-weight: 600; margin-top: 8px; letter-spacing: -0.02em; }
+.pnl-kpi-alt { font-family: var(--pnl-mono); font-size: 13px; color: var(--pnl-muted); margin-top: 2px; }
+.pnl-kpi.pos .pnl-kpi-value { color: var(--pnl-teal); }
+.pnl-kpi.neg .pnl-kpi-value { color: var(--pnl-red); }
+.pnl-kpi::before { content: ''; position: absolute; left: 0; top: 0; height: 3px; width: 100%; background: transparent; }
+.pnl-kpi.accent::before { background: var(--pnl-copper); }
+
+@keyframes pnl-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* Contadores de estado de empresas */
+.pnl-states { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.pnl-state {
+  border: 1px solid var(--pnl-line); border-radius: 12px; padding: 14px 14px 12px; background: var(--pnl-card);
+  cursor: pointer; transition: border-color .15s, transform .15s; text-align: left;
+}
+.pnl-state:hover { border-color: var(--pnl-copper); transform: translateY(-1px); }
+.pnl-state .n { font-family: var(--pnl-mono); font-size: 24px; font-weight: 600; }
+.pnl-state .l { font-size: 12.5px; color: var(--pnl-muted); display: flex; align-items: center; gap: 6px; }
+.pnl-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+.pnl-grid-2 { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; }
+.pnl-stack { display: flex; flex-direction: column; gap: 18px; }
+
+/* Lista de atención */
+.pnl-alert-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 0; border-bottom: 1px dashed var(--pnl-line); }
+.pnl-alert-row:last-child { border-bottom: none; }
+.pnl-alert-row a { color: var(--pnl-text); font-weight: 500; }
+.pnl-alert-row a:hover { color: var(--pnl-copper); }
+
+/* Detalle de empresa */
+.pnl-sus {
+  border-radius: 14px; padding: 22px; color: #fff; background: var(--pnl-ink);
+  position: relative; overflow: hidden;
+}
+.pnl-sus::after {
+  content: ''; position: absolute; inset: 0;
+  background: repeating-linear-gradient(-45deg, transparent 0 14px, rgba(255,255,255,0.025) 14px 15px);
+  pointer-events: none;
+}
+.pnl-sus .big { font-family: var(--pnl-mono); font-size: 34px; font-weight: 600; letter-spacing: -0.03em; }
+.pnl-sus .lbl { font-family: var(--pnl-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #8b95a3; }
+.pnl-sus .row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 18px; position: relative; z-index: 1; }
+.pnl-sus .val { font-size: 15px; margin-top: 3px; }
+.pnl-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; position: relative; z-index: 1; }
+
+.pnl-kv { display: grid; grid-template-columns: 140px 1fr; row-gap: 10px; font-size: 14px; }
+.pnl-kv dt { color: var(--pnl-muted); }
+.pnl-kv dd { margin: 0; }
+
+.pnl-code { font-family: var(--pnl-mono); background: var(--pnl-copper-soft); color: var(--pnl-copper); padding: 2px 8px; border-radius: 6px; font-size: 13px; }
+
+/* Tabla */
+.pnl .ant-table-wrapper .ant-table { background: transparent; }
+.pnl .ant-table-thead > tr > th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--pnl-muted) !important; background: #faf8f3 !important; }
+.pnl-toolbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+
+/* Login */
+.pnl-login {
+  min-height: 100vh; display: grid; grid-template-columns: 1.1fr 1fr; background: var(--pnl-paper);
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+.pnl-login-art {
+  background: var(--pnl-ink); color: #fff; padding: 56px; display: flex; flex-direction: column; justify-content: space-between;
+  position: relative; overflow: hidden;
+}
+.pnl-login-art::before {
+  content: ''; position: absolute; inset: 0;
+  background-image: linear-gradient(var(--pnl-ink-line) 1px, transparent 1px), linear-gradient(90deg, var(--pnl-ink-line) 1px, transparent 1px);
+  background-size: 44px 44px; opacity: .35;
+  mask-image: radial-gradient(ellipse at 30% 70%, #000 0%, transparent 70%);
+}
+.pnl-login-art > * { position: relative; }
+.pnl-login-art h1 { font-family: var(--pnl-display); font-size: 46px; line-height: 1.05; font-weight: 600; margin: 0; color: #fff; }
+.pnl-login-art h1 em { font-style: normal; color: var(--pnl-copper); }
+.pnl-login-art p { color: #9aa3ae; max-width: 420px; font-size: 15px; margin-top: 18px; }
+.pnl-login-ticker { font-family: var(--pnl-mono); font-size: 12px; color: #6b7480; letter-spacing: .08em; }
+.pnl-login-form { display: flex; align-items: center; justify-content: center; padding: 40px; }
+.pnl-login-box { width: 100%; max-width: 360px; }
+
+@media (max-width: 1100px) {
+  .pnl-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pnl-kpi:nth-child(2) { border-right: none; }
+  .pnl-kpi:nth-child(-n+2) { border-bottom: 1px solid var(--pnl-line); }
+  .pnl-states { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .pnl-grid-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .pnl { flex-direction: column; }
+  .pnl-side { width: 100%; height: auto; position: static; }
+  .pnl-nav { flex-direction: row; overflow-x: auto; }
+  .pnl-nav a { white-space: nowrap; border-left: none; border-bottom: 2px solid transparent; }
+  .pnl-nav a.active { border-bottom-color: var(--pnl-copper); }
+  .pnl-side-foot { display: none; }
+  .pnl-main { padding: 22px 16px 40px; }
+  .pnl-states { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pnl-sus .row { grid-template-columns: 1fr 1fr; }
+  .pnl-login { grid-template-columns: 1fr; }
+  .pnl-login-art { display: none; }
+}

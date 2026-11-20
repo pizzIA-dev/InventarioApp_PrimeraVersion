@@ -5,7 +5,7 @@ Rutas tenant-aware:  /t/{schema}/api/...
 Rutas publicas:      /api/public/..., /admin/, /api/public/health/
 """
 from django.db import connection
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django_tenants.utils import get_public_schema_name
 
 
@@ -25,7 +25,8 @@ class TenantFromPathMiddleware:
 
     def __call__(self, request):
         self._set_tenant_from_path(request)
-        response = self.get_response(request)
+        bloqueo = self._respuesta_si_suscripcion_inactiva(request)
+        response = bloqueo or self.get_response(request)
         # Resetear al schema publico al terminar el request
         try:
             connection.set_schema_to_public()
@@ -56,3 +57,32 @@ class TenantFromPathMiddleware:
                 request.tenant = None
         except Exception:
             pass
+
+    def _respuesta_si_suscripcion_inactiva(self, request):
+        """
+        Bloqueo inmediato: si el negocio está suspendido o vencido, ninguna ruta
+        /t/{schema}/api/ responde (aunque el usuario tenga un token vigente).
+        El frontend reconoce el código SUSCRIPCION_INACTIVA y cierra la sesión.
+        """
+        tenant = getattr(request, 'tenant', None)
+        if tenant is None or tenant.schema_name == get_public_schema_name():
+            return None
+        if '/api/' not in request.path_info:
+            return None
+        try:
+            from apps.suscripciones import estado as estado_sus
+            from apps.suscripciones.models import Suscripcion
+            sus = Suscripcion.objects.filter(cliente_id=tenant.pk).first()
+            if estado_sus.tiene_acceso(sus):
+                return None
+            return JsonResponse(
+                {
+                    'code': 'SUSCRIPCION_INACTIVA',
+                    'estado': estado_sus.estado_de(sus),
+                    'detail': estado_sus.mensaje_sin_acceso(sus),
+                },
+                status=402,
+            )
+        except Exception:
+            # Ante un error inesperado no bloquear (mismo criterio que el login)
+            return None

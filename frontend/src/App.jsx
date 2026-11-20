@@ -57,6 +57,9 @@ const GestionUsuarios = lazy(() => import('./pages/GestionUsuarios'));
 const GestionRoles    = lazy(() => import('./pages/GestionRoles'));
 const Backups         = lazy(() => import('./pages/Backups'));
 
+// Panel de Control (back-office de los dueños del SaaS): chunk aparte, auth propia
+const PanelApp        = lazy(() => import('./panel/PanelApp'));
+
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
     <div className="spinner" />
@@ -110,6 +113,9 @@ const AppContent = () => {
               <Route path="roles"         element={<ProtectedRoute allowedRoles={['GERENTE']}><GestionRoles /></ProtectedRoute>} />
               <Route path="backups"       element={<ProtectedRoute allowedRoles={['GERENTE']}><Backups /></ProtectedRoute>} />
             </Route>
+
+            {/* ── Panel de Control (solo administradores de la plataforma) ── */}
+            <Route path="/panel/*"          element={<PanelApp />} />
 
             {/* Fallback */}
             <Route path="*" element={<Landing view="planes" />} />

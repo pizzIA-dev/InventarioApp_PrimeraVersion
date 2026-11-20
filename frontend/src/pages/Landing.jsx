@@ -45,6 +45,15 @@ export default function Landing({ view }) {
   const { platformLogin, accessTenant, colaboradorLogin, tenantLookup } = useContext(AuthContext);
   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+  // Aviso cuando la app cerró la sesión porque la suscripción del negocio está inactiva (402)
+  useEffect(() => {
+    const aviso = sessionStorage.getItem('suscripcion_inactiva_msg');
+    if (aviso) {
+      sessionStorage.removeItem('suscripcion_inactiva_msg');
+      message.error({ content: aviso, duration: 10 });
+    }
+  }, []);
+
   useEffect(() => {
     fetch('https://get.geojs.io/v1/ip/country.json')
       .then(r => r.json()).then(d => setCurrency(d.country === 'PE' ? 'PEN' : 'USD'))

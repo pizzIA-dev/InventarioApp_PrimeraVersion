@@ -35,6 +35,18 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Suscripción suspendida o vencida: el backend bloquea todo el negocio (402).
+    if (error.response?.status === 402 && error.response.data?.code === 'SUSCRIPCION_INACTIVA') {
+      ['access_token', 'refresh_token', 'user_data'].forEach((k) => {
+        localStorage.removeItem(k); sessionStorage.removeItem(k);
+      });
+      sessionStorage.setItem('suscripcion_inactiva_msg', error.response.data.detail || 'La suscripción de este negocio no está activa.');
+      window.dispatchEvent(new Event('auth:logout'));
+      if (window.location.pathname !== '/acceder') {
+        setTimeout(() => { window.location.href = '/acceder'; }, 100);
+      }
+      return Promise.reject(error);
+    }
     if (error.response && error.response.status === 401) {
       // Redirigir al login cuando el token expira
       const alreadyOnLogin = window.location.pathname.includes('/login') || window.location.pathname === '/planes';

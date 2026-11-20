@@ -4,7 +4,7 @@ Se accede via: /t/{schema}/api/<path>
 El middleware TenantFromPathMiddleware activa el schema correcto antes de resolver estas URLs.
 """
 from django.urls import path, include
-from rest_framework_simplejwt.views import TokenRefreshView
+from apps.core.auth_views import SchemaBoundTokenRefreshView
 from rest_framework.routers import DefaultRouter
 
 from apps.core.auth_views import (
@@ -24,7 +24,7 @@ router.register(r'roles', RolPersonalizadoViewSet, basename='roles_custom')
 urlpatterns = [
     # Auth
     path('auth/login/',                                  CustomTokenObtainPairView.as_view(), name='t_login'),
-    path('auth/refresh/',                                TokenRefreshView.as_view(),           name='t_refresh'),
+    path('auth/refresh/',                                SchemaBoundTokenRefreshView.as_view(), name='t_refresh'),
     path('auth/logout/',                                 logout_view,                          name='t_logout'),
     path('auth/forgot-password/',                        forgot_password,                      name='t_forgot'),
     path('auth/reset-password/<str:uid>/<str:token>/',   reset_password_confirm,               name='t_reset'),

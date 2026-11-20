@@ -160,9 +160,10 @@ const Login = () => {
 
     const result = await colaboradorLogin(
       colabTenant.schema,
-      values.username.trim(, false, colabTenant?.codigo_acceso),
+      values.username.trim(),
       values.password,
-      !!values.remember
+      !!values.remember,
+      colabTenant?.codigo_acceso
     );
 
     if (result.success) {
